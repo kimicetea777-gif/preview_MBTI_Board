@@ -1,0 +1,39 @@
+# Environment
+.env
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+out/
+
+# VS Code
+.vscode/
+
+# Compiled
+*.class
+*.jar
+*.war
+
+# Logs
+*.log
+logs/
+
+# Node (frontend)
+node_modules/
+dist/
+.next/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Custom
+/.설계/
