@@ -112,6 +112,14 @@ private Instant updatedAt;
 
 ---
 
+## DB 마이그레이션 컨벤션 (Flyway)
+
+- FK 제약은 반드시 제약명을 명시해서 작성
+
+  ```sql
+  CONSTRAINT fk_posts_user_id FOREIGN KEY (user_id) REFERENCES users(id)
+  ```
+
 ---
 
 ## 비즈니스 규칙
