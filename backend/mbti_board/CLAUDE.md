@@ -148,3 +148,40 @@ private Instant updatedAt;
 
 - 회원 탈퇴 시 게시글/댓글 작성자 정보는 `NULL`로 SET — 콘텐츠는 보존
 - 게시글 삭제 시 연결된 투표/토론 메타, 댓글 전체 CASCADE 삭제
+
+### 주석 및 문서화 규칙
+
+- **메소드/클래스 생성**: 새로운 클래스나 메소드를 만들 때는 JavaDoc 또는 라인 주석을 사용하여 `[역할]`과 작업 시 `[주의사항]`을 명시해야 합니다.
+- **API 메소드 (Controller)**: 모든 API 컨트롤러 메소드에는 `@Operation`, `@ApiResponse` 등의 OpenAPI 어노테이션을 필수적으로 붙여 엔드포인트의 목적과 명세를 설명하세요.
+
+### 코드 예시 (Example)
+
+- **API 컨트롤러 구현 예시**:
+  ```java
+  /**
+   * 유저 정보를 처리하는 컨트롤러
+   * 주의: 보안 관련 필터 거친 후 호출되어야 함
+   */
+  @Operation(summary = "유저 프로필 조회", description = "유저 ID를 기반으로 프로필 상세 정보를 조회합니다.")
+  @GetMapping("/api/users/{id}")
+  public ResponseEntity<UserResponse> getUserProfile(@PathVariable Long id) {
+      // ...
+  }
+  ```
+
+### Code Style Additional Rules
+
+- **Immutability**: 변경 가능성이 없는 변수는 반드시 `final`(또는 `const`)로 선언하세요.
+- **Asynchronous/Concurrent**: 비동기 처리나 대용량 트래픽 처리가 필요한 로직에서는 성능 병목이 생기지 않도록 논블로킹(Non-blocking) 방식이나 가벼운 스레드/태스크 모델을 우선 고려하세요.
+- **Naming**: 클래스는 `PascalCase`, 메소드와 변수는 `camelCase`, 상수는 `UPPER_SNAKE_CASE`를 준수하세요.
+
+### Build and Test Commands
+
+- **Build**: `./gradlew clean build -x test` (또는 `npm run build`)
+- **Test**: `./gradlew test` (또는 `npm test`)
+- **Run**: `./gradlew bootRun` (또는 `npm run dev`)
+
+### Error Handling & Response Format
+
+- **Common Response**: 모든 API 응답은 프로젝트의 공통 응답 포맷(예: `ApiResponse<T>`)으로 감싸서 반환해야 합니다.
+- **Exception Handling**: 예외가 발생할 경우 컨트롤러에서 `try-catch`로 대충 처리하지 말고, 전역 예외 처리기(`@ControllerAdvice` 또는 공통 미들웨어)를 활용하도록 커스텀 예외를 던지세요.

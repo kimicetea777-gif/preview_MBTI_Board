@@ -25,12 +25,13 @@ import java.time.Instant;
 @Table(name = "vote_posts")
 public class VotePost {
 
+    // posts.id를 PK로 공유
     @Id
     @Column(name = "id")
     private Long id;
 
     @Column(name = "ends_at")
-    private Instant endsAt;
+    private Instant endsAt; // NULL이면 무기한 투표
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -45,3 +46,4 @@ public class VotePost {
 
 
 }
+

@@ -20,7 +20,7 @@ out/
 *.jar
 *.war
 
-# Logs
+# Logsks
 *.log
 logs/
 

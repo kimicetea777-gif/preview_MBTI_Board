@@ -21,14 +21,14 @@ import java.time.Instant;
 public class MbtiMetadata {
 
     @Id
-    @Column(name = "id")
-    private String id;
+    @Column(name = "id", length = 6)
+    private String id; // INTP, INFP-A
 
     @Column(name = "icon_url")
     private String iconUrl;
 
-    @Column(name = "color_code", nullable = false)
-    private String colorCode;
+    @Column(name = "color_code", nullable = false, length = 7)
+    private String colorCode; // #4A90E2 (Hex Code)
 
     @Column(name = "description", nullable = false)
     private String description;

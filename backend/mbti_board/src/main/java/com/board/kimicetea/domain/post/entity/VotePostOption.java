@@ -29,7 +29,7 @@ public class VotePostOption {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "option_text", nullable = false)
+    @Column(name = "option_text", nullable = false, length = 100)
     private String optionText;
 
     @Builder.Default

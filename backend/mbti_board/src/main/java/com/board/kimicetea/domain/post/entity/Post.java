@@ -36,7 +36,7 @@ public class Post {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "title", nullable = false)
+    @Column(name = "title", nullable = false, length = 150)
     private String title;
 
     @JdbcTypeCode(SqlTypes.JSON)

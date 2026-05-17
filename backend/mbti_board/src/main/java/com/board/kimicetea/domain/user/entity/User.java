@@ -54,7 +54,7 @@ public class User {
     @Column(name = "profile_image_url")
     private String profileImageUrl;
 
-    @Column(name = "nickname", unique = true, nullable = false)
+    @Column(name = "nickname", unique = true, nullable = false, length = 50)
     private String nickname;
 
     @Enumerated(EnumType.STRING)
@@ -92,16 +92,16 @@ public class User {
         this.lastLoginAt = Instant.now();
     }
 
-    public void changeState(UserState state) {
+    public void changeState(final UserState state) {
         this.state = state;
     }
 
-    public void changeMbti(MbtiMetadata mbti, MbtiVerified mbtiVerified) {
+    public void changeMbti(final MbtiMetadata mbti, final MbtiVerified mbtiVerified) {
         this.mbti = mbti;
         this.mbtiVerified = mbtiVerified;
     }
 
-    public void changeNickname(String nickname) {
+    public void changeNickname(final String nickname) {
         this.nickname = nickname;
     }
 }

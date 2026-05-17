@@ -1,0 +1,18 @@
+jwt:
+  secret: test-secret-key-must-be-at-least-32-characters-long
+  access-expiry: 1800000
+  refresh-expiry: 604800000
+
+frontend:
+  url: http://localhost:3000
+
+app:
+  cookie:
+    secure: false
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true

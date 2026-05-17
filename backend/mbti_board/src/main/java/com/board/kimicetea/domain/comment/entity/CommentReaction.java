@@ -34,7 +34,7 @@ public class CommentReaction {
     private Long id;
 
     @Column(name = "reaction_type", nullable = false)
-    private Short reactionType;
+    private Short reactionType; // 'LIKE': 1, 'DISLIKE': -1
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

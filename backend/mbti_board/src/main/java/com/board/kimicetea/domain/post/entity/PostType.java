@@ -24,10 +24,10 @@ public class PostType {
     @Column(name = "id")
     private Short id;
 
-    @Column(name = "code", unique = true, nullable = false)
+    @Column(name = "code", unique = true, nullable = false, length = 20)
     private String code;
 
-    @Column(name = "display_name", nullable = false)
+    @Column(name = "display_name", nullable = false, length = 30)
     private String displayName;
 
     @Column(name = "description")
