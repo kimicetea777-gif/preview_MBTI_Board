@@ -7,6 +7,7 @@ plugins {
 group = 'com.board'
 version = '0.0.1-SNAPSHOT'
 
+
 java {
 	toolchain {
 		languageVersion = JavaLanguageVersion.of(21)
@@ -18,6 +19,8 @@ repositories {
 }
 
 dependencies {
+	testImplementation enforcedPlatform('org.testcontainers:testcontainers-bom:1.21.4')
+	
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
 	testImplementation 'org.testcontainers:junit-jupiter'
@@ -78,6 +81,10 @@ tasks.named('bootRun') {
 			}
 		}
 	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
 }
 
 tasks.named('test') {

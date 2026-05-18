@@ -106,13 +106,19 @@ public class AuthService {
 
         final String stored = tokenRedisService.getRefreshToken(userId, deviceId);
 
-        // Reuse Detection: Redis에 없는 RT로 재발급 요청 → 해당 userId 전체 RT 폐기
+        // // Reuse Detection: 저장된 RT가 없거나 불일치 → 토큰 탈취 의심, 전체 기기 강제 로그아웃
+        // if (stored == null || !stored.equals(oldRefreshToken)) {
+        // tokenRedisService.deleteAllRefreshTokens(userId);
+        // throw new CustomException(ErrorCode.REUSE_DETECTED);
+        // }
+
         if (stored == null) {
+            throw new CustomException(ErrorCode.EXPIRED_TOKEN);
+        }
+
+        if (!stored.equals(oldRefreshToken)) {
             tokenRedisService.deleteAllRefreshTokens(userId);
             throw new CustomException(ErrorCode.REUSE_DETECTED);
-        }
-        if (!stored.equals(oldRefreshToken)) {
-            throw new CustomException(ErrorCode.REFRESH_TOKEN_MISMATCH);
         }
 
         final User user = userRepository.findById(UUID.fromString(userId))

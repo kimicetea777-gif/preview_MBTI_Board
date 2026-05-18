@@ -2,13 +2,13 @@
 
 ## 도구
 
-| 도구 | 용도 |
-|---|---|
-| Swagger UI `http://localhost:8080/swagger-ui/index.html` | 로컬 인증 API 수동 테스트 |
-| Postman | RT Cookie 포함 요청 (reissue) — Swagger는 Cookie 자동 전송 불가 |
-| 브라우저 | OAuth 흐름 테스트 (쿠키 자동 전송) |
-| Redis CLI `redis-cli` | Redis 키 상태 직접 확인 |
-| MockMvc + `@SpringBootTest` | 자동화 통합 테스트 |
+| 도구                                                     | 용도                                                            |
+| -------------------------------------------------------- | --------------------------------------------------------------- |
+| Swagger UI `http://localhost:8080/swagger-ui/index.html` | 로컬 인증 API 수동 테스트                                       |
+| Postman                                                  | RT Cookie 포함 요청 (reissue) — Swagger는 Cookie 자동 전송 불가 |
+| 브라우저                                                 | OAuth 흐름 테스트 (쿠키 자동 전송)                              |
+| Redis CLI `redis-cli`                                    | Redis 키 상태 직접 확인                                         |
+| MockMvc + `@SpringBootTest`                              | 자동화 통합 테스트                                              |
 
 > **Swagger 주의**: RT Cookie가 필요한 `/reissue`는 Swagger 테스트 불가. Postman 사용.
 
@@ -265,10 +265,10 @@ UPDATE users SET state = 'WITHDRAWN'     WHERE email = 'test@example.com';
 UPDATE users SET state = 'PERMANENT_BAN' WHERE email = 'test@example.com';
 ```
 
-| state | 기대 메시지 |
-|---|---|
-| `LOCKED` | `"계정이 잠겨 있습니다."` |
-| `WITHDRAWN` | `"탈퇴 처리된 계정입니다."` |
+| state           | 기대 메시지                 |
+| --------------- | --------------------------- |
+| `LOCKED`        | `"계정이 잠겨 있습니다."`   |
+| `WITHDRAWN`     | `"탈퇴 처리된 계정입니다."` |
 | `PERMANENT_BAN` | `"영구 정지된 계정입니다."` |
 
 - 테스트 후 `NORMAL`로 복구
@@ -276,7 +276,12 @@ UPDATE users SET state = 'PERMANENT_BAN' WHERE email = 'test@example.com';
 **7-3. 유효하지 않은 MBTI ID로 회원가입**
 
 ```json
-{ "email": "test2@example.com", "password": "password123!", "nickname": "테스터2", "mbtiId": "INVALID" }
+{
+  "email": "test2@example.com",
+  "password": "password123!",
+  "nickname": "테스터2",
+  "mbtiId": "INVALID"
+}
 ```
 
 - 기대 응답: `404 Not Found`
