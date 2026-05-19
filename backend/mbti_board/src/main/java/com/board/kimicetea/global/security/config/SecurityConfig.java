@@ -55,9 +55,12 @@ public class SecurityConfig {
                     "/swagger-ui/**",
                     "/v3/api-docs/**"
                 ).permitAll()
+                // /me보다 먼저 선언해야 아래 /api/users/* 패턴이 /me를 가로채지 않음
+                .requestMatchers(HttpMethod.GET, "/api/users/me").authenticated()
                 .requestMatchers(HttpMethod.GET,
                     "/api/posts/**",
-                    "/api/comments/**"
+                    "/api/comments/**",
+                    "/api/users/*"
                 ).permitAll()
                 .anyRequest().authenticated()
             )

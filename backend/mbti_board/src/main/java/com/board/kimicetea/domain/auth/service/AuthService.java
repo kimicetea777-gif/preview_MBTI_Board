@@ -3,13 +3,9 @@ package com.board.kimicetea.domain.auth.service;
 import com.board.kimicetea.domain.auth.dto.LoginRequest;
 import com.board.kimicetea.domain.auth.dto.LoginResponse;
 import com.board.kimicetea.domain.auth.dto.SignupRequest;
-import com.board.kimicetea.domain.mbti.entity.MbtiMetadata;
-import com.board.kimicetea.domain.mbti.repository.MbtiMetadataRepository;
 import com.board.kimicetea.domain.user.entity.User;
-import com.board.kimicetea.domain.user.enums.MbtiVerified;
-import com.board.kimicetea.domain.user.enums.UserRole;
-import com.board.kimicetea.domain.user.enums.UserState;
 import com.board.kimicetea.domain.user.repository.UserRepository;
+import com.board.kimicetea.domain.user.service.UserService;
 import com.board.kimicetea.global.common.exception.CustomException;
 import com.board.kimicetea.global.common.exception.ErrorCode;
 import com.board.kimicetea.global.security.TokenIssuerService;
@@ -30,49 +26,24 @@ import java.util.UUID;
 
 /**
  * 로컬 인증 비즈니스 로직 (회원가입·로그인·재발급·로그아웃)
- * 주의: 로그인 시 socialProvider가 있는 계정은 로컬 로그인 차단 (소셜 전용 계정)
+ * 주의: 유저 생성·닉네임 중복 검증은 UserService에 위임 — AuthService는 토큰 발급/폐기만 담당
  */
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
-    private static final String NONE_MBTI_ID = "NONE";
-
     private final UserRepository userRepository;
-    private final MbtiMetadataRepository mbtiMetadataRepository;
+    private final UserService userService;
     private final JwtProvider jwtProvider;
     private final TokenRedisService tokenRedisService;
     private final PasswordEncoder passwordEncoder;
     private final CookieUtils cookieUtils;
     private final TokenIssuerService tokenIssuerService;
 
+    /** 회원가입 — 유저 생성은 UserService에 위임 */
     @Transactional
     public void signup(final SignupRequest request) {
-        if (userRepository.existsByEmail(request.email())) {
-            throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
-        }
-        if (userRepository.existsByNickname(request.nickname())) {
-            throw new CustomException(ErrorCode.DUPLICATE_NICKNAME);
-        }
-
-        final MbtiMetadata mbti = mbtiMetadataRepository.findById(request.mbtiId())
-                .orElseThrow(() -> new CustomException(ErrorCode.MBTI_NOT_FOUND));
-
-        final MbtiVerified mbtiVerified = NONE_MBTI_ID.equals(request.mbtiId())
-                ? MbtiVerified.DEFAULT
-                : MbtiVerified.SELF;
-
-        final User user = User.builder()
-                .email(request.email())
-                .password(passwordEncoder.encode(request.password()))
-                .nickname(request.nickname())
-                .mbtiVerified(mbtiVerified)
-                .role(UserRole.USER)
-                .state(UserState.NORMAL)
-                .mbti(mbti)
-                .build();
-
-        userRepository.save(user);
+        userService.registerUser(request.email(), request.password(), request.nickname(), request.mbtiId());
     }
 
     @Transactional
@@ -105,12 +76,6 @@ public class AuthService {
         final String deviceId = claims.get("deviceId", String.class);
 
         final String stored = tokenRedisService.getRefreshToken(userId, deviceId);
-
-        // // Reuse Detection: 저장된 RT가 없거나 불일치 → 토큰 탈취 의심, 전체 기기 강제 로그아웃
-        // if (stored == null || !stored.equals(oldRefreshToken)) {
-        // tokenRedisService.deleteAllRefreshTokens(userId);
-        // throw new CustomException(ErrorCode.REUSE_DETECTED);
-        // }
 
         if (stored == null) {
             throw new CustomException(ErrorCode.EXPIRED_TOKEN);
@@ -150,8 +115,7 @@ public class AuthService {
             case PERMANENT_BAN -> throw new CustomException(ErrorCode.ACCOUNT_BANNED);
             case INACTIVE -> throw new CustomException(ErrorCode.ACCOUNT_INACTIVE);
             case WITHDRAWN -> throw new CustomException(ErrorCode.ACCOUNT_WITHDRAWN);
-            default -> {
-                /* NORMAL, PENDING, SHADOW_BANNED 는 통과 */ }
+            default -> { /* NORMAL, PENDING, SHADOW_BANNED 는 통과 */ }
         }
     }
 

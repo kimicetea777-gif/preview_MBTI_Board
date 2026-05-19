@@ -104,4 +104,22 @@ public class User {
     public void changeNickname(final String nickname) {
         this.nickname = nickname;
     }
+
+    public void changeProfileImageUrl(final String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
+    }
+
+    public void changePassword(final String encodedPassword) {
+        this.password = encodedPassword;
+    }
+
+    /** 탈퇴 시 PII 즉시 제거 — email·nickname은 UNIQUE NOT NULL이므로 고유 플레이스홀더로 대체 */
+    public void anonymize() {
+        this.email = "withdrawn_" + this.id + "@deleted.invalid";
+        this.nickname = "withdrawn_" + this.id.toString().substring(0, 8);
+        this.password = null;
+        this.profileImageUrl = null;
+        this.socialProvider = null;
+        this.providerId = null;
+    }
 }

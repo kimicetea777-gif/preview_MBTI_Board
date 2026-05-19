@@ -37,6 +37,14 @@ public class DebatePost {
     @Column(name = "con_label", nullable = false)
     private String conLabel = "반대";
 
+    // DB 트리거가 관리 — JPA 직접 수정 금지
+    @Column(name = "pro_count", nullable = false, insertable = false, updatable = false)
+    private Integer proCount;
+
+    // DB 트리거가 관리 — JPA 직접 수정 금지
+    @Column(name = "con_count", nullable = false, insertable = false, updatable = false)
+    private Integer conCount;
+
     @Column(name = "ends_at")
     private Instant endsAt;
 

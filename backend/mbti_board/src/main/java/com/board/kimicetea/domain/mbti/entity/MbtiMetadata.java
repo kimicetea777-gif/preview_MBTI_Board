@@ -38,4 +38,9 @@ public class MbtiMetadata {
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    /** MBTI 미설정 항목 여부 — MbtiVerified.DEFAULT 결정에 사용 */
+    public boolean isNone() {
+        return "NONE".equals(this.id);
+    }
 }

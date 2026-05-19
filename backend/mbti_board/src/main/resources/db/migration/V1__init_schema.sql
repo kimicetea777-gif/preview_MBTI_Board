@@ -149,6 +149,8 @@ CREATE TABLE debate_posts (
     id BIGINT PRIMARY KEY,
     pro_label VARCHAR(50) DEFAULT '찬성' NOT NULL,
     con_label VARCHAR(50) DEFAULT '반대' NOT NULL,
+    pro_count INT DEFAULT 0 NOT NULL,
+    con_count INT DEFAULT 0 NOT NULL,
     ends_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     CONSTRAINT fk_debate_posts_posts FOREIGN KEY (id) REFERENCES posts (id) ON DELETE CASCADE
@@ -279,6 +281,36 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_vote_history
 AFTER INSERT OR UPDATE OF option_id OR DELETE ON vote_posts_history
 FOR EACH ROW EXECUTE FUNCTION sync_vote_count();
+
+CREATE OR REPLACE FUNCTION update_debate_stance_count()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' AND NEW.debate_stance IS NOT NULL THEN
+        IF NEW.debate_stance = 1 THEN
+            UPDATE debate_posts SET pro_count = pro_count + 1 WHERE id = NEW.post_id;
+        ELSE
+            UPDATE debate_posts SET con_count = con_count + 1 WHERE id = NEW.post_id;
+        END IF;
+    ELSIF TG_OP = 'DELETE' AND OLD.debate_stance IS NOT NULL THEN
+        IF OLD.debate_stance = 1 THEN
+            UPDATE debate_posts SET pro_count = pro_count - 1 WHERE id = OLD.post_id;
+        ELSE
+            UPDATE debate_posts SET con_count = con_count - 1 WHERE id = OLD.post_id;
+        END IF;
+    ELSIF TG_OP = 'UPDATE' AND NEW.is_visible IS DISTINCT FROM OLD.is_visible AND NEW.debate_stance IS NOT NULL THEN
+        IF NEW.debate_stance = 1 THEN
+            UPDATE debate_posts SET pro_count = pro_count + (CASE WHEN NEW.is_visible THEN 1 ELSE -1 END) WHERE id = NEW.post_id;
+        ELSE
+            UPDATE debate_posts SET con_count = con_count + (CASE WHEN NEW.is_visible THEN 1 ELSE -1 END) WHERE id = NEW.post_id;
+        END IF;
+    END IF; 
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_debate_stance_count
+AFTER INSERT OR UPDATE OF is_visible OR DELETE ON comments
+FOR EACH ROW EXECUTE FUNCTION update_debate_stance_count();
 
 -- ===================================================
 -- 5. Indexes

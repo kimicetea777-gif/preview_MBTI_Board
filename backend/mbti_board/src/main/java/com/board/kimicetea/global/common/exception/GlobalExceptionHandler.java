@@ -2,6 +2,8 @@ package com.board.kimicetea.global.common.exception;
 
 import com.board.kimicetea.global.common.response.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -26,6 +28,15 @@ public class GlobalExceptionHandler {
                 .findFirst()
                 .orElse("입력값이 올바르지 않습니다.");
         return ResponseEntity.badRequest().body(ApiResponse.fail(message));
+    }
+
+    // 동시 요청으로 인한 DB UNIQUE 제약 위반 — 409로 매핑
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolation(final DataIntegrityViolationException e) {
+        log.warn("DataIntegrityViolation: {}", e.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiResponse.fail("이미 사용 중 입니다."));
     }
 
     @ExceptionHandler(Exception.class)
