@@ -15,6 +15,8 @@ import com.board.kimicetea.global.security.oauth2.userinfo.OAuth2UserInfo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,7 +50,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         return switch (provider.toLowerCase()) {
             case "google" -> new GoogleOAuth2UserInfo(attributes);
             case "kakao"  -> new KakaoOAuth2UserInfo(attributes);
-            default -> throw new CustomException(ErrorCode.UNSUPPORTED_PROVIDER);
+            default -> throw new OAuth2AuthenticationException(new OAuth2Error("UNSUPPORTED_PROVIDER"));
         };
     }
 
@@ -61,7 +63,11 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     private User createUser(final String provider, final OAuth2UserInfo userInfo) {
         // 이메일 미동의 또는 제공 불가 시 가입 차단 — users.email NOT NULL 제약 보호
         if (userInfo.getEmail() == null || userInfo.getEmail().isBlank()) {
-            throw new CustomException(ErrorCode.OAUTH2_EMAIL_REQUIRED);
+            throw new OAuth2AuthenticationException(new OAuth2Error("OAUTH2_EMAIL_REQUIRED"));
+        }
+        // 같은 이메일로 이미 로컬 계정이 존재하면 소셜 가입 차단
+        if (userRepository.existsByEmail(userInfo.getEmail())) {
+            throw new OAuth2AuthenticationException(new OAuth2Error("DUPLICATE_EMAIL"));
         }
 
         final MbtiMetadata defaultMbti = mbtiMetadataRepository.findById(DEFAULT_MBTI_ID)

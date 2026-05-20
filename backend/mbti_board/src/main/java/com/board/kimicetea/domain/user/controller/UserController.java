@@ -4,6 +4,7 @@ import com.board.kimicetea.domain.user.dto.ChangePasswordRequest;
 import com.board.kimicetea.domain.user.dto.MyProfileResponse;
 import com.board.kimicetea.domain.user.dto.UpdateProfileRequest;
 import com.board.kimicetea.domain.user.dto.UserProfileResponse;
+import com.board.kimicetea.domain.user.dto.WithdrawalRequest;
 import com.board.kimicetea.domain.user.security.CustomUserDetails;
 import com.board.kimicetea.domain.user.service.UserService;
 import com.board.kimicetea.global.common.response.ApiResponse;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -87,21 +89,40 @@ public class UserController {
     }
 
     /**
-     * 회원 탈퇴 — 계정 상태를 WITHDRAWN으로 변경
+     * 탈퇴 OTP 발송 — 가입된 이메일로 6자리 인증 코드 전송 (유효 시간 3분)
      */
-    @Operation(summary = "회원 탈퇴", description = "계정 상태를 WITHDRAWN으로 변경합니다. 게시글·댓글은 보존됩니다.")
+    @Operation(summary = "탈퇴 인증 코드 발송", description = "가입 이메일로 6자리 OTP를 발송합니다. 3분 이내에 탈퇴 요청에 포함해야 합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "인증 코드 발송 완료"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
+    })
+    @PostMapping("/me/withdrawal-verify")
+    public ResponseEntity<ApiResponse<Void>> sendWithdrawalOtp(
+            @AuthenticationPrincipal final CustomUserDetails userDetails) {
+
+        userService.sendWithdrawalOtp(userDetails.userId());
+        return ResponseEntity.ok(ApiResponse.ok("인증 코드가 발송되었습니다."));
+    }
+
+    /**
+     * 회원 탈퇴 — OTP 검증 후 계정 상태를 WITHDRAWN으로 변경
+     * 주의: 탈퇴 전 /me/withdrawal-verify 로 OTP를 먼저 발급받아야 함
+     */
+    @Operation(summary = "회원 탈퇴", description = "OTP 인증 후 계정 상태를 WITHDRAWN으로 변경합니다. 게시글·댓글은 보존됩니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "탈퇴 처리 완료"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "인증 코드 불일치 또는 만료"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
     })
     @DeleteMapping("/me")
     public ResponseEntity<ApiResponse<Void>> withdraw(
             @RequestHeader("Authorization") final String bearerToken,
             @AuthenticationPrincipal final CustomUserDetails userDetails,
+            @Valid @RequestBody final WithdrawalRequest request,
             final HttpServletResponse response) {
 
         final String accessToken = bearerToken.substring("Bearer ".length());
-        userService.withdraw(userDetails.userId(), accessToken);
+        userService.withdraw(userDetails.userId(), accessToken, request.code());
         cookieUtils.clearRefreshTokenCookie(response);
         return ResponseEntity.ok(ApiResponse.ok("탈퇴 처리가 완료되었습니다."));
     }

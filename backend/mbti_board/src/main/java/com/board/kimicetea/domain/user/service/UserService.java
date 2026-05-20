@@ -13,6 +13,7 @@ import com.board.kimicetea.domain.user.enums.UserState;
 import com.board.kimicetea.domain.user.repository.UserRepository;
 import com.board.kimicetea.global.common.exception.CustomException;
 import com.board.kimicetea.global.common.exception.ErrorCode;
+import com.board.kimicetea.global.mail.EmailService;
 import com.board.kimicetea.global.security.jwt.JwtProvider;
 import com.board.kimicetea.global.security.redis.TokenRedisService;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.util.UUID;
 
 /**
@@ -35,6 +37,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final TokenRedisService tokenRedisService;
     private final JwtProvider jwtProvider;
+    private final EmailService emailService;
 
     /** 회원가입 — AuthService에서 위임받아 유저 엔티티 생성 */
     @Transactional
@@ -95,11 +98,43 @@ public class UserService {
     }
 
     /**
-     * 회원 탈퇴 — 상태 WITHDRAWN 변경 + PII 즉시 익명화 + 전체 기기 토큰 무효화
+     * 탈퇴 OTP 발송 — 6자리 코드를 생성해 Redis(WD:{userId}, TTL 3분)에 저장 후 이메일 발송
+     */
+    public void sendWithdrawalOtp(final UUID userId) {
+        final User user = findUserOrThrow(userId);
+        final String otp = generateOtp();
+        tokenRedisService.saveWithdrawalOtp(userId.toString(), otp);
+        emailService.sendWithdrawalOtp(user.getEmail(), otp);
+    }
+
+    /** 6자리 숫자 OTP 생성 — SecureRandom 사용으로 예측 불가 */
+    private String generateOtp() {
+        return String.format("%06d", new SecureRandom().nextInt(1_000_000));
+    }
+
+    /**
+     * 회원 탈퇴 — OTP 검증 후 상태 WITHDRAWN 변경 + PII 즉시 익명화 + 전체 기기 토큰 무효화
      * 주의: AT 블랙리스트·RT 삭제는 @Transactional 외부에서 실행 (Redis는 JPA 트랜잭션 미참여)
      */
     @Transactional
-    public void withdraw(final UUID userId, final String accessToken) {
+    public void withdraw(final UUID userId, final String accessToken, final String otpCode) {
+        final String savedOtp = tokenRedisService.getWithdrawalOtp(userId.toString());
+        if (savedOtp == null) {
+            throw new CustomException(ErrorCode.WITHDRAWAL_OTP_EXPIRED);
+        }
+
+        if (!savedOtp.equals(otpCode)) {
+            // 오답 횟수 누적 — 3회 초과 시 OTP·카운터 모두 삭제
+            final int attempts = tokenRedisService.incrementWithdrawalOtpAttempts(userId.toString());
+            if (attempts >= TokenRedisService.WITHDRAWAL_OTP_MAX_ATTEMPTS) {
+                tokenRedisService.deleteWithdrawalOtp(userId.toString());
+                throw new CustomException(ErrorCode.WITHDRAWAL_OTP_MAX_ATTEMPTS);
+            }
+            throw new CustomException(ErrorCode.WITHDRAWAL_OTP_INVALID);
+        }
+
+        tokenRedisService.deleteWithdrawalOtp(userId.toString());
+
         final User user = findUserOrThrow(userId);
         user.changeState(UserState.WITHDRAWN);
         user.anonymize();

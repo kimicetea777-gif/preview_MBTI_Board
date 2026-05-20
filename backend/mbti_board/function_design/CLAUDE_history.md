@@ -141,3 +141,11 @@
 - `MbtiMetadata.isNone()` — NONE ID 체크를 엔티티 책임으로 캡슐화
 - 탈퇴 시 `anonymize()` 즉시 호출 — email·nickname은 UUID 기반 플레이스홀더로 UNIQUE 유지, 나머지 PII null 처리
 - 탈퇴 시 전체 기기 RT 삭제 + 현재 AT 블랙리스트 등록으로 즉시 무효화
+
+---
+
+### Phase 2 — Auth 이메일 인증 + 보안 강화
+
+- 회원가입 이메일 인증 추가 — `POST /api/auth/email-verify/send·confirm`, Redis `EV:TOKEN·EV:DONE` 키로 DB PENDING 상태 없이 Pre-signup 인증 처리
+- 탈퇴 OTP 3회 제한 — `WD:CNT:{userId}` 카운터 키 추가, 3회 오답 시 OTP 폐기; `TokenRedisService`를 `StringRedisTemplate`으로 변경(INCR 호환), `generateOtp()` 분리
+- JWT `jti` 추가 — AT·RT 모두 `UUID.randomUUID()` 기반 `jti` 클레임 추가로 동일 초 내 토큰 중복 생성 방지 (RT Reuse Detection 테스트 실패 원인 수정)

@@ -5,7 +5,9 @@ export const MBTI_VERIFIED_COLOR: Record<MbtiVerified, string> = {
   SELF: "#7DB27A",
   DEFAULT: "#A8A29E",
 };
+
 export type UserRole = "ADMIN" | "TESTER" | "USER" | "GUEST";
+
 export type UserState =
   | "NORMAL"
   | "PENDING"
@@ -31,4 +33,19 @@ export interface UpdateUserRequest {
   nickname?: string;
   profileImageUrl?: string | null;
   mbtiId?: string;
+}
+
+export interface MyProfileResponse {
+  id: string;
+  email: string;
+  nickname: string;
+  profileImageUrl: string | null;
+  mbtiId: string;
+  mbtiColorCode: string;
+  mbtiVerified: MbtiVerified;
+  mbtiVerifiedColorCode: string;
+  role: UserRole;
+  state: UserState;
+  isSocialOnly: boolean;
+  createdAt: string;
 }

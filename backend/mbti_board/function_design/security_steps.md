@@ -6,6 +6,11 @@
   메모리(JS 변수)에 저장 — XSS 탈취 방어 (localStorage는 XSS에 취약하므로 비권장)
   TTL: 30분
 
+- **session 힌트 쿠키** (프론트엔드 전용):
+  `session=1` — 민감 정보 없는 미들웨어용 플래그. Next.js 미들웨어가 RT(localhost:8080)를 읽을 수 없는 cross-origin 구조에서 보호 경로 접근 여부를 판단하기 위해 프론트 도메인(localhost:3000)에 따로 관리.
+  AT가 설정될 때 함께 설정, AT가 null이 될 때 함께 만료.
+  TTL: 7일 (RT와 동일) / 보안 경계가 아님 — 실제 인증은 백엔드 API가 담당
+
 - **Refresh Token**:
   HttpOnly Cookie에 저장 (클라이언트)
   Redis에 저장 (서버)
@@ -111,12 +116,14 @@
 **증상**: Kakao 사용자가 이메일 동의를 거부하면 `getEmail()`이 null 반환.  
 `User.email`은 `NOT NULL` 컬럼이므로 null 그대로 저장 시도 → `DataIntegrityViolationException`으로 의미 없는 500 발생.
 
-**규칙**: OAuth2 속성을 Entity에 저장하기 전 반드시 null 검증 후 `CustomException` throw.
+**규칙**: OAuth2 `loadUser`에서 발생하는 사용자 대면 예외는 반드시 `OAuth2AuthenticationException`으로 throw. `CustomException(RuntimeException)`은 Spring Security failure handler에 잡히지 않아 백엔드 에러 페이지로 노출됨.
 
 ```java
-if (userInfo.getEmail() == null || userInfo.getEmail().isBlank()) {
-    throw new CustomException(ErrorCode.OAUTH2_EMAIL_REQUIRED);
-}
+// 나쁜 예 — failure handler 미도달
+throw new CustomException(ErrorCode.OAUTH2_EMAIL_REQUIRED);
+
+// 올바른 예 — failure handler → 프론트 /oauth2/callback?error=OAUTH2_EMAIL_REQUIRED 리다이렉트
+throw new OAuth2AuthenticationException(new OAuth2Error("OAUTH2_EMAIL_REQUIRED"));
 ```
 
 ---

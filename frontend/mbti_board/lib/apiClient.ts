@@ -7,7 +7,7 @@ import { ROUTES } from "@/lib/routes";
 import { API } from "@/lib/apiEndpoints";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
-const REFRESH_URL = `${BASE_URL}${API.auth.refresh}`;
+const REFRESH_URL = `${BASE_URL}${API.auth.reissue}`;
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,
@@ -54,7 +54,7 @@ apiClient.interceptors.response.use(
         useAuthStore.getState().setAccessToken(null);
         broadcastLogout();
 
-        if (typeof window !== "undefined") {
+        if (typeof window !== "undefined" && window.location.pathname !== ROUTES.login) {
           window.location.href = ROUTES.login;
         }
       }

@@ -1,8 +1,11 @@
 package com.board.kimicetea.domain.auth.service;
 
+import com.board.kimicetea.domain.auth.dto.EmailVerifyConfirmRequest;
+import com.board.kimicetea.domain.auth.dto.EmailVerifySendRequest;
 import com.board.kimicetea.domain.auth.dto.LoginRequest;
 import com.board.kimicetea.domain.auth.dto.LoginResponse;
 import com.board.kimicetea.domain.auth.dto.SignupRequest;
+import com.board.kimicetea.global.mail.EmailService;
 import com.board.kimicetea.domain.user.entity.User;
 import com.board.kimicetea.domain.user.repository.UserRepository;
 import com.board.kimicetea.domain.user.service.UserService;
@@ -17,6 +20,7 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,11 +43,51 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final CookieUtils cookieUtils;
     private final TokenIssuerService tokenIssuerService;
+    private final EmailService emailService;
 
-    /** 회원가입 — 유저 생성은 UserService에 위임 */
+    @Value("${frontend.url}")
+    private String frontendUrl;
+
+    /**
+     * 이메일 인증 링크 발송 — Key: EV:TOKEN:{uuid}=email (10분)
+     * 주의: 링크는 프론트엔드 /signup/verify?token={uuid} 로 연결되며 프론트가 confirm API 호출
+     * 주의: 이미 가입된 이메일이면 DUPLICATE_EMAIL 예외 발생
+     */
+    public void sendEmailVerification(final EmailVerifySendRequest request) {
+        if (userRepository.existsByEmail(request.email())) {
+            throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
+        }
+        final String token = UUID.randomUUID().toString();
+        tokenRedisService.saveEmailVerifyToken(token, request.email());
+        emailService.sendEmailVerification(request.email(), frontendUrl + "/signup/verify?token=" + token);
+    }
+
+    /**
+     * 이메일 인증 토큰 확인 — 토큰 유효 시 EV:DONE:{email}=1 (30분) 마킹
+     * 주의: 토큰은 1회 사용 후 즉시 삭제 (재사용 방지)
+     * @return 인증된 이메일 주소 (프론트가 회원가입 폼 단계로 이동할 때 사용)
+     */
+    public String confirmEmailVerification(final EmailVerifyConfirmRequest request) {
+        final String email = tokenRedisService.getEmailByVerifyToken(request.token());
+        if (email == null) {
+            throw new CustomException(ErrorCode.EMAIL_VERIFY_TOKEN_INVALID);
+        }
+        tokenRedisService.deleteEmailVerifyToken(request.token());
+        tokenRedisService.markEmailVerified(email);
+        return email;
+    }
+
+    /**
+     * 회원가입 — 이메일 인증 완료 여부 검증 후 UserService에 유저 생성 위임
+     * 주의: 가입 완료 후 EV:DONE 키 즉시 제거 (동일 이메일 중복 가입 방지)
+     */
     @Transactional
     public void signup(final SignupRequest request) {
+        if (!tokenRedisService.isEmailVerified(request.email())) {
+            throw new CustomException(ErrorCode.EMAIL_NOT_VERIFIED);
+        }
         userService.registerUser(request.email(), request.password(), request.nickname(), request.mbtiId());
+        tokenRedisService.clearEmailVerified(request.email());
     }
 
     @Transactional

@@ -35,6 +35,11 @@ spring:
             user-info-uri: https://kapi.kakao.com/v2/user/me
             user-name-attribute: id
 
+  mail:
+    host: localhost
+    port: 25
+    username: test@test.com
+
 jwt:
   secret: test-secret-key-must-be-at-least-32-characters-long
   access-expiry: 1800000

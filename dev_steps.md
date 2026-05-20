@@ -74,20 +74,20 @@ Security & JWT 완료 기준으로 작성. 각 Phase는 이전 Phase에 의존�
 
 ### [Frontend]
 
-#### 1-4. 마이페이지 (`/my`)
+#### 1-4. 마이페이지 (`/my`) <완료>
 
 - 프로필 조회 (`useQuery` — `GET /api/users/me`)
 - 닉네임·MBTI 수정 폼 (`useMutation` — `PATCH /api/users/me`)
 - MBTI 변경 시 `mbti_verified` 뱃지 즉시 반영
 
-#### 1-5. 유저 공개 프로필 (`/users/[id]`)
-
-- 다른 유저 정보 조회
-
-#### 1-6. 로그인 / 회원가입 페이지 (`/login`, `/signup`)
+#### 1-5. 로그인 / 회원가입 페이지 (`/login`, `/signup`) <완료>
 
 - Phase 0에서 만든 axios 인터셉터와 연동
 - 소셜 로그인 버튼 (Google, Kakao)
+
+#### 1-6. 유저 공개 프로필 (`/users/[id]`) <나중에>
+
+- 다른 유저 정보 조회
 
 ---
 

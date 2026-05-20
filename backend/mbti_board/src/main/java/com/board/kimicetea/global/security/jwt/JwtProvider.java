@@ -39,6 +39,7 @@ public class JwtProvider {
             final String role, final String deviceId) {
         final Date now = new Date();
         return Jwts.builder()
+                .id(UUID.randomUUID().toString())
                 .subject(userId.toString())
                 .claim("email", email)
                 .claim("role", role)
@@ -52,6 +53,7 @@ public class JwtProvider {
     public String generateRefreshToken(final UUID userId, final String deviceId) {
         final Date now = new Date();
         return Jwts.builder()
+                .id(UUID.randomUUID().toString())
                 .subject(userId.toString())
                 .claim("deviceId", deviceId)
                 .issuedAt(now)

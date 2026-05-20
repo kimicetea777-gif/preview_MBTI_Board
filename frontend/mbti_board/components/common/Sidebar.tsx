@@ -10,18 +10,25 @@ const BOARD_TABS = [
   { label: "토론 게시판", href: ROUTES.board.debate },
 ] as const;
 
+const MY_TABS = [
+  { label: "프로필", href: ROUTES.my },
+] as const;
+
 export default function Sidebar() {
   const pathname = usePathname();
+  const isMyPage = pathname.startsWith(ROUTES.my);
+  const tabs = isMyPage ? MY_TABS : BOARD_TABS;
+  const sectionLabel = isMyPage ? "마이페이지" : "게시판";
 
   return (
     <aside className="w-48 shrink-0 border-r border-gray-200 bg-white">
       <nav className="p-4">
         <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-          게시판
+          {sectionLabel}
         </p>
         <ul className="space-y-1">
-          {BOARD_TABS.map(({ label, href }) => {
-            const isActive = pathname.startsWith(href);
+          {tabs.map(({ label, href }) => {
+            const isActive = pathname === href || (href !== ROUTES.my && pathname.startsWith(href));
             return (
               <li key={href}>
                 <Link

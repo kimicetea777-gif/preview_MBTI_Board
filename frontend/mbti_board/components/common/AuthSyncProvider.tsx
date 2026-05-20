@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { subscribeAuthChannel } from "@/lib/authChannel";
-import { apiClient } from "@/lib/apiClient";
+import axios from "axios";
 import { ROUTES } from "@/lib/routes";
 import { API } from "@/lib/apiEndpoints";
 
@@ -25,10 +25,12 @@ export default function AuthSyncProvider({ children }: { children: React.ReactNo
     );
 
     // 새 탭 or 새로고침: AT가 없으면 silent refresh 시도
+    // apiClient 대신 axios 직접 사용 — 401 인터셉터 개입 방지
+    const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
     const hasToken = useAuthStore.getState().getAccessToken();
     if (!hasToken) {
-      apiClient
-        .post<{ data: { accessToken: string } }>(API.auth.refresh)
+      axios
+        .post<{ data: { accessToken: string } }>(`${BASE_URL}${API.auth.reissue}`, null, { withCredentials: true })
         .then(({ data }) => setAccessToken(data.data.accessToken))
         .catch(() => {}); // RT 없으면 비로그인 상태로 유지
     }
