@@ -1,6 +1,7 @@
 package com.board.kimicetea.domain.post.repository;
 
 import com.board.kimicetea.domain.post.entity.PostType;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
@@ -10,5 +11,6 @@ import java.util.Optional;
  */
 public interface PostTypeRepository extends JpaRepository<PostType, Short> {
 
+    @Cacheable(value = "postTypes", unless = "#result == null")
     Optional<PostType> findByCode(String code);
 }

@@ -16,6 +16,7 @@
 | `MbtiService` | `domain/mbti/service` | MBTI 목록 조회 비즈니스 로직 (읽기 전용, findAll 위임) |
 | `MbtiController` | `domain/mbti/controller` | MBTI 메타데이터 API 컨트롤러 (GET /api/mbti, 인증 불필요) |
 | `JpaConfig` | `global/config` | QueryDSL JPAQueryFactory 빈 등록 |
+| `CacheConfig` | `global/config` | 인메모리 캐시 설정 — 참조 테이블(postTypes 등) 전용 ConcurrentMapCacheManager |
 | `PostTypeRepository` | `domain/post/repository` | 게시판 유형 조회 레포지토리 (code 기준 단건 조회) |
 | `PostRepositoryCustom` | `domain/post/repository` | 게시글 목록 QueryDSL 커스텀 조회 인터페이스 |
 | `PostRepositoryImpl` | `domain/post/repository` | 게시글 목록 QueryDSL 구현체 (유형·정렬·MBTI 필터 조합) |
@@ -27,3 +28,4 @@
 | `PostDetailResponse` | `domain/post/dto` | 게시글 상세 응답 DTO (content 포함, isOwner·isGuest 포함) |
 | `PostService` | `domain/post/service` | 게시글 도메인 비즈니스 로직 (목록·단건 조회, 작성·수정·삭제, 회원/비회원 분기) |
 | `PostController` | `domain/post/controller` | 게시글 API 컨트롤러 (GET·POST /api/posts, GET·PATCH·DELETE /api/posts/{id}) |
+| `PostSortType` | `domain/post` | 게시글 정렬 기준 Enum (LATEST·VIEWS·COMMENTS) |

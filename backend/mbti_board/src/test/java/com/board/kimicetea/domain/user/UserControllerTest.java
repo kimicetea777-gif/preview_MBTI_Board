@@ -58,13 +58,6 @@ class UserControllerTest extends IntegrationTestSupport {
         @MockBean
         EmailService emailService;
 
-        private static final String SIGNUP_URL = "/api/auth/signup";
-        private static final String LOGIN_URL = "/api/auth/login";
-        private static final String ME_URL = "/api/users/me";
-        private static final String WITHDRAWAL_VERIFY_URL = "/api/users/me/withdrawal-verify";
-        private static final String PASSWORD_URL = "/api/users/me/password";
-        private static final String USER_URL = "/api/users/";
-
         private static final String TEST_EMAIL = "user-test@example.com";
         private static final String TEST_PASSWORD = "password123!";
         private static final String TEST_NICKNAME = "유저테스트";

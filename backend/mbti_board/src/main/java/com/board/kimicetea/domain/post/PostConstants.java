@@ -1,0 +1,9 @@
+package com.board.kimicetea.domain.post;
+
+public final class PostConstants {
+
+    private PostConstants() {}
+
+    /** targetMbti 필터에서 "전체 대상" 을 의미하는 센티넬 값 */
+    public static final String TARGET_ALL = "ALL";
+}

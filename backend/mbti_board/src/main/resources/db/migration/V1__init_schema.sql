@@ -93,6 +93,7 @@ CREATE TABLE posts (
     id BIGSERIAL PRIMARY KEY,
     user_id UUID,
     author_mbti VARCHAR(6) NOT NULL,
+    target_mbti VARCHAR(6),
     type_id SMALLINT NOT NULL,
     title VARCHAR(150) NOT NULL,
     content JSONB NOT NULL,
@@ -104,6 +105,7 @@ CREATE TABLE posts (
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     CONSTRAINT fk_posts_users FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL,
     CONSTRAINT fk_posts_mbti_metadata FOREIGN KEY (author_mbti) REFERENCES mbti_metadata (id) ON DELETE RESTRICT,
+    CONSTRAINT fk_posts_target_mbti FOREIGN KEY (target_mbti) REFERENCES mbti_metadata (id) ON DELETE SET NULL,
     CONSTRAINT fk_posts_post_types FOREIGN KEY (type_id) REFERENCES post_types (id) ON DELETE RESTRICT,
     CONSTRAINT chk_posts_guest_validation CHECK (
         (user_id IS NOT NULL)
@@ -329,6 +331,9 @@ CREATE INDEX idx_posts_view_count ON posts (view_count DESC);
 CREATE INDEX idx_posts_visible ON posts (type_id, created_at DESC)
 WHERE
     is_visible = TRUE;
+
+CREATE INDEX idx_posts_target_mbti ON posts (target_mbti)
+WHERE target_mbti IS NOT NULL;
 
 CREATE INDEX idx_comments_post_id ON comments (post_id);
 

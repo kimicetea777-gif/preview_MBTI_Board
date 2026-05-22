@@ -1,5 +1,6 @@
 package com.board.kimicetea.domain.post.repository;
 
+import com.board.kimicetea.domain.post.PostSortType;
 import com.board.kimicetea.domain.post.entity.Post;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -9,5 +10,5 @@ import org.springframework.data.domain.Pageable;
  */
 public interface PostRepositoryCustom {
 
-    Page<Post> findPosts(String typeCode, String sort, String authorMbti, Pageable pageable);
+    Page<Post> findPosts(String typeCode, PostSortType sort, String authorMbti, String targetMbti, Pageable pageable);
 }

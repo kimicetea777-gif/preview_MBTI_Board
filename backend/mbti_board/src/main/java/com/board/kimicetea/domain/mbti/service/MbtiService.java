@@ -3,6 +3,7 @@ package com.board.kimicetea.domain.mbti.service;
 import com.board.kimicetea.domain.mbti.dto.MbtiResponse;
 import com.board.kimicetea.domain.mbti.repository.MbtiMetadataRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +21,7 @@ public class MbtiService {
     private final MbtiMetadataRepository mbtiMetadataRepository;
 
     /** 전체 MBTI 목록 반환 */
+    @Cacheable("mbtiList")
     public List<MbtiResponse> getAllMbti() {
         return mbtiMetadataRepository.findAll().stream()
                 .map(MbtiResponse::from)

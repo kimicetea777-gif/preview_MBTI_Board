@@ -14,7 +14,9 @@ public record PostUpdateRequest(
         String title,
 
         @NotBlank
+        @Size(max = 50_000)
         String content,
 
+        @Size(min = 4, max = 72)
         String guestPassword
 ) {}

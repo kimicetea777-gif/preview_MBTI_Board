@@ -59,13 +59,6 @@ class AuthControllerTest extends IntegrationTestSupport {
         @Autowired StringRedisTemplate redisTemplate;
         @MockBean  EmailService emailService;
 
-        private static final String SIGNUP_URL              = "/api/auth/signup";
-        private static final String LOGIN_URL               = "/api/auth/login";
-        private static final String LOGOUT_URL              = "/api/auth/logout";
-        private static final String REISSUE_URL             = "/api/auth/reissue";
-        private static final String EMAIL_VERIFY_SEND_URL   = "/api/auth/email-verify/send";
-        private static final String EMAIL_VERIFY_CONFIRM_URL = "/api/auth/email-verify/confirm";
-
         private static final String SOCIAL_EMAIL  = "social-auth-test@example.com";
         private static final String TEST_EMAIL    = "auth-test@example.com";
         private static final String TEST_PASSWORD = "password123!";

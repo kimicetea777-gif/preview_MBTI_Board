@@ -16,6 +16,7 @@ public record PostSummaryResponse(
         String authorMbtiColor,
         String mbtiVerified,
         String mbtiVerifiedColor,
+        String targetMbtiId,
         int viewCount,
         int commentCount,
         Instant createdAt
@@ -30,6 +31,7 @@ public record PostSummaryResponse(
                 post.getAuthorMbti().getColorCode(),
                 hasUser ? post.getUser().getMbtiVerified().name() : MbtiVerified.DEFAULT.name(),
                 hasUser ? post.getUser().getMbtiVerified().getColorCode() : MbtiVerified.DEFAULT.getColorCode(),
+                post.getTargetMbti() != null ? post.getTargetMbti().getId() : null,
                 post.getViewCount(),
                 post.getCommentCount(),
                 post.getCreatedAt()

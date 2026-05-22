@@ -14,10 +14,16 @@ public record PostCreateRequest(
         String title,
 
         @NotBlank
+        @Size(max = 50_000)
         String content,
 
         @NotBlank
         String type,
 
-        String guestPassword
+        // BCrypt 72바이트 한계로 최대 72자 제한
+        @Size(min = 4, max = 72)
+        String guestPassword,
+
+        // null 또는 "ALL" 이면 전체 대상 — 특정 MBTI ID("INFP" 등) 지정 시 해당 MBTI 타겟
+        String targetMbti
 ) {}

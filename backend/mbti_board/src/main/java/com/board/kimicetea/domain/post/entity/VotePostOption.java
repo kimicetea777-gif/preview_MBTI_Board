@@ -37,8 +37,9 @@ public class VotePostOption {
     private Short displayOrder = 0;
 
     // DB 트리거가 관리 — JPA 직접 수정 금지
+    @Builder.Default
     @Column(name = "vote_count", nullable = false, insertable = false, updatable = false)
-    private Integer voteCount;
+    private Integer voteCount = 0;
 
     /*-----------------------------------연관관계-------------------------------------------*/
 

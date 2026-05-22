@@ -1,6 +1,7 @@
 package com.board.kimicetea.global.common.exception;
 
 import com.board.kimicetea.global.common.response.ApiResponse;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -21,10 +22,21 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.fail(e.getMessage()));
     }
 
+    // @Valid DTO객체 @RequestBody 검증 실패
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidationException(final MethodArgumentNotValidException e) {
         final String message = e.getBindingResult().getFieldErrors().stream()
                 .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .findFirst()
+                .orElse("입력값이 올바르지 않습니다.");
+        return ResponseEntity.badRequest().body(ApiResponse.fail(message));
+    }
+
+    // @Validated @RequestParam/@PathVariable 검증 실패
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConstraintViolationException(final ConstraintViolationException e) {
+        final String message = e.getConstraintViolations().stream()
+                .map(v -> v.getPropertyPath() + ": " + v.getMessage())
                 .findFirst()
                 .orElse("입력값이 올바르지 않습니다.");
         return ResponseEntity.badRequest().body(ApiResponse.fail(message));

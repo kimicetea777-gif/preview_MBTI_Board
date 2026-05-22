@@ -2,6 +2,8 @@ package com.board.kimicetea.domain.post.service;
 
 import com.board.kimicetea.domain.mbti.entity.MbtiMetadata;
 import com.board.kimicetea.domain.mbti.repository.MbtiMetadataRepository;
+import com.board.kimicetea.domain.post.PostConstants;
+import com.board.kimicetea.domain.post.PostSortType;
 import com.board.kimicetea.domain.post.dto.PostCreateRequest;
 import com.board.kimicetea.domain.post.dto.PostDeleteRequest;
 import com.board.kimicetea.domain.post.dto.PostDetailResponse;
@@ -42,9 +44,10 @@ public class PostService {
     private final PasswordEncoder passwordEncoder;
 
     @Transactional(readOnly = true)
-    public Page<PostSummaryResponse> getPosts(final String type, final String sort,
-                                              final String authorMbti, final Pageable pageable) {
-        return postRepository.findPosts(type, sort, authorMbti, pageable)
+    public Page<PostSummaryResponse> getPosts(final String type, final PostSortType sort,
+            final String authorMbti, final String targetMbti,
+            final Pageable pageable) {
+        return postRepository.findPosts(type, sort, authorMbti, targetMbti, pageable)
                 .map(PostSummaryResponse::from);
     }
 
@@ -61,7 +64,7 @@ public class PostService {
 
     @Transactional
     public PostDetailResponse createPost(final PostCreateRequest request,
-                                         final CustomUserDetails userDetails) {
+            final CustomUserDetails userDetails) {
         final PostType postType = findPostTypeOrThrow(request.type());
 
         final User user;
@@ -79,31 +82,34 @@ public class PostService {
             authorMbti = findNoneMbtiOrThrow();
         }
 
+        final MbtiMetadata targetMbti = resolveTargetMbti(request.targetMbti());
+
         final Post post = Post.builder()
-                .title(request.title())
+                .title(request.title().strip())
                 .content(request.content())
                 .guestPassword(user == null ? passwordEncoder.encode(request.guestPassword()) : null)
                 .user(user)
                 .authorMbti(authorMbti)
+                .targetMbti(targetMbti)
                 .postType(postType)
                 .build();
 
         final Post saved = postRepository.save(post);
-        return PostDetailResponse.from(saved, userDetails != null ? userDetails.userId() : null);
+        return PostDetailResponse.from(saved, (userDetails != null) ? userDetails.userId() : null);
     }
 
     @Transactional
     public PostDetailResponse updatePost(final Long id, final PostUpdateRequest request,
-                                          final CustomUserDetails userDetails) {
+            final CustomUserDetails userDetails) {
         final Post post = findPostOrThrow(id);
         verifyOwnership(post, userDetails, request.guestPassword());
-        post.update(request.title(), request.content());
+        post.update(request.title().strip(), request.content());
         return PostDetailResponse.from(post, userDetails != null ? userDetails.userId() : null);
     }
 
     @Transactional
     public void deletePost(final Long id, final PostDeleteRequest request,
-                            final CustomUserDetails userDetails) {
+            final CustomUserDetails userDetails) {
         final Post post = findPostOrThrow(id);
         verifyOwnership(post, userDetails, request.guestPassword());
         post.hide();
@@ -116,8 +122,8 @@ public class PostService {
      * - 탈퇴 회원 작성 글(user == null, guestPassword == null): 수정·삭제 불가
      */
     private void verifyOwnership(final Post post, final CustomUserDetails userDetails,
-                                  final String rawGuestPassword) {
-        final boolean isGuestPost = post.getGuestPassword() != null;
+            final String rawGuestPassword) {
+        final boolean isGuestPost = (post.getGuestPassword() != null);
 
         if (isGuestPost) {
             if (rawGuestPassword == null || rawGuestPassword.isBlank()) {
@@ -138,7 +144,6 @@ public class PostService {
 
     private Post findPostOrThrow(final Long id) {
         return postRepository.findWithDetailsById(id)
-                .filter(Post::getIsVisible)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
     }
 
@@ -154,6 +159,15 @@ public class PostService {
 
     private MbtiMetadata findNoneMbtiOrThrow() {
         return mbtiMetadataRepository.findById(NONE_MBTI_ID)
+                .orElseThrow(() -> new CustomException(ErrorCode.MBTI_NOT_FOUND));
+    }
+
+    /** null / "ALL" 이면 타겟 없음(null 반환), 특정 MBTI ID면 조회 후 반환 */
+    private MbtiMetadata resolveTargetMbti(final String targetMbtiId) {
+        if (targetMbtiId == null || targetMbtiId.isBlank() || PostConstants.TARGET_ALL.equals(targetMbtiId)) {
+            return null;
+        }
+        return mbtiMetadataRepository.findById(targetMbtiId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MBTI_NOT_FOUND));
     }
 }

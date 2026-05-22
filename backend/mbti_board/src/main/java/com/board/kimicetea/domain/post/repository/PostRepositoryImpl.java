@@ -1,5 +1,7 @@
 package com.board.kimicetea.domain.post.repository;
 
+import com.board.kimicetea.domain.post.PostConstants;
+import com.board.kimicetea.domain.post.PostSortType;
 import com.board.kimicetea.domain.post.entity.Post;
 import com.board.kimicetea.domain.post.entity.QPost;
 import com.querydsl.core.BooleanBuilder;
@@ -21,8 +23,9 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public Page<Post> findPosts(final String typeCode, final String sort,
-                                final String authorMbti, final Pageable pageable) {
+    public Page<Post> findPosts(final String typeCode, final PostSortType sort,
+            final String authorMbti, final String targetMbti,
+            final Pageable pageable) {
         final QPost post = QPost.post;
         final BooleanBuilder builder = new BooleanBuilder();
 
@@ -33,10 +36,15 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
             builder.and(post.authorMbti.id.eq(authorMbti));
         }
 
+        // "ALL" 이면 전체 조회, 특정 MBTI ID면 해당 타겟만
+        if (!PostConstants.TARGET_ALL.equals(targetMbti)) {
+            builder.and(post.targetMbti.id.eq(targetMbti));
+        }
+
         final OrderSpecifier<?> order = switch (sort) {
-            case "comments" -> post.commentCount.desc();
-            case "views"    -> post.viewCount.desc();
-            default         -> post.createdAt.desc();
+            case VIEWS    -> post.viewCount.desc();
+            case COMMENTS -> post.commentCount.desc();
+            case LATEST   -> post.createdAt.desc();
         };
 
         final List<Post> content = queryFactory
@@ -44,6 +52,7 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
                 .join(post.postType).fetchJoin()
                 .join(post.authorMbti).fetchJoin()
                 .leftJoin(post.user).fetchJoin()
+                .leftJoin(post.targetMbti).fetchJoin()
                 .where(builder)
                 .orderBy(order)
                 .offset(pageable.getOffset())

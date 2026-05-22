@@ -47,12 +47,14 @@ public class Post {
     private String guestPassword;
 
     // PostRepository.increaseViewCount(@Modifying 쿼리)로 원자적 증가 — JPA 직접 수정 금지
+    @Builder.Default
     @Column(name = "view_count", nullable = false, insertable = false, updatable = false)
-    private Integer viewCount;
+    private Integer viewCount = 0;
 
     // DB 트리거가 관리 — JPA 직접 수정 금지
+    @Builder.Default
     @Column(name = "comment_count", nullable = false, insertable = false, updatable = false)
-    private Integer commentCount;
+    private Integer commentCount = 0;
 
     @Builder.Default
     @Column(name = "is_visible", nullable = false)
@@ -75,6 +77,10 @@ public class Post {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "author_mbti", nullable = false)
     private MbtiMetadata authorMbti;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "target_mbti")
+    private MbtiMetadata targetMbti;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "type_id", nullable = false)

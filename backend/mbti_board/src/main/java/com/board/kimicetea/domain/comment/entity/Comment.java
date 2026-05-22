@@ -42,12 +42,14 @@ public class Comment {
     private String guestPassword;
 
     // DB 트리거가 관리 — JPA 직접 수정 금지
+    @Builder.Default
     @Column(name = "like_count", nullable = false, insertable = false, updatable = false)
-    private Integer likeCount;
+    private Integer likeCount = 0;
 
     // DB 트리거가 관리 — JPA 직접 수정 금지
+    @Builder.Default
     @Column(name = "dislike_count", nullable = false, insertable = false, updatable = false)
-    private Integer dislikeCount;
+    private Integer dislikeCount = 0;
 
     @Column(name = "debate_stance")
     private Short debateStance;

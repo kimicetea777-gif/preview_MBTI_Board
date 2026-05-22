@@ -95,7 +95,7 @@ Security & JWT 완료 기준으로 작성. 각 Phase는 이전 Phase에 의존�
 
 > 가장 단순한 자유글 게시판을 먼저 구현해 Post CRUD 공통 흐름을 확립한다.
 
-### [Backend]
+### [Backend] <완료>
 
 #### 2-1. 게시글 목록 조회
 

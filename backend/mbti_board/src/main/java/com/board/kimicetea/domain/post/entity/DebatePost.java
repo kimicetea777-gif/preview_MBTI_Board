@@ -28,7 +28,7 @@ public class DebatePost {
     @Id
     @Column(name = "id")
     private Long id;
-    
+
     @Builder.Default
     @Column(name = "pro_label", nullable = false)
     private String proLabel = "찬성";
@@ -38,12 +38,14 @@ public class DebatePost {
     private String conLabel = "반대";
 
     // DB 트리거가 관리 — JPA 직접 수정 금지
+    @Builder.Default
     @Column(name = "pro_count", nullable = false, insertable = false, updatable = false)
-    private Integer proCount;
+    private Integer proCount = 0;
 
     // DB 트리거가 관리 — JPA 직접 수정 금지
+    @Builder.Default
     @Column(name = "con_count", nullable = false, insertable = false, updatable = false)
-    private Integer conCount;
+    private Integer conCount = 0;
 
     @Column(name = "ends_at")
     private Instant endsAt;
@@ -51,7 +53,6 @@ public class DebatePost {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
-
 
     /*-----------------------------------연관관계-------------------------------------------*/
 

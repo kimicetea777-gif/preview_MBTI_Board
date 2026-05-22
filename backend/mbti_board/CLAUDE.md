@@ -49,6 +49,8 @@ MBTI 기반 커뮤니티 플랫폼. 자유글·투표·토론 게시판을 제�
 
 - (Frontend) 컴포넌트 **생성** 시 : 한 줄 요약해서 `frontend/mbti_board/function_design/componet_descript.md`에 작성
 
+- (Backend) 테스트 코드 요구사항: `backend\mbti_board\function_design\CLAUDE_test.md`
+
 ---
 
 ## JPA 엔티티 컨벤션
