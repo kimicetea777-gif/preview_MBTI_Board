@@ -7,7 +7,7 @@ export interface ApiResponse<T> {
 
 export interface PageResponse<T> {
   content: T[];
-  page: number;
+  number: number;    // Spring Page의 현재 페이지 번호 (0-indexed)
   size: number;
   totalElements: number;
   totalPages: number;

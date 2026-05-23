@@ -1,15 +1,9 @@
 import type { MbtiVerified } from "@/types/user";
 
-const VERIFIED_COLOR: Record<MbtiVerified, string> = {
-  TESTED: "#2E5C40",
-  SELF: "#7DB27A",
-  DEFAULT: "#A8A29E",
-};
-
-const VERIFIED_LABEL: Record<MbtiVerified, string> = {
-  TESTED: "검사인증",
-  SELF: "자기입력",
-  DEFAULT: "미인증",
+const VERIFIED_META: Record<MbtiVerified, { color: string; title: string; showMbti: boolean }> = {
+  TESTED:  { color: "#2E5C40", title: "검사인증", showMbti: true },
+  SELF:    { color: "#7DB27A", title: "자기입력", showMbti: true },
+  DEFAULT: { color: "#A8A29E", title: "미인증",   showMbti: false },
 };
 
 interface MbtiBadgeProps {
@@ -19,16 +13,15 @@ interface MbtiBadgeProps {
 }
 
 export default function MbtiBadge({ mbti, verified, className = "" }: MbtiBadgeProps) {
-  const color = VERIFIED_COLOR[verified];
-  const label = (verified === "DEFAULT") ? "미인증" : mbti;
+  const { color, title, showMbti } = VERIFIED_META[verified];
 
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-white ${className}`}
       style={{ backgroundColor: color }}
-      title={VERIFIED_LABEL[verified]}
+      title={title}
     >
-      {label}
+      {showMbti ? mbti : title}
     </span>
   );
 }

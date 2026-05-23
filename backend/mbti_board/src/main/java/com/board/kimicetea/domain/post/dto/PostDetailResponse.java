@@ -40,7 +40,7 @@ public record PostDetailResponse(
                                 post.getId(),
                                 post.getTitle(),
                                 post.getContent(),
-                                hasUser ? post.getUser().getNickname() : "(탈퇴한 사용자)",
+                                hasUser ? post.getUser().getNickname() : "(비회원)",
                                 post.getAuthorMbti().getId(),
                                 post.getAuthorMbti().getColorCode(),
                                 hasUser ? post.getUser().getMbtiVerified().name() : MbtiVerified.DEFAULT.name(),

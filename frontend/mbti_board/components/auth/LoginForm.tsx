@@ -8,6 +8,7 @@ import { useAuthStore } from "@/store/authStore";
 import { login } from "@/lib/api/auth";
 import { ROUTES } from "@/lib/routes";
 import { OAUTH2_REDIRECT_KEY } from "@/components/auth/OAuth2CallbackContent";
+import { toSafeRedirect } from "@/lib/safeRedirect";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
@@ -34,7 +35,7 @@ export default function LoginForm({ redirectTo }: Props) {
     mutationFn: login,
     onSuccess: (data) => {
       setAccessToken(data.accessToken);
-      router.push(redirectTo || "/");
+      router.push(toSafeRedirect(redirectTo));
     },
   });
 
@@ -103,7 +104,7 @@ export default function LoginForm({ redirectTo }: Props) {
           <button
             type="button"
             onClick={() => {
-              sessionStorage.setItem(OAUTH2_REDIRECT_KEY, redirectTo);
+              sessionStorage.setItem(OAUTH2_REDIRECT_KEY, toSafeRedirect(redirectTo));
               window.location.href = `${BACKEND_URL}/oauth2/authorization/google`;
             }}
             className="flex w-full items-center justify-center rounded-lg border border-gray-300 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
@@ -113,7 +114,7 @@ export default function LoginForm({ redirectTo }: Props) {
           <button
             type="button"
             onClick={() => {
-              sessionStorage.setItem(OAUTH2_REDIRECT_KEY, redirectTo);
+              sessionStorage.setItem(OAUTH2_REDIRECT_KEY, toSafeRedirect(redirectTo));
               window.location.href = `${BACKEND_URL}/oauth2/authorization/kakao`;
             }}
             className="flex w-full items-center justify-center rounded-lg bg-yellow-300 py-2 text-sm text-gray-900 hover:bg-yellow-400 transition-colors"

@@ -16,4 +16,8 @@ export const API = {
   mbti: {
     list: "/api/mbti",
   },
+  posts: {
+    list: "/api/posts",
+    byId: (id: number) => `/api/posts/${id}`,
+  },
 } as const;

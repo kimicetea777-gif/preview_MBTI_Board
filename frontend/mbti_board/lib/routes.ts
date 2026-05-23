@@ -10,5 +10,6 @@ export const ROUTES = {
     freeWrite: "/board/free/write",
     voteWrite: "/board/vote/write",
     debateWrite: "/board/debate/write",
+    freePost: (id: number) => `/board/free/${id}`,
   },
 } as const;

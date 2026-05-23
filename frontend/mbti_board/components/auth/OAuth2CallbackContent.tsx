@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/store/authStore";
 import { ROUTES } from "@/lib/routes";
+import { toSafeRedirect } from "@/lib/safeRedirect";
 
 export const OAUTH2_REDIRECT_KEY = "oauth2_redirect";
 
@@ -26,9 +27,9 @@ export default function OAuth2CallbackContent({ accessToken, error }: Props) {
   useEffect(() => {
     if (error || !accessToken) return;
     setAccessToken(accessToken);
-    const redirectTo = sessionStorage.getItem(OAUTH2_REDIRECT_KEY) ?? "/";
+    const raw = sessionStorage.getItem(OAUTH2_REDIRECT_KEY) ?? "/";
     sessionStorage.removeItem(OAUTH2_REDIRECT_KEY);
-    router.replace(redirectTo);
+    router.replace(toSafeRedirect(raw));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (error) {

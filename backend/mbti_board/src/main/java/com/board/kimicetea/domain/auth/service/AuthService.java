@@ -65,6 +65,7 @@ public class AuthService {
     /**
      * 이메일 인증 토큰 확인 — 토큰 유효 시 EV:DONE:{email}=1 (30분) 마킹
      * 주의: 토큰은 1회 사용 후 즉시 삭제 (재사용 방지)
+     * 
      * @return 인증된 이메일 주소 (프론트가 회원가입 폼 단계로 이동할 때 사용)
      */
     public String confirmEmailVerification(final EmailVerifyConfirmRequest request) {
@@ -96,7 +97,7 @@ public class AuthService {
                 .orElseThrow(() -> new CustomException(ErrorCode.INVALID_CREDENTIALS));
 
         if (user.getSocialProvider() != null) {
-            throw new CustomException(ErrorCode.SOCIAL_ONLY_ACCOUNT);
+            throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
         }
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
@@ -159,7 +160,8 @@ public class AuthService {
             case PERMANENT_BAN -> throw new CustomException(ErrorCode.ACCOUNT_BANNED);
             case INACTIVE -> throw new CustomException(ErrorCode.ACCOUNT_INACTIVE);
             case WITHDRAWN -> throw new CustomException(ErrorCode.ACCOUNT_WITHDRAWN);
-            default -> { /* NORMAL, PENDING, SHADOW_BANNED 는 통과 */ }
+            default -> {
+                /* NORMAL, PENDING, SHADOW_BANNED 는 통과 */ }
         }
     }
 

@@ -3,9 +3,9 @@ import { ROUTES } from "@/lib/routes";
 
 // session 쿠키(프론트 도메인에 설정)로 판단. 실제 유효성 검증은 API 서버에서 수행.
 // RT(HttpOnly, localhost:8080)는 Next.js 미들웨어에서 읽을 수 없어 별도 힌트 쿠키 사용.
+// FREE 게시판은 비회원 작성 허용 — freeWrite 제거
 const PROTECTED_PREFIXES = [
   ROUTES.my,
-  ROUTES.board.freeWrite,
   ROUTES.board.voteWrite,
   ROUTES.board.debateWrite,
 ];

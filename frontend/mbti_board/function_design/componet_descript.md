@@ -71,3 +71,22 @@
 - `app/login/page.tsx` — `/login` 서버 컴포넌트; searchParams의 redirect 파라미터를 LoginForm에 전달
 - `app/signup/page.tsx` — `/signup` 서버 컴포넌트; step·email 파라미터로 SignupContent 초기 단계 제어
 - `app/signup/verify/page.tsx` — `/signup/verify` 서버 컴포넌트; token 파라미터를 SignupVerifyContent에 전달
+
+---
+
+# Phase 2 — 생성 파일 요약 (FREE 게시판)
+
+## Components
+
+- `components/post/PostCard.tsx` — 게시글 목록 카드; 제목·작성자 MBTI 배지·댓글/조회수·상대 시간 표시, 클릭 시 상세 페이지 이동
+- `components/post/PostListFilter.tsx` — 정렬 탭(LATEST/COMMENTS/VIEWS) + 작성자·대상 MBTI 드롭다운 필터
+- `components/post/RichContentEditor.tsx` — Tiptap 기반 리치텍스트 에디터 (SSR 비활성 dynamic import); Bold/Italic/H2/H3/BulletList/Code 툴바
+- `components/post/RichContentViewer.tsx` — Tiptap read-only 렌더러 (SSR 비활성 dynamic import); content undefined 시 스켈레톤 표시
+- `components/post/GuestPasswordModal.tsx` — 비회원 수정·삭제 시 비밀번호 확인 모달; isPending 비활성화·error 메시지 표시
+
+## Pages
+
+- `app/(main)/board/free/page.tsx` — 자유게시판 목록; useInfiniteQuery + IntersectionObserver 무한 스크롤, 정렬·MBTI 필터
+- `app/(main)/board/free/write/page.tsx` — 게시글 작성 폼; 회원/비회원 분기(guestPassword 조건부), Tiptap 빈값 검증
+- `app/(main)/board/free/[id]/page.tsx` — 상세 서버 래퍼; await params + ID 유효성 검증 후 PostDetailContent 렌더링
+- `app/(main)/board/free/[id]/PostDetailContent.tsx` — 상세 클라이언트 컴포넌트; 인라인 수정·삭제, GuestPasswordModal, initialData 캐시 활용
