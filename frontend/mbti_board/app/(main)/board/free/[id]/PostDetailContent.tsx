@@ -12,26 +12,13 @@ import GuestPasswordModal, { MODAL_ACTION, type ModalAction } from "@/components
 import MbtiBadge from "@/components/common/MbtiBadge";
 import CommentSection from "@/components/post/CommentSection";
 import { formatDate } from "@/lib/dateUtils";
+import { isTiptapEmpty } from "@/lib/editor";
 import { ROUTES } from "@/lib/routes";
 import type { PostUpdateRequest } from "@/types/post";
 
 function getApiErrorMessage(err: unknown, fallback = "오류가 발생했습니다."): string {
   if (isAxiosError(err)) return err.response?.data?.message ?? fallback;
   return fallback;
-}
-
-function isTiptapEmpty(json: string): boolean {
-  if (!json) return true;
-  try {
-    const doc = JSON.parse(json);
-    const extractText = (node: { type: string; text?: string; content?: unknown[] }): string => {
-      if (node.type === "text") return node.text ?? "";
-      return (node.content ?? []).map((n) => extractText(n as typeof node)).join("");
-    };
-    return !extractText(doc).trim();
-  } catch {
-    return true;
-  }
 }
 
 interface Props {

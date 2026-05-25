@@ -47,7 +47,8 @@ public class VoteController {
             @Valid @RequestBody final VoteRequest request,
             @AuthenticationPrincipal final CustomUserDetails userDetails) {
 
-        return ResponseEntity.ok(ApiResponse.ok(voteService.castVote(postId, request, userDetails.userId())));
+        final UUID currentUserId = (userDetails != null) ? userDetails.userId() : null;
+        return ResponseEntity.ok(ApiResponse.ok(voteService.castVote(postId, request, currentUserId)));
     }
 
     @Operation(summary = "투표 결과 조회", description = "선택지별 득표수와 본인 선택 옵션을 조회합니다.")

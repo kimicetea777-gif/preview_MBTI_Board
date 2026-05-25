@@ -9,6 +9,9 @@ export const POST_SORT = {
 
 export type PostSortType = (typeof POST_SORT)[keyof typeof POST_SORT];
 
+export const VOTE_OPTION_MIN = 2;
+export const VOTE_OPTION_MAX = 10;
+
 // GET /api/posts 목록 응답
 export interface PostSummaryResponse {
   id: number;
@@ -24,12 +27,29 @@ export interface PostSummaryResponse {
   createdAt: string;               // ISO 8601
 }
 
+// 투표 선택지 응답
+export interface VoteOptionResponse {
+  id: number;
+  optionText: string;
+  mbtiTargetId: string | null;
+  voteCount: number;
+}
+
+// 투표 결과 응답 (GET /api/posts/{id}/vote/result, POST /api/posts/{id}/vote 공통)
+export interface VoteResult {
+  options: VoteOptionResponse[];
+  myVotedOptionId: number | null;
+  isEnded: boolean;
+  endsAt: string | null;           // ISO 8601, null이면 무기한
+}
+
 // GET /api/posts/{id} 상세 응답
 export interface PostDetailResponse extends PostSummaryResponse {
   content: string;                 // Tiptap JSON 직렬화 문자열
   isOwner: boolean;
   isGuest: boolean;
   updatedAt: string;
+  voteResult?: VoteResult;         // VOTE 타입일 때만 포함
 }
 
 
@@ -42,6 +62,12 @@ export interface PostListParams {
   size?: number;
 }
 
+// 투표 선택지 요청
+export interface VoteOptionRequest {
+  optionText: string;
+  mbtiTarget?: string;             // MBTI 투표 모드 전용 — 일반 모드는 undefined
+}
+
 // POST /api/posts 요청
 export interface PostCreateRequest {
   type: PostType;
@@ -49,6 +75,8 @@ export interface PostCreateRequest {
   content: string;                 // Tiptap JSON 직렬화 문자열
   guestPassword?: string;
   targetMbti?: string;
+  voteOptions?: VoteOptionRequest[]; // VOTE 타입 전용
+  endsAt?: string;                   // ISO 8601, VOTE·DEBATE 공통 마감일
 }
 
 // PATCH /api/posts/{id} 요청

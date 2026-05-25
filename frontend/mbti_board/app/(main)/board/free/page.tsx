@@ -64,7 +64,7 @@ export default function FreeBoardPage() {
       <article>
         {isLoading
           ? Array.from({ length: 5 }).map((_, i) => <PostCardSkeleton key={i} />)
-          : posts.map((post) => <PostCard key={post.id} {...post} />)
+          : posts.map((post) => <PostCard key={post.id} href={ROUTES.board.freePost(post.id)} {...post} />)
         }
       </article>
 

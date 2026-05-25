@@ -156,10 +156,10 @@ class VoteControllerTest extends IntegrationTestSupport {
         }
 
         @Test
-        @DisplayName("1-2. 선택지 10개로 작성 (최대) → 201")
-        void 투표_게시글_작성_선택지10개_성공() throws Exception {
+        @DisplayName("1-2. 선택지 16개로 작성 (최대 — MBTI 모드 대응) → 201")
+        void 투표_게시글_작성_선택지16개_성공() throws Exception {
                 final String at = 회원가입_후_로그인_AT_추출();
-                final List<VoteOptionRequest> tenOptions = IntStream.rangeClosed(1, 10)
+                final List<VoteOptionRequest> sixteenOptions = IntStream.rangeClosed(1, 16)
                                 .mapToObj(i -> new VoteOptionRequest("선택지 " + i, null))
                                 .toList();
 
@@ -167,17 +167,17 @@ class VoteControllerTest extends IntegrationTestSupport {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("Authorization", "Bearer " + at)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("투표 제목", CONTENT, "VOTE", null, null, tenOptions,
+                                                new PostCreateRequest("투표 제목", CONTENT, "VOTE", null, null, sixteenOptions,
                                                                 null))))
                                 .andExpect(status().isCreated())
-                                .andExpect(jsonPath("$.data.voteResult.options.length()").value(10));
+                                .andExpect(jsonPath("$.data.voteResult.options.length()").value(16));
         }
 
         @Test
-        @DisplayName("1-3. 선택지 11개로 작성 (최대 초과) → 400 Bad Request")
-        void 투표_게시글_작성_선택지11개_실패() throws Exception {
+        @DisplayName("1-3. 선택지 17개로 작성 (최대 초과) → 400 Bad Request")
+        void 투표_게시글_작성_선택지17개_실패() throws Exception {
                 final String at = 회원가입_후_로그인_AT_추출();
-                final List<VoteOptionRequest> elevenOptions = IntStream.rangeClosed(1, 11)
+                final List<VoteOptionRequest> seventeenOptions = IntStream.rangeClosed(1, 17)
                                 .mapToObj(i -> new VoteOptionRequest("선택지 " + i, null))
                                 .toList();
 
@@ -186,7 +186,7 @@ class VoteControllerTest extends IntegrationTestSupport {
                                 .header("Authorization", "Bearer " + at)
                                 .content(objectMapper.writeValueAsString(
                                                 new PostCreateRequest("투표 제목", CONTENT, "VOTE", null, null,
-                                                                elevenOptions, null))))
+                                                                seventeenOptions, null))))
                                 .andExpect(status().isBadRequest());
         }
 

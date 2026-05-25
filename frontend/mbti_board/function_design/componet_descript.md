@@ -97,7 +97,7 @@
 ## Pages
 
 - `app/(main)/board/free/page.tsx` — 자유게시판 목록; useInfiniteQuery + IntersectionObserver 무한 스크롤, 정렬·MBTI 필터
-- `app/(main)/board/free/write/page.tsx` — 게시글 작성 폼; 회원/비회원 분기(guestPassword 조건부), Tiptap 빈값 검증
+- `app/(main)/board/free/write/page.tsx` — 자유게시판 작성; PostWriteForm 사용, 비회원 비밀번호 필드 조건부 children 주입, Tiptap 빈값 검증
 - `app/(main)/board/free/[id]/page.tsx` — 상세 서버 래퍼; await params + ID 유효성 검증 후 PostDetailContent 렌더링
 - `app/(main)/board/free/[id]/PostDetailContent.tsx` — 상세 클라이언트 컴포넌트; 인라인 수정·삭제, GuestPasswordModal, initialData 캐시 활용
 
@@ -134,3 +134,24 @@
 - `components/post/CommentSection.tsx` — 게시글 상세 하단 댓글 섹션; 계층형(루트→대댓글 들여쓰기) 렌더링, 로딩 스켈레톤, 빈 상태 표시
 - `components/post/CommentForm.tsx` — 댓글 작성 폼; 로그인 유저는 바로 제출, 비회원은 GuestPasswordModal(CREATE)로 비밀번호 입력 후 제출
 - `components/post/CommentReactionButtons.tsx` — 좋아요/싫어요 토글 버튼; 낙관적 업데이트(onMutate 캐시 패치 → onError 롤백 → onSettled 재검증), 비로그인 시 비활성화
+
+---
+
+# Phase 4 — 투표 게시판
+
+## Lib
+
+- `lib/api/vote.ts` — castVote(postId, optionId), fetchVoteResult(postId) API 함수; 투표 참여 및 결과 조회
+- `lib/editor.ts` — Tiptap 관련 공통 유틸; EMPTY_TIPTAP 빈 문서 상수, isTiptapEmpty 빈값 검증 함수
+
+## Components
+
+- `components/post/PostWriteForm.tsx` — 게시글 작성 공용 폼 셸; 제목·대상MBTI·내용 에디터·취소/등록 버튼 공통 렌더링, 게시판별 추가 필드는 children으로 주입
+- `components/post/PostCard.tsx` — href prop으로 상세 경로를 외부에서 주입; 각 목록 페이지가 ROUTES 상수로 계산해 전달
+
+## Pages
+
+- `app/(main)/board/vote/page.tsx` — 투표게시판 목록; useInfiniteQuery + IntersectionObserver 무한 스크롤, 정렬·MBTI 필터
+- `app/(main)/board/vote/write/page.tsx` — 투표 게시글 작성; PostWriteForm 사용, 일반/MBTI 모드 토글·선택지 추가·삭제·마감일 children 주입
+- `app/(main)/board/vote/[id]/page.tsx` — 투표 상세 서버 래퍼; await params + ID 유효성 검증 후 VoteDetailContent 렌더링
+- `app/(main)/board/vote/[id]/VoteDetailContent.tsx` — 투표 상세 클라이언트 컴포넌트; 진행 중(라디오 투표)·종료(결과 바) 분기, 투표 변경 지원, 마감 D-day 표시

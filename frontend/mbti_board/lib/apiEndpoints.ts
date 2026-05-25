@@ -25,4 +25,8 @@ export const API = {
     byId: (postId: number, commentId: number) => `/api/posts/${postId}/comments/${commentId}`,
     reactions: (commentId: number) => `/api/comments/${commentId}/reactions`,
   },
+  votes: {
+    cast: (postId: number) => `/api/posts/${postId}/vote`,
+    result: (postId: number) => `/api/posts/${postId}/vote/result`,
+  },
 } as const;

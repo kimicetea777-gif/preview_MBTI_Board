@@ -1,13 +1,16 @@
 import Link from "next/link";
 import MbtiBadge from "@/components/common/MbtiBadge";
-import { ROUTES } from "@/lib/routes";
 import { formatRelativeTime } from "@/lib/dateUtils";
 import type { PostSummaryResponse } from "@/types/post";
 
-export default function PostCard(post: PostSummaryResponse) {
+interface PostCardProps extends PostSummaryResponse {
+  href: string;
+}
+
+export default function PostCard({ href, ...post }: PostCardProps) {
   return (
     <article className="border-b border-gray-100 py-4 hover:bg-gray-50 transition-colors">
-      <Link href={ROUTES.board.freePost(post.id)} className="block space-y-2">
+      <Link href={href} className="block space-y-2">
         <div className="flex items-start justify-between gap-2">
           <h2 className="text-sm font-medium text-gray-900 line-clamp-2 flex-1">
             {post.title}

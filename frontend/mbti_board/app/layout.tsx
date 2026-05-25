@@ -4,6 +4,8 @@ import QueryProvider from "@/components/common/QueryProvider";
 import AuthSyncProvider from "@/components/common/AuthSyncProvider";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "next-themes";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -18,13 +20,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className={cn("h-full antialiased", "font-sans", geist.variable)}>
+    <html lang="ko" className={cn("h-full antialiased", "font-sans", geist.variable)} suppressHydrationWarning>
       <body className="min-h-full flex flex-col">
-        <QueryProvider>
-          <AuthSyncProvider>
-            {children}
-          </AuthSyncProvider>
-        </QueryProvider>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
+          <QueryProvider>
+            <AuthSyncProvider>
+              {children}
+            </AuthSyncProvider>
+            <Toaster position="bottom-left"/>
+          </QueryProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
