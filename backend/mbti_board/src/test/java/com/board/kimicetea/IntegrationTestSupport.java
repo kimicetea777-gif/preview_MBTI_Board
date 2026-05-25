@@ -44,4 +44,7 @@ public abstract class IntegrationTestSupport {
 
     // Post
     protected static final String POSTS_URL = "/api/posts";
+
+    // Comment reactions — use as: REACTIONS_BASE + commentId + "/reactions"
+    protected static final String REACTIONS_BASE = "/api/comments/";
 }

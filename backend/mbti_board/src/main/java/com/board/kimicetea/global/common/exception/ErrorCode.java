@@ -44,7 +44,26 @@ public enum ErrorCode {
     GUEST_PASSWORD_REQUIRED(HttpStatus.BAD_REQUEST, "비회원은 비밀번호를 입력해야 합니다."),
     GUEST_PASSWORD_MISMATCH(HttpStatus.FORBIDDEN, "비밀번호가 일치하지 않습니다."),
 
+    // Vote
+    VOTE_POST_NOT_FOUND(HttpStatus.NOT_FOUND, "투표 게시글을 찾을 수 없습니다."),
+    VOTE_OPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "투표 선택지를 찾을 수 없습니다."),
+    VOTE_OPTION_NOT_BELONGS(HttpStatus.BAD_REQUEST, "선택지가 해당 투표 게시글에 속하지 않습니다."),
+    VOTE_ENDED(HttpStatus.BAD_REQUEST, "이미 마감된 투표입니다."),
+    VOTE_OPTIONS_REQUIRED(HttpStatus.BAD_REQUEST, "투표 게시글은 최소 2개 이상의 선택지가 필요합니다."),
+    VOTE_MBTI_DUPLICATE(HttpStatus.BAD_REQUEST, "같은 투표에 동일한 MBTI 선택지를 중복 등록할 수 없습니다."),
+    VOTE_MBTI_MODE_MIXED(HttpStatus.BAD_REQUEST, "MBTI 선택지와 일반 선택지를 혼합할 수 없습니다."),
+    VOTE_ENDS_AT_INVALID(HttpStatus.BAD_REQUEST, "마감일은 현재 시각보다 이후여야 합니다."),
+
+    // Comment
+    COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "댓글을 찾을 수 없습니다."),
+    COMMENT_FORBIDDEN(HttpStatus.FORBIDDEN, "댓글 수정/삭제 권한이 없습니다."),
+    COMMENT_REPLY_DEPTH_EXCEEDED(HttpStatus.BAD_REQUEST, "대댓글에는 댓글을 달 수 없습니다."),
+    DEBATE_STANCE_REQUIRED(HttpStatus.BAD_REQUEST, "토론 게시글 댓글은 찬반 입장(1 또는 -1)을 선택해야 합니다."),
+    DEBATE_STANCE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "일반·투표 게시글 댓글에는 찬반 입장을 설정할 수 없습니다."),
+    INVALID_REACTION_TYPE(HttpStatus.BAD_REQUEST, "리액션 타입은 1(좋아요) 또는 -1(싫어요)이어야 합니다."),
+
     // Common
+    AUTHENTICATION_REQUIRED(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
 
     private final HttpStatus httpStatus;

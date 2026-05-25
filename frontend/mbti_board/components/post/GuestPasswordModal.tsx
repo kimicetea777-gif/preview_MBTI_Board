@@ -1,13 +1,30 @@
 "use client";
 
 import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
-export const MODAL_ACTION = { UPDATE: "update", DELETE: "delete" } as const;
+export const MODAL_ACTION = { CREATE: "create", UPDATE: "update", DELETE: "delete" } as const;
 export type ModalAction = (typeof MODAL_ACTION)[keyof typeof MODAL_ACTION];
 
 const ACTION_LABEL: Record<ModalAction, string> = {
+  create: "작성",
   update: "수정",
   delete: "삭제",
+};
+
+const DEFAULT_DESCRIPTION: Record<ModalAction, string> = {
+  create: "비회원 비밀번호를 설정하세요. 댓글 수정·삭제 시 필요합니다.",
+  update: "게시글 작성 시 입력한 비밀번호를 입력해 주세요.",
+  delete: "게시글 작성 시 입력한 비밀번호를 입력해 주세요.",
 };
 
 interface Props {
@@ -17,6 +34,7 @@ interface Props {
   onClose: () => void;
   isPending: boolean;
   error?: string;
+  description?: string;
 }
 
 export default function GuestPasswordModal({
@@ -26,37 +44,38 @@ export default function GuestPasswordModal({
   onClose,
   isPending,
   error,
+  description,
 }: Props) {
   const [password, setPassword] = useState("");
 
-  if (!open) return null;
-
   const isPasswordValid = password.length >= 4;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isPasswordValid) return;
-    onConfirm(password);
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      setPassword("");
+      onClose();
+    }
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={onClose}
-    >
-      <section
-        className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg space-y-4"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-base font-semibold text-gray-900">
-          (비회원) {ACTION_LABEL[action]} 확인
-        </h2>
-        <p className="text-sm text-gray-500">
-          게시글 작성 시 입력한 비밀번호를 입력해 주세요.
-        </p>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle>(비회원) {ACTION_LABEL[action]} 확인</DialogTitle>
+          <DialogDescription>
+            {description ?? DEFAULT_DESCRIPTION[action]}
+          </DialogDescription>
+        </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <input
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!isPasswordValid) return;
+            onConfirm(password);
+          }}
+          className="space-y-3"
+        >
+          <Input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -65,29 +84,29 @@ export default function GuestPasswordModal({
             minLength={4}
             maxLength={72}
             disabled={isPending}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none disabled:opacity-50"
           />
-          {error && <p className="text-xs text-red-500">{error}</p>}
+          {error && <p className="text-xs text-destructive">{error}</p>}
 
-          <div className="flex gap-2">
-            <button
+          <DialogFooter>
+            <Button
               type="button"
+              variant="outline"
               onClick={onClose}
               disabled={isPending}
-              className="flex-1 rounded-lg border border-gray-300 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              className="flex-1"
             >
               취소
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
               disabled={isPending || !isPasswordValid}
-              className="flex-1 rounded-lg bg-gray-900 py-2 text-sm text-white hover:bg-gray-700 disabled:opacity-50 transition-colors"
+              className="flex-1"
             >
               {isPending ? "처리 중..." : ACTION_LABEL[action]}
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </section>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

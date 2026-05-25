@@ -96,7 +96,7 @@ class PostControllerTest extends IntegrationTestSupport {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("Authorization", "Bearer " + accessToken)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("테스트 제목", CONTENT, "FREE", null, null))))
+                                                new PostCreateRequest("테스트 제목", CONTENT, "FREE", null, null, null, null))))
                                 // .andDo(print())
                                 .andExpect(status().isCreated())
                                 .andReturn().getResponse().getContentAsString();
@@ -109,7 +109,7 @@ class PostControllerTest extends IntegrationTestSupport {
                 final String body = mockMvc.perform(post(POSTS_URL)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("비회원 제목", CONTENT, "FREE", guestPassword, null))))
+                                                new PostCreateRequest("비회원 제목", CONTENT, "FREE", guestPassword, null, null, null))))
                                 .andExpect(status().isCreated())
                                 .andReturn().getResponse().getContentAsString();
 
@@ -242,7 +242,7 @@ class PostControllerTest extends IntegrationTestSupport {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("Authorization", "Bearer " + at)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("회원 작성글", CONTENT, "FREE", null, null))))
+                                                new PostCreateRequest("회원 작성글", CONTENT, "FREE", null, null, null, null))))
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.data.title").value("회원 작성글"))
                                 .andExpect(jsonPath("$.data.isOwner").value(true))
@@ -256,7 +256,7 @@ class PostControllerTest extends IntegrationTestSupport {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                                 new PostCreateRequest("비회원 작성글", CONTENT, "FREE", GUEST_PASSWORD,
-                                                                null))))
+                                                                null, null, null))))
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.data.isGuest").value(true))
                                 .andExpect(jsonPath("$.data.authorMbtiId").value("NONE"));
@@ -268,7 +268,7 @@ class PostControllerTest extends IntegrationTestSupport {
                 mockMvc.perform(post(POSTS_URL)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("비회원 작성글", CONTENT, "FREE", null, null))))
+                                                new PostCreateRequest("비회원 작성글", CONTENT, "FREE", null, null, null, null))))
                                 .andExpect(status().isBadRequest())
                                 .andExpect(jsonPath("$.message").value("비회원은 비밀번호를 입력해야 합니다."));
         }
@@ -282,7 +282,7 @@ class PostControllerTest extends IntegrationTestSupport {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("Authorization", "Bearer " + at)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("제목", CONTENT, "INVALID_TYPE", null, null))))
+                                                new PostCreateRequest("제목", CONTENT, "INVALID_TYPE", null, null, null, null))))
                                 .andExpect(status().isBadRequest())
                                 .andExpect(jsonPath("$.message").value("존재하지 않는 게시판 유형입니다."));
         }
@@ -296,7 +296,7 @@ class PostControllerTest extends IntegrationTestSupport {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("Authorization", "Bearer " + at)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("   ", CONTENT, "FREE", null, null))))
+                                                new PostCreateRequest("   ", CONTENT, "FREE", null, null, null, null))))
                                 .andExpect(status().isBadRequest());
         }
 
@@ -309,7 +309,7 @@ class PostControllerTest extends IntegrationTestSupport {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("Authorization", "Bearer " + at)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("INFP에게", CONTENT, "FREE", null, "INFP"))))
+                                                new PostCreateRequest("INFP에게", CONTENT, "FREE", null, "INFP", null, null))))
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.data.targetMbtiId").value("INFP"));
         }
@@ -323,7 +323,7 @@ class PostControllerTest extends IntegrationTestSupport {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("Authorization", "Bearer " + at)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("전체 대상", CONTENT, "FREE", null, "ALL"))))
+                                                new PostCreateRequest("전체 대상", CONTENT, "FREE", null, "ALL", null, null))))
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.data.targetMbtiId").doesNotExist());
         }

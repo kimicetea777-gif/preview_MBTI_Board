@@ -48,7 +48,7 @@ Security & JWT 완료 기준으로 작성. 각 Phase는 이전 Phase에 의존�
 
 ---
 
-## Phase 1 — User 도메인 <Backend 완료>
+## Phase 1 — User 도메인 <완료>
 
 > 게시글/댓글 작성 전 사용자 정보 조회·수정 기반이 필요하므로 가장 먼저 개발.
 
@@ -97,50 +97,50 @@ Security & JWT 완료 기준으로 작성. 각 Phase는 이전 Phase에 의존�
 
 ### [Backend] <완료>
 
-#### 2-1. 게시글 목록 조회
+#### 2-1. 게시글 목록 조회 <완료>
 
 - `GET /api/posts?type=FREE&page=0&size=20`
 - 정렬: 최신순 / 댓글많은순 / 조회많은순
 - MBTI 필터: `?authorMbti=INFP`
 - QueryDSL 사용, 페이징은 Spring Data `Pageable`
 
-#### 2-2. 게시글 단건 조회
+#### 2-2. 게시글 단건 조회 <완료>
 
 - `GET /api/posts/{id}`
 - 조회 시 `view_count + 1` (동시성 이슈 최소화: DB UPDATE 단건으로 처리)
 
-#### 2-3. 게시글 작성
+#### 2-3. 게시글 작성 <완료>
 
 - `POST /api/posts`
 - 회원: JWT 필수, `user_id` + `author_mbti`(현재 MBTI 스냅샷) 저장
 - 비회원: `guest_password` 필수 (BCrypt 해싱 후 저장)
 - `content`는 JSONB — 프론트 Tiptap 에디터 JSON 구조 그대로 수신
 
-#### 2-4. 게시글 수정
+#### 2-4. 게시글 수정 <완료>
 
 - `PATCH /api/posts/{id}`
 - 회원: JWT 본인 확인
 - 비회원: `guest_password` 검증
 
-#### 2-5. 게시글 삭제
+#### 2-5. 게시글 삭제 <완료>
 
 - `DELETE /api/posts/{id}`
 - 회원/비회원 본인 확인 후 소프트 삭제(`is_visible = false`)
 
 ### [Frontend]
 
-#### 2-6. 게시판 목록 페이지 (`/board/free`)
+#### 2-6. 게시판 목록 페이지 (`/board/free`) <완료>
 
 - `useInfiniteQuery` 또는 페이지네이션 (`GET /api/posts?type=FREE`)
 - MBTI 필터 드롭다운, 정렬 탭
 - 게시글 카드: 제목·작성자 MBTI 뱃지·댓글수·조회수
 
-#### 2-7. 게시글 작성 페이지 (`/board/free/write`)
+#### 2-7. 게시글 작성 페이지 (`/board/free/write`) <완료>
 
 - Tiptap 에디터 (`RichContentEditor`)
 - 비회원일 경우 `guest_password` 입력 필드 노출
 
-#### 2-8. 게시글 상세 페이지 (`/board/free/[id]`)
+#### 2-8. 게시글 상세 페이지 (`/board/free/[id]`) <완료>
 
 - 본문 렌더링 (Tiptap read-only)
 - 수정/삭제 버튼 (본인 글만 노출)
@@ -153,23 +153,23 @@ Security & JWT 완료 기준으로 작성. 각 Phase는 이전 Phase에 의존�
 
 ### [Backend]
 
-#### 3-1. 댓글 목록 조회
+#### 3-1. 댓글 목록 조회 <완료>
 
 - `GET /api/posts/{postId}/comments`
 - 계층형 (루트 댓글 + 대댓글 1단계) — `idx_comments_hierarchy` 인덱스 활용
 
-#### 3-2. 댓글 작성
+#### 3-2. 댓글 작성 <완료>
 
 - `POST /api/posts/{postId}/comments`
 - 대댓글: `parent_id` 포함 — `parent_id`의 댓글에 이미 `parent_id`가 있으면 400
 - 비회원: `guest_password` 필수
 
-#### 3-3. 댓글 수정 / 삭제
+#### 3-3. 댓글 수정 / 삭제 <완료>
 
 - `PATCH /api/posts/{postId}/comments/{id}`
 - `DELETE /api/posts/{postId}/comments/{id}` — `is_visible = false`
 
-#### 3-4. 댓글 리액션 (좋아요 / 싫어요)
+#### 3-4. 댓글 리액션 (좋아요 / 싫어요) <완료>
 
 - `POST /api/comments/{id}/reactions` — 회원 전용
 - `DELETE /api/comments/{id}/reactions` — 취소
@@ -178,18 +178,18 @@ Security & JWT 완료 기준으로 작성. 각 Phase는 이전 Phase에 의존�
 
 ### [Frontend]
 
-#### 3-5. 댓글 섹션 컴포넌트 (`CommentSection`)
+#### 3-5. 댓글 섹션 컴포넌트 (`CommentSection`) <완료>
 
 - 게시글 상세 페이지 하단에 마운트
 - `useQuery` — `GET /api/posts/{postId}/comments`
 - 계층형 렌더링: 루트 댓글 → 대댓글 들여쓰기
 
-#### 3-6. 댓글 작성 폼
+#### 3-6. 댓글 작성 폼 <완료>
 
 - 로그인 유저: 바로 작성
 - 비회원: `guest_password` 입력 모달
 
-#### 3-7. 리액션 버튼
+#### 3-7. 리액션 버튼 <완료>
 
 - 좋아요/싫어요 토글 (`useMutation`)
 - 낙관적 업데이트 (TanStack Query `optimisticUpdate`)
@@ -202,19 +202,19 @@ Security & JWT 완료 기준으로 작성. 각 Phase는 이전 Phase에 의존�
 
 ### [Backend]
 
-#### 4-1. 투표 게시글 작성
+#### 4-1. 투표 게시글 작성 <완료>
 
 - `POST /api/posts` — `type: VOTE` + `voteOptions[]` 포함
 - `vote_posts` + `vote_post_options` 함께 저장 (트랜잭션)
 - MBTI 투표: `mbti_target` FK 연결, 같은 게시글 내 MBTI 중복 불가
 
-#### 4-2. 투표 참여
+#### 4-2. 투표 참여 <완료>
 
 - `POST /api/posts/{postId}/vote` — 회원 전용
 - `vote_posts_history` UPSERT (1인 1표, 변경 가능)
 - 마감(`ends_at`) 지난 투표는 400
 
-#### 4-3. 투표 결과 조회
+#### 4-3. 투표 결과 조회 <완료>
 
 - `GET /api/posts/{postId}/vote/result`
 - 옵션별 `vote_count` + 본인 선택 옵션 ID 반환

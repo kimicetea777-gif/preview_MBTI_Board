@@ -10,6 +10,8 @@ import RichContentViewer from "@/components/post/RichContentViewer";
 import RichContentEditor from "@/components/post/RichContentEditor";
 import GuestPasswordModal, { MODAL_ACTION, type ModalAction } from "@/components/post/GuestPasswordModal";
 import MbtiBadge from "@/components/common/MbtiBadge";
+import CommentSection from "@/components/post/CommentSection";
+import { formatDate } from "@/lib/dateUtils";
 import { ROUTES } from "@/lib/routes";
 import type { PostUpdateRequest } from "@/types/post";
 
@@ -151,7 +153,7 @@ export default function PostDetailContent({ id }: Props) {
             <span>{post.authorNickname}</span>
             <span>·</span>
             <time dateTime={post.createdAt}>
-              {new Date(post.createdAt).toLocaleDateString("ko-KR")}
+              {formatDate(post.createdAt)}
             </time>
             <span>조회 {post.viewCount}</span>
           </div>
@@ -237,8 +239,9 @@ export default function PostDetailContent({ id }: Props) {
         </footer>
       </article>
 
+      <CommentSection postId={id} />
+
       <GuestPasswordModal
-        key={String(modalOpen)}
         open={modalOpen}
         action={modalAction}
         onConfirm={handleModalConfirm}

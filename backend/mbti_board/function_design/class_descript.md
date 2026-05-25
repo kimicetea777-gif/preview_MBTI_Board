@@ -29,3 +29,25 @@
 | `PostService` | `domain/post/service` | 게시글 도메인 비즈니스 로직 (목록·단건 조회, 작성·수정·삭제, 회원/비회원 분기) |
 | `PostController` | `domain/post/controller` | 게시글 API 컨트롤러 (GET·POST /api/posts, GET·PATCH·DELETE /api/posts/{id}) |
 | `PostSortType` | `domain/post` | 게시글 정렬 기준 Enum (LATEST·VIEWS·COMMENTS) |
+| `CommentRepository` | `domain/comment/repository` | 댓글 기본 CRUD + 게시글별 visible 댓글 flat 조회 (findAllVisibleByPostId) |
+| `CommentResponse` | `domain/comment/dto` | 댓글 응답 DTO — 루트 댓글은 replies 포함, 대댓글은 replies 빈 리스트 |
+| `CommentService` | `domain/comment/service` | 댓글 도메인 비즈니스 로직 (목록 조회, 계층형 구조 조립) |
+| `CommentController` | `domain/comment/controller` | 댓글 API 컨트롤러 (GET·POST /api/posts/{postId}/comments, PATCH·DELETE /{id}) |
+| `CommentCreateRequest` | `domain/comment/dto` | 댓글 작성 요청 DTO (content·parentId·guestPassword·debateStance) |
+| `CommentUpdateRequest` | `domain/comment/dto` | 댓글 수정 요청 DTO (content·guestPassword) |
+| `GuestPasswordHelper` | `global/common/util` | 비회원 BCrypt 인코딩 정적 유틸 — PostService·CommentService 공유 |
+| `MbtiConstants` | `domain/mbti` | MBTI 도메인 상수 (NONE_MBTI_ID 등) |
+| `CommentReactionRepository` | `domain/comment/repository` | 댓글 리액션 CRUD — findByComment_IdAndUser_Id로 유저별 리액션 단건 조회 |
+| `CommentReactionRequest` | `domain/comment/dto` | 댓글 리액션 요청 DTO (reactionType: 1=LIKE, -1=DISLIKE) |
+| `CommentReactionResponse` | `domain/comment/dto` | 댓글 리액션 응답 DTO (commentId·myReactionType·likeCount·dislikeCount) |
+| `CommentReactionService` | `domain/comment/service` | 댓글 리액션 토글·취소 비즈니스 로직 — EntityManager flush+refresh로 DB 트리거 반영 |
+| `CommentReactionController` | `domain/comment/controller` | 댓글 리액션 API 컨트롤러 (POST·DELETE /api/comments/{id}/reactions, 회원 전용) |
+| `VotePostRepository` | `domain/post/repository` | 투표 게시글 메타 레포지토리 — findWithOptionsById로 options JOIN FETCH 조회 |
+| `VotePostOptionRepository` | `domain/post/repository` | 투표 선택지 레포지토리 — MBTI 중복 사전 검증용 existsByVotePost_IdAndMbtiTarget_Id |
+| `VotePostHistoryRepository` | `domain/post/repository` | 유저 투표 내역 레포지토리 — findByVotePost_IdAndUser_Id로 1인 1표 UPSERT 지원 |
+| `VoteOptionRequest` | `domain/post/dto` | 투표 선택지 작성 요청 DTO (optionText 필수, mbtiTarget은 MBTI 투표 시에만) |
+| `VoteOptionResponse` | `domain/post/dto` | 투표 선택지 응답 DTO (id·optionText·mbtiTargetId·voteCount) |
+| `VoteResultResponse` | `domain/post/dto` | 투표 결과 응답 DTO — 선택지별 득표수 + 본인 선택 옵션 ID + 마감 여부 |
+| `VoteRequest` | `domain/post/dto` | 투표 참여 요청 DTO (optionId 필수) |
+| `VoteService` | `domain/post/service` | 투표 참여(castVote) 및 결과 조회(getVoteResult) 비즈니스 로직 — 1인 1표 UPSERT, 마감 검증 |
+| `VoteController` | `domain/post/controller` | 투표 API 컨트롤러 (POST /api/posts/{postId}/vote, GET /api/posts/{postId}/vote/result) |

@@ -53,4 +53,11 @@ public class CommentReaction {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    /*-----------------------------------편의 메소드----------------------------------------*/
+
+    /** 다른 타입으로 리액션 전환 시 사용 (1 ↔ -1) */
+    public void updateReactionType(final Short reactionType) {
+        this.reactionType = reactionType;
+    }
 }

@@ -67,10 +67,10 @@ public class SecurityConfig {
                                 "/api/users/*",
                                 "/api/mbti/**")
                         .permitAll()
-                        // 게시글 작성·수정·삭제는 비회원도 허용 (서비스 레이어에서 회원/비회원 분기)
-                        .requestMatchers(HttpMethod.POST, "/api/posts").permitAll()
-                        .requestMatchers(HttpMethod.PATCH, "/api/posts/*").permitAll()
-                        .requestMatchers(HttpMethod.DELETE, "/api/posts/*").permitAll()
+                        // 게시글·댓글 작성·수정·삭제는 비회원도 허용 (서비스 레이어에서 회원/비회원 분기)
+                        .requestMatchers(HttpMethod.POST,   "/api/posts", "/api/posts/*/comments").permitAll()
+                        .requestMatchers(HttpMethod.PATCH,  "/api/posts/*", "/api/posts/*/comments/*").permitAll()
+                        .requestMatchers(HttpMethod.DELETE, "/api/posts/*", "/api/posts/*/comments/*").permitAll()
                         .anyRequest().authenticated())
 
                 .oauth2Login(oauth2 -> oauth2

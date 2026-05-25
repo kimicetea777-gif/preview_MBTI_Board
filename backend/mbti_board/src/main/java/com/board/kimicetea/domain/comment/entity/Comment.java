@@ -86,6 +86,10 @@ public class Comment {
 
     /*-----------------------------------편의 메소드----------------------------------------*/
 
+    public void update(final String content) {
+        this.content = content;
+    }
+
     public void hide() {
         this.isVisible = false;
     }

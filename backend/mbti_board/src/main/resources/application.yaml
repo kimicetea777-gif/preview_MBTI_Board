@@ -14,6 +14,7 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_batch_fetch_size: 100
     open-in-view: false
 
   data:
@@ -24,6 +25,7 @@ spring:
   flyway:
     # clean-disabled: false
     enabled: true
+    # clean-disabled: false
     locations: classpath:db/migration
 
   mail:

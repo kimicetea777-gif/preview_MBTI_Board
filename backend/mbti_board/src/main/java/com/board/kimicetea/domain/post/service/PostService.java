@@ -2,22 +2,33 @@ package com.board.kimicetea.domain.post.service;
 
 import com.board.kimicetea.domain.mbti.entity.MbtiMetadata;
 import com.board.kimicetea.domain.mbti.repository.MbtiMetadataRepository;
+import com.board.kimicetea.domain.mbti.MbtiConstants;
 import com.board.kimicetea.domain.post.PostConstants;
+import com.board.kimicetea.global.common.util.GuestPasswordHelper;
 import com.board.kimicetea.domain.post.PostSortType;
 import com.board.kimicetea.domain.post.dto.PostCreateRequest;
 import com.board.kimicetea.domain.post.dto.PostDeleteRequest;
 import com.board.kimicetea.domain.post.dto.PostDetailResponse;
 import com.board.kimicetea.domain.post.dto.PostSummaryResponse;
 import com.board.kimicetea.domain.post.dto.PostUpdateRequest;
+import com.board.kimicetea.domain.post.dto.VoteOptionRequest;
 import com.board.kimicetea.domain.post.entity.Post;
 import com.board.kimicetea.domain.post.entity.PostType;
+import com.board.kimicetea.domain.post.entity.VotePost;
+import com.board.kimicetea.domain.post.entity.VotePostHistory;
+import com.board.kimicetea.domain.post.entity.VotePostOption;
 import com.board.kimicetea.domain.post.repository.PostRepository;
 import com.board.kimicetea.domain.post.repository.PostTypeRepository;
+import com.board.kimicetea.domain.post.repository.VotePostHistoryRepository;
+import com.board.kimicetea.domain.post.repository.VotePostOptionRepository;
+import com.board.kimicetea.domain.post.repository.VotePostRepository;
 import com.board.kimicetea.domain.user.entity.User;
 import com.board.kimicetea.domain.user.repository.UserRepository;
 import com.board.kimicetea.domain.user.security.CustomUserDetails;
 import com.board.kimicetea.global.common.exception.CustomException;
 import com.board.kimicetea.global.common.exception.ErrorCode;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,6 +36,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -35,13 +50,17 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PostService {
 
-    private static final String NONE_MBTI_ID = "NONE";
-
     private final PostRepository postRepository;
     private final PostTypeRepository postTypeRepository;
     private final MbtiMetadataRepository mbtiMetadataRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final VotePostRepository votePostRepository;
+    private final VotePostOptionRepository votePostOptionRepository;
+    private final VotePostHistoryRepository votePostHistoryRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Transactional(readOnly = true)
     public Page<PostSummaryResponse> getPosts(final String type, final PostSortType sort,
@@ -53,12 +72,23 @@ public class PostService {
 
     /**
      * 단건 조회 + viewCount 원자적 증가
+     * VOTE 게시글은 options + 본인 투표 내역 함께 반환
      * 주의: @Modifying 쿼리가 포함되므로 readOnly = false
      */
     @Transactional
     public PostDetailResponse getPost(final Long id, final UUID currentUserId) {
         final Post post = findPostOrThrow(id);
         postRepository.increaseViewCount(id);
+
+        if (PostConstants.TYPE_VOTE.equals(post.getPostType().getCode())) {
+            final VotePost votePost = votePostRepository.findWithOptionsById(id)
+                    .orElseThrow(() -> new CustomException(ErrorCode.VOTE_POST_NOT_FOUND));
+            final VotePostHistory history = (currentUserId != null)
+                    ? votePostHistoryRepository.findByVotePost_IdAndUser_Id(id, currentUserId).orElse(null)
+                    : null;
+            return PostDetailResponse.from(post, currentUserId, votePost, history);
+        }
+
         return PostDetailResponse.from(post, currentUserId);
     }
 
@@ -75,9 +105,7 @@ public class PostService {
             authorMbti = user.getMbti();
         } else {
             // 비회원
-            if (request.guestPassword() == null || request.guestPassword().isBlank()) {
-                throw new CustomException(ErrorCode.GUEST_PASSWORD_REQUIRED);
-            }
+            GuestPasswordHelper.requirePassword(request.guestPassword());
             user = null;
             authorMbti = findNoneMbtiOrThrow();
         }
@@ -87,7 +115,7 @@ public class PostService {
         final Post post = Post.builder()
                 .title(request.title().strip())
                 .content(request.content())
-                .guestPassword(user == null ? passwordEncoder.encode(request.guestPassword()) : null)
+                .guestPassword(GuestPasswordHelper.encode(user, request.guestPassword(), passwordEncoder))
                 .user(user)
                 .authorMbti(authorMbti)
                 .targetMbti(targetMbti)
@@ -95,7 +123,83 @@ public class PostService {
                 .build();
 
         final Post saved = postRepository.save(post);
+
+        // VOTE 타입이면 VotePost + 선택지 생성
+        if (PostConstants.TYPE_VOTE.equals(request.type())) {
+            final VotePost votePost = createVotePost(saved, request);
+            return PostDetailResponse.from(saved, (userDetails != null) ? userDetails.userId() : null, votePost, null);
+        }
+
         return PostDetailResponse.from(saved, (userDetails != null) ? userDetails.userId() : null);
+    }
+
+    /**
+     * VotePost + VotePostOption 생성 (트랜잭션 내 호출)
+     * 주의:
+     * - voteOptions 최소 2개 필수
+     * - MBTI 투표 시 같은 mbtiTarget 중복 불가 (DB 인덱스 + 서비스 사전 검증)
+     */
+    private VotePost createVotePost(final Post post, final PostCreateRequest request) {
+        final List<VoteOptionRequest> optionRequests = request.voteOptions();
+        if (optionRequests == null || optionRequests.size() < 2) {
+            throw new CustomException(ErrorCode.VOTE_OPTIONS_REQUIRED);
+        }
+
+        // endsAt이 과거 시각이면 즉시 마감 투표가 생성되므로 차단
+        if (request.endsAt() != null && request.endsAt().isBefore(Instant.now())) {
+            throw new CustomException(ErrorCode.VOTE_ENDS_AT_INVALID);
+        }
+
+        // DB flush 전에는 이전 저장 옵션을 existsByVotePost_Id... 쿼리가 인식 못 하므로
+        // 요청 리스트 내 MBTI 중복을 인메모리에서 먼저 검증
+        // 또한 MBTI 투표(mbtiTarget 있음)와 자유 투표(null)가 혼합되지 않도록 검증
+        final boolean hasMbti = optionRequests.stream()
+                .anyMatch(o -> o.mbtiTarget() != null && !o.mbtiTarget().isBlank());
+        final boolean hasNonMbti = optionRequests.stream()
+                .anyMatch(o -> o.mbtiTarget() == null || o.mbtiTarget().isBlank());
+        if (hasMbti && hasNonMbti) {
+            throw new CustomException(ErrorCode.VOTE_MBTI_MODE_MIXED);
+        }
+
+        final Set<String> seenMbti = new HashSet<>();
+        for (final VoteOptionRequest optReq : optionRequests) {
+            if (optReq.mbtiTarget() != null && !optReq.mbtiTarget().isBlank()) {
+                if (!seenMbti.add(optReq.mbtiTarget())) {
+                    throw new CustomException(ErrorCode.VOTE_MBTI_DUPLICATE);
+                }
+            }
+        }
+
+        final VotePost votePost = VotePost.builder()
+                .post(post)
+                .endsAt(request.endsAt())
+                .build();
+        votePostRepository.save(votePost);
+
+        for (int i = 0; i < optionRequests.size(); i++) {
+            final VoteOptionRequest optReq = optionRequests.get(i);
+            MbtiMetadata mbtiTarget = null;
+
+            if (optReq.mbtiTarget() != null && !optReq.mbtiTarget().isBlank()) {
+                mbtiTarget = mbtiMetadataRepository.findById(optReq.mbtiTarget())
+                        .orElseThrow(() -> new CustomException(ErrorCode.MBTI_NOT_FOUND));
+            }
+
+            final VotePostOption option = VotePostOption.builder()
+                    .votePost(votePost)
+                    .optionText(optReq.optionText())
+                    .displayOrder((short) i)
+                    .mbtiTarget(mbtiTarget)
+                    .build();
+            votePostOptionRepository.save(option);
+        }
+
+        // votePost가 1차 캐시에 options=[]로 올라가 있어 JOIN FETCH가 캐시를 우선함
+        // detach 후 재조회해야 DB에서 options를 올바르게 가져옴
+        entityManager.flush();
+        entityManager.detach(votePost);
+        return votePostRepository.findWithOptionsById(post.getId())
+                .orElseThrow(() -> new CustomException(ErrorCode.VOTE_POST_NOT_FOUND));
     }
 
     @Transactional
@@ -126,16 +230,13 @@ public class PostService {
         final boolean isGuestPost = (post.getGuestPassword() != null);
 
         if (isGuestPost) {
-            if (rawGuestPassword == null || rawGuestPassword.isBlank()) {
-                throw new CustomException(ErrorCode.GUEST_PASSWORD_REQUIRED);
-            }
+            GuestPasswordHelper.requirePassword(rawGuestPassword);
             if (!passwordEncoder.matches(rawGuestPassword, post.getGuestPassword())) {
                 throw new CustomException(ErrorCode.GUEST_PASSWORD_MISMATCH);
             }
             return;
         }
 
-        // 회원 작성 글
         if (post.getUser() == null || userDetails == null
                 || !post.getUser().getId().equals(userDetails.userId())) {
             throw new CustomException(ErrorCode.POST_FORBIDDEN);
@@ -158,7 +259,7 @@ public class PostService {
     }
 
     private MbtiMetadata findNoneMbtiOrThrow() {
-        return mbtiMetadataRepository.findById(NONE_MBTI_ID)
+        return mbtiMetadataRepository.findById(MbtiConstants.NONE_MBTI_ID)
                 .orElseThrow(() -> new CustomException(ErrorCode.MBTI_NOT_FOUND));
     }
 

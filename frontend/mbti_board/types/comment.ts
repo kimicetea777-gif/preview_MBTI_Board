@@ -1,26 +1,28 @@
 import type { MbtiVerified } from "./user";
 
-export type DebateStance = 1 | -1; // 1:찬성, -1:반대
-export type ReactionType = 1 | -1; // 1:좋아요, -1:싫어요
+export type DebateStance = 1 | -1;
+export type ReactionType = 1 | -1;
 
+export const STANCE = { PRO: 1, CON: -1 } as const satisfies Record<string, DebateStance>;
+export const REACTION = { LIKE: 1, DISLIKE: -1 } as const satisfies Record<string, ReactionType>;
+
+/** 백엔드 CommentResponse와 1:1 매핑 */
 export interface Comment {
   id: number;
-  postId: number;
-  parentId: number | null;
-  authorNickname: string | null;
-  authorMbti: string;
-  authorMbtiVerified: MbtiVerified;
   content: string;
+  authorNickname: string;
+  authorMbtiId: string;
+  authorMbtiColor: string;
+  mbtiVerified: MbtiVerified;
+  mbtiVerifiedColor: string;
   likeCount: number;
   dislikeCount: number;
+  myReactionType: ReactionType | null;
   debateStance: DebateStance | null;
-  myReaction: ReactionType | null;
-  isVisible: boolean;
   isGuest: boolean;
-  isMine: boolean;
-  replies: Comment[];
   createdAt: string;
   updatedAt: string;
+  replies: Comment[];
 }
 
 export interface CreateCommentRequest {
@@ -30,6 +32,21 @@ export interface CreateCommentRequest {
   guestPassword?: string;
 }
 
+export interface UpdateCommentRequest {
+  content: string;
+  guestPassword?: string;
+}
+
+export type CommentReactionState = Pick<Comment, "myReactionType" | "likeCount" | "dislikeCount">;
+
 export interface ReactionRequest {
   reactionType: ReactionType;
 }
+
+export interface ReactionResponse {
+  commentId: number;
+  myReactionType: ReactionType | null;
+  likeCount: number;
+  dislikeCount: number;
+}
+

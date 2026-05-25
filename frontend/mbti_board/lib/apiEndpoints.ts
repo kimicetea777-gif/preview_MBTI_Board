@@ -20,4 +20,9 @@ export const API = {
     list: "/api/posts",
     byId: (id: number) => `/api/posts/${id}`,
   },
+  comments: {
+    byPostId: (postId: number) => `/api/posts/${postId}/comments`,
+    byId: (postId: number, commentId: number) => `/api/posts/${postId}/comments/${commentId}`,
+    reactions: (commentId: number) => `/api/comments/${commentId}/reactions`,
+  },
 } as const;

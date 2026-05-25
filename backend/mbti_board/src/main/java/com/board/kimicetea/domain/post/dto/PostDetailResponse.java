@@ -1,6 +1,8 @@
 package com.board.kimicetea.domain.post.dto;
 
 import com.board.kimicetea.domain.post.entity.Post;
+import com.board.kimicetea.domain.post.entity.VotePost;
+import com.board.kimicetea.domain.post.entity.VotePostHistory;
 import com.board.kimicetea.domain.user.enums.MbtiVerified;
 
 import java.time.Instant;
@@ -8,6 +10,7 @@ import java.util.UUID;
 
 /**
  * 게시글 상세 응답 DTO — content 포함, isOwner로 수정·삭제 버튼 노출 제어
+ * 주의: voteResult는 VOTE 타입일 때만 포함 — 나머지는 null
  */
 public record PostDetailResponse(
                 Long id,
@@ -24,17 +27,32 @@ public record PostDetailResponse(
                 boolean isOwner,
                 boolean isGuest,
                 Instant createdAt,
-                Instant updatedAt) {
+                Instant updatedAt,
+                VoteResultResponse voteResult) {
+
         /**
+         * 비 VOTE 게시글용 팩토리
          * @param currentUserId 현재 요청자 UUID — 비회원이면 null
          */
         public static PostDetailResponse from(final Post post, final UUID currentUserId) {
+                return from(post, currentUserId, null, null);
+        }
+
+        /**
+         * VOTE 게시글용 팩토리
+         * @param votePost options이 JOIN FETCH된 VotePost
+         * @param history  본인 투표 내역 — 비로그인 또는 미투표 시 null
+         */
+        public static PostDetailResponse from(final Post post, final UUID currentUserId,
+                        final VotePost votePost, final VotePostHistory history) {
                 final boolean hasUser = post.getUser() != null;
 
-                // 회원 작성 글: 작성자와 현재 유저가 일치할 때 isOwner
-                // 비회원 작성 글: isOwner = false (삭제는 guestPassword로 별도 처리)
                 final boolean isOwner = hasUser && (currentUserId != null)
                                 && post.getUser().getId().equals(currentUserId);
+
+                final VoteResultResponse voteResult = (votePost != null)
+                                ? VoteResultResponse.from(votePost, history)
+                                : null;
 
                 return new PostDetailResponse(
                                 post.getId(),
@@ -52,6 +70,7 @@ public record PostDetailResponse(
                                 isOwner,
                                 post.getGuestPassword() != null,
                                 post.getCreatedAt(),
-                                post.getUpdatedAt());
+                                post.getUpdatedAt(),
+                                voteResult);
         }
 }

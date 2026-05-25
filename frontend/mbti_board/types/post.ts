@@ -1,5 +1,14 @@
 export type PostType = "FREE" | "VOTE" | "DEBATE";
 
+// sort 값은 백엔드 PostSortType enum과 동일하게 대문자 사용
+export const POST_SORT = {
+  LATEST: "LATEST",
+  VIEWS: "VIEWS",
+  COMMENTS: "COMMENTS",
+} as const;
+
+export type PostSortType = (typeof POST_SORT)[keyof typeof POST_SORT];
+
 // GET /api/posts 목록 응답
 export interface PostSummaryResponse {
   id: number;
@@ -23,14 +32,6 @@ export interface PostDetailResponse extends PostSummaryResponse {
   updatedAt: string;
 }
 
-// sort 값은 백엔드 PostSortType enum과 동일하게 대문자 사용
-export const POST_SORT = {
-  LATEST: "LATEST",
-  VIEWS: "VIEWS",
-  COMMENTS: "COMMENTS",
-} as const;
-
-export type PostSortType = (typeof POST_SORT)[keyof typeof POST_SORT];
 
 export interface PostListParams {
   type: PostType;

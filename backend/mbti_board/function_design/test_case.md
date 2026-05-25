@@ -162,3 +162,127 @@
 | 5-4 | 비회원 — 틀린 `X-Guest-Password`         | 403 Forbidden, "비밀번호가 일치하지 않습니다."          |
 | 5-5 | 비회원 — `X-Guest-Password` 헤더 없음   | 400 Bad Request, "비회원은 비밀번호를 입력해야 합니다." |
 | 5-6 | 존재하지 않는 게시글                     | 404 Not Found, "게시글을 찾을 수 없습니다."             |
+
+---
+
+## Phase 3 — 댓글 도메인 (`CommentControllerTest`, `CommentReactionControllerTest`)
+
+### 댓글 목록 조회 (`GET /api/posts/{postId}/comments`)
+
+| ID  | 케이스                                           | 기대 결과                                                                  |
+| --- | ------------------------------------------------ | -------------------------------------------------------------------------- |
+| 1-1 | 댓글 없는 게시글 조회                           | 200 OK, 빈 배열                                                            |
+| 1-2 | 루트 댓글만 있을 때 조회                        | 200 OK, `replies = []`                                                     |
+| 1-3 | 루트 + 대댓글 구조 조회                         | 200 OK, 루트의 `replies`에 대댓글 포함, 대댓글의 `replies = []`            |
+| 1-4 | 비인증 유저 조회                                | 200 OK, 모든 댓글 `myReactionType = null`                                  |
+| 1-5 | 리액션 있는 회원 조회                           | 200 OK, 본인이 리액션한 댓글만 `myReactionType = 1` 또는 `-1`              |
+| 1-6 | 리액션 없는 회원 조회                           | 200 OK, 모든 댓글 `myReactionType = null`                                  |
+| 1-7 | 소프트 삭제된 댓글 (`is_visible=false`) 포함 여부 | 200 OK, 삭제된 댓글 응답에 미포함                                          |
+| 1-8 | 존재하지 않는 게시글                            | 404 Not Found, "게시글을 찾을 수 없습니다."                                |
+
+### 댓글 작성 (`POST /api/posts/{postId}/comments`)
+
+| ID   | 케이스                                          | 기대 결과                                                              |
+| ---- | ----------------------------------------------- | ---------------------------------------------------------------------- |
+| 2-1  | 회원 루트 댓글 작성                             | 201 Created, `isGuest=false`, `authorMbtiId` = 회원 MBTI              |
+| 2-2  | 비회원 댓글 작성                                | 201 Created, `isGuest=true`, `authorMbtiId=NONE`                       |
+| 2-3  | 비회원 — `guestPassword` 없음                   | 400 Bad Request, "비회원은 비밀번호를 입력해야 합니다."                |
+| 2-4  | 대댓글 작성 (유효한 `parentId`)                 | 201 Created, 목록 조회 시 루트의 `replies`에 포함                      |
+| 2-5  | 대댓글의 대댓글 시도 (`parentId`가 대댓글 ID)   | 400 Bad Request, "대댓글에는 댓글을 달 수 없습니다."                   |
+| 2-6  | `parentId`가 다른 게시글 소속 댓글 ID           | 404 Not Found, "댓글을 찾을 수 없습니다."                              |
+| 2-7  | 존재하지 않는 게시글에 작성                     | 404 Not Found, "게시글을 찾을 수 없습니다."                            |
+| 2-8  | `content` 공백                                  | 400 Bad Request                                                        |
+| 2-9  | DEBATE 게시글 — `debateStance` 없이 작성        | 400 Bad Request, "토론 게시글 댓글은 찬반 입장(1 또는 -1)을 선택해야 합니다." |
+| 2-10 | DEBATE 게시글 — `debateStance=1`로 작성         | 201 Created                                                            |
+| 2-11 | FREE 게시글 — `debateStance` 포함 작성          | 400 Bad Request, "일반·투표 게시글 댓글에는 찬반 입장을 설정할 수 없습니다." |
+
+### 댓글 수정 (`PATCH /api/posts/{postId}/comments/{id}`)
+
+| ID  | 케이스                                   | 기대 결과                                               |
+| --- | ---------------------------------------- | ------------------------------------------------------- |
+| 3-1 | 회원 본인 수정                           | 200 OK, 변경된 `content` 반환                           |
+| 3-2 | 다른 회원이 수정 시도                    | 403 Forbidden, "댓글 수정/삭제 권한이 없습니다."        |
+| 3-3 | 비회원 — 올바른 `guestPassword`          | 200 OK, 변경된 `content` 반환                           |
+| 3-4 | 비회원 — 틀린 `guestPassword`            | 403 Forbidden, "비밀번호가 일치하지 않습니다."          |
+| 3-5 | 비회원 — `guestPassword` 없음            | 400 Bad Request, "비회원은 비밀번호를 입력해야 합니다." |
+| 3-6 | 존재하지 않는 댓글 수정                  | 404 Not Found, "댓글을 찾을 수 없습니다."               |
+| 3-7 | 다른 게시글의 댓글 ID로 접근             | 404 Not Found, "댓글을 찾을 수 없습니다."               |
+
+### 댓글 삭제 (`DELETE /api/posts/{postId}/comments/{id}`)
+
+| ID  | 케이스                                     | 기대 결과                                               |
+| --- | ------------------------------------------ | ------------------------------------------------------- |
+| 4-1 | 회원 본인 삭제                             | 200 OK, 이후 목록 조회 시 해당 댓글 미포함              |
+| 4-2 | 다른 회원이 삭제 시도                      | 403 Forbidden, "댓글 수정/삭제 권한이 없습니다."        |
+| 4-3 | 비회원 — 올바른 `X-Guest-Password`         | 200 OK, 이후 목록 조회 시 해당 댓글 미포함              |
+| 4-4 | 비회원 — 틀린 `X-Guest-Password`           | 403 Forbidden, "비밀번호가 일치하지 않습니다."          |
+| 4-5 | 비회원 — `X-Guest-Password` 헤더 없음      | 400 Bad Request, "비회원은 비밀번호를 입력해야 합니다." |
+| 4-6 | 존재하지 않는 댓글 삭제                    | 404 Not Found, "댓글을 찾을 수 없습니다."               |
+| 4-7 | 다른 게시글의 댓글 ID로 접근               | 404 Not Found, "댓글을 찾을 수 없습니다."               |
+
+### 리액션 토글 (`POST /api/comments/{commentId}/reactions`)
+
+| ID   | 케이스                              | 기대 결과                                                              |
+| ---- | ----------------------------------- | ---------------------------------------------------------------------- |
+| 5-1  | 좋아요 신규 등록                    | 200 OK, `myReactionType=1`, `likeCount+1`                              |
+| 5-2  | 싫어요 신규 등록                    | 200 OK, `myReactionType=-1`, `dislikeCount+1`                          |
+| 5-3  | 좋아요 → 같은 타입 재등록 (취소)    | 200 OK, `myReactionType=null`, `likeCount` 원복                        |
+| 5-4  | 싫어요 → 같은 타입 재등록 (취소)    | 200 OK, `myReactionType=null`, `dislikeCount` 원복                     |
+| 5-5  | 좋아요 → 싫어요 전환                | 200 OK, `myReactionType=-1`, `likeCount-1`, `dislikeCount+1`           |
+| 5-6  | 싫어요 → 좋아요 전환                | 200 OK, `myReactionType=1`, `dislikeCount-1`, `likeCount+1`            |
+| 5-7  | 비인증 접근                         | 401 Unauthorized                                                       |
+| 5-8  | 존재하지 않는 댓글                  | 404 Not Found, "댓글을 찾을 수 없습니다."                              |
+| 5-9  | `reactionType=0` (유효하지 않은 값) | 400 Bad Request, "리액션 타입은 1(좋아요) 또는 -1(싫어요)이어야 합니다." |
+| 5-10 | `reactionType` 없음 (null)          | 400 Bad Request                                                        |
+
+### 리액션 취소 (`DELETE /api/comments/{commentId}/reactions`)
+
+| ID  | 케이스                          | 기대 결과                                        |
+| --- | ------------------------------- | ------------------------------------------------ |
+| 6-1 | 좋아요 있을 때 취소             | 200 OK, `myReactionType=null`, `likeCount-1`     |
+| 6-2 | 싫어요 있을 때 취소             | 200 OK, `myReactionType=null`, `dislikeCount-1`  |
+| 6-3 | 리액션 없을 때 취소 (멱등)      | 200 OK, `myReactionType=null`                    |
+| 6-4 | 비인증 접근                     | 401 Unauthorized                                 |
+| 6-5 | 존재하지 않는 댓글              | 404 Not Found, "댓글을 찾을 수 없습니다."        |
+
+---
+
+## Phase 4 — 투표 게시판 (`VoteControllerTest`)
+
+### 투표 게시글 작성 (`POST /api/posts` with `type=VOTE`)
+
+| ID   | 케이스                                       | 기대 결과                                                                |
+| ---- | -------------------------------------------- | ------------------------------------------------------------------------ |
+| 1-1  | 선택지 2개로 정상 작성                       | 201 Created, `options` 배열 포함 응답                                    |
+| 1-2  | 선택지 10개로 작성 (최대)                    | 201 Created                                                              |
+| 1-3  | 선택지 11개로 작성 (최대 초과)               | 400 Bad Request                                                          |
+| 1-4  | `voteOptions` 없음                           | 400 Bad Request, "투표 게시글은 최소 2개 이상의 선택지가 필요합니다."   |
+| 1-5  | 선택지 1개 (최소 미달)                       | 400 Bad Request, "투표 게시글은 최소 2개 이상의 선택지가 필요합니다."   |
+| 1-6  | `endsAt`이 과거 시각                         | 400 Bad Request, "마감일은 현재 시각보다 이후여야 합니다."               |
+| 1-7  | MBTI 선택지 + 일반 선택지 혼합               | 400 Bad Request, "MBTI 선택지와 일반 선택지를 혼합할 수 없습니다."      |
+| 1-8  | MBTI 선택지 중 동일 MBTI 중복               | 400 Bad Request, "같은 투표에 동일한 MBTI 선택지를 중복 등록할 수 없습니다." |
+| 1-9  | `endsAt` 없음 (무기한 투표)                  | 201 Created, `endsAt=null`, `isEnded=false`                              |
+
+### 투표 참여 (`POST /api/posts/{postId}/vote`)
+
+| ID   | 케이스                                       | 기대 결과                                                                |
+| ---- | -------------------------------------------- | ------------------------------------------------------------------------ |
+| 2-1  | 회원 정상 투표                               | 200 OK, `myVotedOptionId` 반환, 해당 선택지 `voteCount+1`               |
+| 2-2  | 비인증 접근                                  | 401 Unauthorized                                                         |
+| 2-3  | 이미 투표 후 다른 선택지로 변경              | 200 OK, 기존 선택지 `voteCount-1` · 새 선택지 `voteCount+1`             |
+| 2-4  | 이미 투표 후 같은 선택지 재선택              | 200 OK, `voteCount` 변화 없음, `myVotedOptionId` 동일                    |
+| 2-5  | 마감된 투표에 참여                           | 400 Bad Request, "이미 마감된 투표입니다."                               |
+| 2-6  | 존재하지 않는 게시글 ID                      | 404 Not Found, "게시글을 찾을 수 없습니다."                              |
+| 2-7  | FREE 게시글에 투표 요청 (vote_posts 미존재)  | 404 Not Found, "투표 게시글을 찾을 수 없습니다."                         |
+| 2-8  | 존재하지 않는 선택지 ID                      | 404 Not Found, "투표 선택지를 찾을 수 없습니다."                         |
+| 2-9  | 다른 게시글 소속 선택지 ID 사용              | 400 Bad Request, "선택지가 해당 투표 게시글에 속하지 않습니다."          |
+
+### 투표 결과 조회 (`GET /api/posts/{postId}/vote/result`)
+
+| ID   | 케이스                                       | 기대 결과                                                                |
+| ---- | -------------------------------------------- | ------------------------------------------------------------------------ |
+| 3-1  | 비인증 조회                                  | 200 OK, `myVotedOptionId=null`                                           |
+| 3-2  | 인증했지만 미투표 상태 조회                  | 200 OK, `myVotedOptionId=null`                                           |
+| 3-3  | 투표 후 결과 조회                            | 200 OK, `myVotedOptionId` 반환, 해당 선택지 `voteCount` 반영             |
+| 3-4  | 마감된 투표 결과 조회                        | 200 OK, `isEnded=true`                                                   |
+| 3-5  | 존재하지 않는 게시글 ID                      | 404 Not Found, "게시글을 찾을 수 없습니다."                              |

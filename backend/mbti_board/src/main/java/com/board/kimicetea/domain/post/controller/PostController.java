@@ -8,6 +8,7 @@ import com.board.kimicetea.domain.post.dto.PostSummaryResponse;
 import com.board.kimicetea.domain.post.dto.PostUpdateRequest;
 import com.board.kimicetea.domain.post.service.PostService;
 import com.board.kimicetea.domain.user.security.CustomUserDetails;
+import com.board.kimicetea.global.common.ApiConstants;
 import com.board.kimicetea.global.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -116,7 +117,7 @@ public class PostController {
         @DeleteMapping("/{id}")
         public ResponseEntity<ApiResponse<Void>> deletePost(
                         @PathVariable final Long id,
-                        @RequestHeader(value = "X-Guest-Password", required = false) final String guestPassword,
+                        @RequestHeader(value = ApiConstants.HEADER_GUEST_PASSWORD, required = false) final String guestPassword,
                         @AuthenticationPrincipal final CustomUserDetails userDetails) {
 
                 postService.deletePost(id, new PostDeleteRequest(guestPassword), userDetails);

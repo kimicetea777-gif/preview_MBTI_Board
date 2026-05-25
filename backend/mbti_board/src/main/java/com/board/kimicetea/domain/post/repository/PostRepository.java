@@ -14,6 +14,8 @@ import java.util.Optional;
  */
 public interface PostRepository extends JpaRepository<Post, Long>, PostRepositoryCustom {
 
+    boolean existsByIdAndIsVisibleTrue(Long id);
+
     @Query("SELECT p FROM Post p JOIN FETCH p.postType JOIN FETCH p.authorMbti LEFT JOIN FETCH p.user LEFT JOIN FETCH p.targetMbti WHERE p.id = :id AND p.isVisible = true")
     Optional<Post> findWithDetailsById(@Param("id") Long id);
 
