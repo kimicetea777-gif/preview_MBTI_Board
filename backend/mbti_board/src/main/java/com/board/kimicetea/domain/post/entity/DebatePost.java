@@ -30,11 +30,11 @@ public class DebatePost {
     private Long id;
 
     @Builder.Default
-    @Column(name = "pro_label", nullable = false)
+    @Column(name = "pro_label", nullable = false, length = 50)
     private String proLabel = "찬성";
 
     @Builder.Default
-    @Column(name = "con_label", nullable = false)
+    @Column(name = "con_label", nullable = false, length = 50)
     private String conLabel = "반대";
 
     // DB 트리거가 관리 — JPA 직접 수정 금지

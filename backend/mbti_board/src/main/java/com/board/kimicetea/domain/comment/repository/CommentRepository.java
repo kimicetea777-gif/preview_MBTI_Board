@@ -12,7 +12,7 @@ import java.util.Optional;
  * 댓글 기본 CRUD
  * 주의: likeCount·dislikeCount는 DB 트리거가 관리 — JPA 직접 수정 금지
  */
-public interface CommentRepository extends JpaRepository<Comment, Long> {
+public interface CommentRepository extends JpaRepository<Comment, Long>, CommentRepositoryCustom {
 
     /** 단건 조회 — 소프트 삭제된 댓글은 제외 (parentId 검증 전용) */
     Optional<Comment> findByIdAndIsVisibleTrue(Long id);

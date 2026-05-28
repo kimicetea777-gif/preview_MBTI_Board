@@ -67,4 +67,38 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
 
         return new PageImpl<>(content, pageable, total != null ? total : 0L);
     }
+
+    @Override
+    public Page<Post> findAllPostsForAdmin(final String typeCode, final Boolean isVisible,
+            final Pageable pageable) {
+        final QPost post = QPost.post;
+        final BooleanBuilder builder = new BooleanBuilder();
+
+        if (typeCode != null && !typeCode.isBlank()) {
+            builder.and(post.postType.code.eq(typeCode));
+        }
+        if (isVisible != null) {
+            builder.and(post.isVisible.eq(isVisible));
+        }
+
+        final List<Post> content = queryFactory
+                .selectFrom(post)
+                .join(post.postType).fetchJoin()
+                .join(post.authorMbti).fetchJoin()
+                .leftJoin(post.user).fetchJoin()
+                .leftJoin(post.targetMbti).fetchJoin()
+                .where(builder)
+                .orderBy(post.createdAt.desc())
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .fetch();
+
+        final Long total = queryFactory
+                .select(post.count())
+                .from(post)
+                .where(builder)
+                .fetchOne();
+
+        return new PageImpl<>(content, pageable, total != null ? total : 0L);
+    }
 }

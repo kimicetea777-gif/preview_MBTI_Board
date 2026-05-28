@@ -14,11 +14,17 @@ const MY_TABS = [
   { label: "프로필", href: ROUTES.my },
 ] as const;
 
+const MBTI_TABS = [
+  { label: "MBTI 유형", href: ROUTES.mbti.list },
+  { label: "MBTI 검사", href: ROUTES.mbti.test },
+] as const;
+
 export default function Sidebar() {
   const pathname = usePathname();
   const isMyPage = pathname.startsWith(ROUTES.my);
-  const tabs = isMyPage ? MY_TABS : BOARD_TABS;
-  const sectionLabel = isMyPage ? "마이페이지" : "게시판";
+  const isMbtiPage = pathname.startsWith(ROUTES.mbti.list);
+  const tabs = isMyPage ? MY_TABS : isMbtiPage ? MBTI_TABS : BOARD_TABS;
+  const sectionLabel = isMyPage ? "마이페이지" : isMbtiPage ? "MBTI" : "게시판";
 
   return (
     <aside className="w-48 shrink-0 border-r border-gray-200 bg-white">
@@ -28,7 +34,7 @@ export default function Sidebar() {
         </p>
         <ul className="space-y-1">
           {tabs.map(({ label, href }) => {
-            const isActive = pathname === href || (href !== ROUTES.my && pathname.startsWith(href));
+            const isActive = pathname === href || (href !== ROUTES.my && href !== ROUTES.mbti.list && pathname.startsWith(href));
             return (
               <li key={href}>
                 <Link

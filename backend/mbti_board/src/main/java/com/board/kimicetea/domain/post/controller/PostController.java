@@ -1,11 +1,13 @@
 package com.board.kimicetea.domain.post.controller;
 
 import com.board.kimicetea.domain.post.PostSortType;
+import com.board.kimicetea.domain.post.dto.DebatePostCreateRequest;
 import com.board.kimicetea.domain.post.dto.PostCreateRequest;
 import com.board.kimicetea.domain.post.dto.PostDeleteRequest;
 import com.board.kimicetea.domain.post.dto.PostDetailResponse;
 import com.board.kimicetea.domain.post.dto.PostSummaryResponse;
 import com.board.kimicetea.domain.post.dto.PostUpdateRequest;
+import com.board.kimicetea.domain.post.dto.VotePostCreateRequest;
 import com.board.kimicetea.domain.post.service.PostService;
 import com.board.kimicetea.domain.user.security.CustomUserDetails;
 import com.board.kimicetea.global.common.ApiConstants;
@@ -79,7 +81,7 @@ public class PostController {
                 return ResponseEntity.ok(ApiResponse.ok(postService.getPost(id, currentUserId)));
         }
 
-        @Operation(summary = "게시글 작성", description = "회원 또는 비회원(guestPassword 필수)이 게시글을 작성합니다.")
+        @Operation(summary = "자유글 작성", description = "회원 또는 비회원(guestPassword 필수)이 자유글(FREE)을 작성합니다. VOTE·DEBATE 타입은 전용 엔드포인트를 사용해야 합니다.")
         @ApiResponses({
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "작성 성공"),
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "유효하지 않은 요청")
@@ -91,6 +93,35 @@ public class PostController {
 
                 return ResponseEntity.status(HttpStatus.CREATED)
                                 .body(ApiResponse.ok(postService.createPost(request, userDetails)));
+        }
+
+        @Operation(summary = "토론 게시글 작성", description = "회원 또는 비회원(guestPassword 필수)이 토론(DEBATE) 게시글을 작성합니다.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "작성 성공"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "유효하지 않은 요청")
+        })
+        @PostMapping("/debate")
+        public ResponseEntity<ApiResponse<PostDetailResponse>> createDebatePost(
+                        @Valid @RequestBody final DebatePostCreateRequest request,
+                        @AuthenticationPrincipal final CustomUserDetails userDetails) {
+
+                return ResponseEntity.status(HttpStatus.CREATED)
+                                .body(ApiResponse.ok(postService.createDebatePost(request, userDetails)));
+        }
+
+        @Operation(summary = "투표 게시글 작성", description = "회원이 투표(VOTE) 게시글을 작성합니다. 선택지는 최소 2개 이상 필요합니다.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "작성 성공"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "유효하지 않은 요청"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "로그인 필요")
+        })
+        @PostMapping("/vote")
+        public ResponseEntity<ApiResponse<PostDetailResponse>> createVotePost(
+                        @Valid @RequestBody final VotePostCreateRequest request,
+                        @AuthenticationPrincipal final CustomUserDetails userDetails) {
+
+                return ResponseEntity.status(HttpStatus.CREATED)
+                                .body(ApiResponse.ok(postService.createVotePost(request, userDetails)));
         }
 
         @Operation(summary = "게시글 수정", description = "작성자(회원) 또는 비회원(guestPassword 검증)이 게시글을 수정합니다.")

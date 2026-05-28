@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @Slf4j
 @RestControllerAdvice
@@ -29,6 +30,14 @@ public class GlobalExceptionHandler {
                 .map(error -> error.getField() + ": " + error.getDefaultMessage())
                 .findFirst()
                 .orElse("입력값이 올바르지 않습니다.");
+        return ResponseEntity.badRequest().body(ApiResponse.fail(message));
+    }
+
+    // @RequestParam/@PathVariable 타입 변환 실패 (e.g., ?state=INVALID_VALUE, UUID 파싱 오류)
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTypeMismatchException(final MethodArgumentTypeMismatchException e) {
+        final String typeName = e.getRequiredType() != null ? e.getRequiredType().getSimpleName() : "알 수 없는 타입";
+        final String message = e.getName() + ": 올바른 " + typeName + " 값이 필요합니다.";
         return ResponseEntity.badRequest().body(ApiResponse.fail(message));
     }
 

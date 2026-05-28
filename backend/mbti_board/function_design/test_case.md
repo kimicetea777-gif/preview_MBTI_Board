@@ -286,3 +286,57 @@
 | 3-3  | 투표 후 결과 조회                            | 200 OK, `myVotedOptionId` 반환, 해당 선택지 `voteCount` 반영             |
 | 3-4  | 마감된 투표 결과 조회                        | 200 OK, `isEnded=true`                                                   |
 | 3-5  | 존재하지 않는 게시글 ID                      | 404 Not Found, "게시글을 찾을 수 없습니다."                              |
+
+---
+
+## Phase 6 — MBTI 검사 도메인 (`MbtiTestControllerTest`, `MbtiMetadataControllerTest`)
+
+> URL 상수 추가 필요 (`IntegrationTestSupport`):
+> `MBTI_LIST_URL = "/api/mbti"`, `MBTI_TEST_SUBMIT_URL = "/api/mbti/test/submit"`, `MBTI_HISTORY_URL = "/api/users/me/mbti/history"`
+
+### 검사 문항 조회 (`GET /api/mbti/test/questions`)
+
+| ID  | 케이스                                | 기대 결과                                              |
+| --- | ------------------------------------- | ------------------------------------------------------ |
+| 1-1 | 비인증 문항 조회                      | 200 OK, 20개 문항 반환                                 |
+| 1-2 | 첫 번째 문항 구조 검증                | `id`·`question`·`dimension`·`optionA`·`optionB` 모두 존재 |
+| 1-3 | dimension 분포 검증                   | EI·SN·TF·JP 각 5문항                                   |
+| 1-4 | POST 메서드 시도                      | 405 Method Not Allowed                                 |
+
+### 검사 결과 제출 (`POST /api/mbti/test/submit`)
+
+| ID  | 케이스                                         | 기대 결과                                                               |
+| --- | ---------------------------------------------- | ----------------------------------------------------------------------- |
+| 2-1 | 회원 — 정상 점수 제출 (예: eiScore=5 등)       | 200 OK, `mbtiId` 반환 (서버 재도출 MBTI)                                |
+| 2-2 | 비인증 접근                                    | 401 Unauthorized, "로그인이 필요합니다."                                |
+| 2-3 | `eiScore=17` (범위 초과)                       | 400 Bad Request                                                         |
+| 2-4 | `eiScore=-17` (범위 미만)                      | 400 Bad Request                                                         |
+| 2-5 | `snScore` null                                 | 400 Bad Request                                                         |
+| 2-6 | 제출 후 내 프로필 조회 (`GET /api/users/me`)   | `mbtiVerified=TESTED`, `mbtiId` 변경 확인                               |
+| 2-7 | 제출 후 이력 조회 (`GET /api/users/me/mbti/history`) | 최신 이력에 제출 점수·`mbtiId` 반영 확인                         |
+
+### 검사 이력 조회 (`GET /api/users/me/mbti/history`)
+
+| ID  | 케이스                            | 기대 결과                                              |
+| --- | --------------------------------- | ------------------------------------------------------ |
+| 3-1 | 인증 유저 — 이력 없을 때 조회     | 200 OK, 빈 배열                                        |
+| 3-2 | 인증 유저 — 이력 1개 조회         | 200 OK, 1건 반환, `mbtiId`·4개 점수·`createdAt` 포함  |
+| 3-3 | 인증 유저 — 복수 이력 최신순 정렬 | 200 OK, 나중에 제출한 이력이 `[0]`에 위치              |
+| 3-4 | 비인증 접근                       | 401 Unauthorized, "로그인이 필요합니다."               |
+
+### MBTI 전체 목록 조회 (`GET /api/mbti`)
+
+| ID  | 케이스                          | 기대 결과                                              |
+| --- | ------------------------------- | ------------------------------------------------------ |
+| 4-1 | 비인증 전체 목록 조회           | 200 OK, 17종(MBTI 16종 + NONE) 반환                    |
+| 4-2 | 응답 항목 구조 검증             | `id`·`iconUrl`·`colorCode`·`description` 필드 존재     |
+| 4-3 | POST 메서드 시도                | 405 Method Not Allowed                                 |
+
+### MBTI 단건 조회 (`GET /api/mbti/{id}`)
+
+| ID  | 케이스                                     | 기대 결과                                                  |
+| --- | ------------------------------------------ | ---------------------------------------------------------- |
+| 5-1 | 유효한 ID로 단건 조회 (`INTP`)             | 200 OK, `id=INTP`, `colorCode`·`description` 포함          |
+| 5-2 | `NONE` ID 단건 조회                        | 200 OK, `id=NONE` 반환                                     |
+| 5-3 | 존재하지 않는 ID 조회 (`XXXX`)             | 404 Not Found, "존재하지 않는 MBTI입니다."                 |
+| 5-4 | ID 7자 이상 (`TOOLONGID`) — 길이 제한 초과 | 400 Bad Request                                            |

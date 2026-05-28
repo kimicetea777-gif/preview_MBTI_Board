@@ -113,6 +113,10 @@ public class User {
         this.password = encodedPassword;
     }
 
+    public void changeRole(final UserRole role) {
+        this.role = role;
+    }
+
     /** 탈퇴 시 PII 즉시 제거 — email·nickname은 UNIQUE NOT NULL이므로 고유 플레이스홀더로 대체 */
     public void anonymize() {
         this.email = "withdrawn_" + this.id + "@deleted.invalid";

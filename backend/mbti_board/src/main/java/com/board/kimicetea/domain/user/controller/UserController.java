@@ -1,5 +1,7 @@
 package com.board.kimicetea.domain.user.controller;
 
+import com.board.kimicetea.domain.mbti.dto.MbtiTestHistoryResponse;
+import com.board.kimicetea.domain.mbti.service.MbtiService;
 import com.board.kimicetea.domain.user.dto.ChangePasswordRequest;
 import com.board.kimicetea.domain.user.dto.MyProfileResponse;
 import com.board.kimicetea.domain.user.dto.UpdateProfileRequest;
@@ -27,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -40,6 +43,7 @@ import java.util.UUID;
 public class UserController {
 
     private final UserService userService;
+    private final MbtiService mbtiService;
     private final CookieUtils cookieUtils;
 
     /**
@@ -125,6 +129,20 @@ public class UserController {
         userService.withdraw(userDetails.userId(), accessToken, request.code());
         cookieUtils.clearRefreshTokenCookie(response);
         return ResponseEntity.ok(ApiResponse.ok("탈퇴 처리가 완료되었습니다."));
+    }
+
+    /**
+     * 내 MBTI 검사 이력 조회 — 최신순
+     */
+    @Operation(summary = "내 MBTI 검사 이력 조회", description = "본인의 MBTI 검사 이력을 최신순으로 반환합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
+    })
+    @GetMapping("/me/mbti/history")
+    public ResponseEntity<ApiResponse<List<MbtiTestHistoryResponse>>> getMyMbtiHistory(
+            @AuthenticationPrincipal final CustomUserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.ok(mbtiService.getMyMbtiHistory(userDetails.userId())));
     }
 
     /**

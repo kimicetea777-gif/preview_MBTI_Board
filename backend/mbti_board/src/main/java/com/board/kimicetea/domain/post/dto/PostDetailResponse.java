@@ -1,5 +1,6 @@
 package com.board.kimicetea.domain.post.dto;
 
+import com.board.kimicetea.domain.post.entity.DebatePost;
 import com.board.kimicetea.domain.post.entity.Post;
 import com.board.kimicetea.domain.post.entity.VotePost;
 import com.board.kimicetea.domain.post.entity.VotePostHistory;
@@ -10,7 +11,7 @@ import java.util.UUID;
 
 /**
  * 게시글 상세 응답 DTO — content 포함, isOwner로 수정·삭제 버튼 노출 제어
- * 주의: voteResult는 VOTE 타입일 때만 포함 — 나머지는 null
+ * 주의: voteResult는 VOTE 타입, debateResult는 DEBATE 타입일 때만 포함 — 나머지는 null
  */
 public record PostDetailResponse(
                 Long id,
@@ -28,14 +29,15 @@ public record PostDetailResponse(
                 boolean isGuest,
                 Instant createdAt,
                 Instant updatedAt,
-                VoteResultResponse voteResult) {
+                VoteResultResponse voteResult,
+                DebateSummaryResponse debateResult) {
 
         /**
-         * 비 VOTE 게시글용 팩토리
+         * FREE 게시글용 팩토리
          * @param currentUserId 현재 요청자 UUID — 비회원이면 null
          */
         public static PostDetailResponse from(final Post post, final UUID currentUserId) {
-                return from(post, currentUserId, null, null);
+                return build(post, currentUserId, null, null, null);
         }
 
         /**
@@ -45,6 +47,21 @@ public record PostDetailResponse(
          */
         public static PostDetailResponse from(final Post post, final UUID currentUserId,
                         final VotePost votePost, final VotePostHistory history) {
+                return build(post, currentUserId, votePost, history, null);
+        }
+
+        /**
+         * DEBATE 게시글용 팩토리
+         * @param debatePost 토론 메타 (proLabel/conLabel/찬반 카운트/마감일)
+         */
+        public static PostDetailResponse from(final Post post, final UUID currentUserId,
+                        final DebatePost debatePost) {
+                return build(post, currentUserId, null, null, debatePost);
+        }
+
+        private static PostDetailResponse build(final Post post, final UUID currentUserId,
+                        final VotePost votePost, final VotePostHistory history,
+                        final DebatePost debatePost) {
                 final boolean hasUser = post.getUser() != null;
 
                 final boolean isOwner = hasUser && (currentUserId != null)
@@ -52,6 +69,10 @@ public record PostDetailResponse(
 
                 final VoteResultResponse voteResult = (votePost != null)
                                 ? VoteResultResponse.from(votePost, history)
+                                : null;
+
+                final DebateSummaryResponse debateResult = (debatePost != null)
+                                ? DebateSummaryResponse.from(debatePost)
                                 : null;
 
                 return new PostDetailResponse(
@@ -71,6 +92,7 @@ public record PostDetailResponse(
                                 post.getGuestPassword() != null,
                                 post.getCreatedAt(),
                                 post.getUpdatedAt(),
-                                voteResult);
+                                voteResult,
+                                debateResult);
         }
 }

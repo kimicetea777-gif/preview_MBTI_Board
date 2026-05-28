@@ -6,17 +6,21 @@ import com.board.kimicetea.domain.mbti.MbtiConstants;
 import com.board.kimicetea.domain.post.PostConstants;
 import com.board.kimicetea.global.common.util.GuestPasswordHelper;
 import com.board.kimicetea.domain.post.PostSortType;
+import com.board.kimicetea.domain.post.dto.DebatePostCreateRequest;
 import com.board.kimicetea.domain.post.dto.PostCreateRequest;
 import com.board.kimicetea.domain.post.dto.PostDeleteRequest;
 import com.board.kimicetea.domain.post.dto.PostDetailResponse;
 import com.board.kimicetea.domain.post.dto.PostSummaryResponse;
 import com.board.kimicetea.domain.post.dto.PostUpdateRequest;
 import com.board.kimicetea.domain.post.dto.VoteOptionRequest;
+import com.board.kimicetea.domain.post.dto.VotePostCreateRequest;
+import com.board.kimicetea.domain.post.entity.DebatePost;
 import com.board.kimicetea.domain.post.entity.Post;
 import com.board.kimicetea.domain.post.entity.PostType;
 import com.board.kimicetea.domain.post.entity.VotePost;
 import com.board.kimicetea.domain.post.entity.VotePostHistory;
 import com.board.kimicetea.domain.post.entity.VotePostOption;
+import com.board.kimicetea.domain.post.repository.DebatePostRepository;
 import com.board.kimicetea.domain.post.repository.PostRepository;
 import com.board.kimicetea.domain.post.repository.PostTypeRepository;
 import com.board.kimicetea.domain.post.repository.VotePostHistoryRepository;
@@ -58,6 +62,7 @@ public class PostService {
     private final VotePostRepository votePostRepository;
     private final VotePostOptionRepository votePostOptionRepository;
     private final VotePostHistoryRepository votePostHistoryRepository;
+    private final DebatePostRepository debatePostRepository;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -72,7 +77,8 @@ public class PostService {
 
     /**
      * 단건 조회 + viewCount 원자적 증가
-     * VOTE 게시글은 options + 본인 투표 내역 함께 반환
+     * VOTE: options + 본인 투표 내역 함께 반환
+     * DEBATE: proLabel/conLabel/찬반 카운트/마감일 함께 반환
      * 주의: @Modifying 쿼리가 포함되므로 readOnly = false
      */
     @Transactional
@@ -89,12 +95,22 @@ public class PostService {
             return PostDetailResponse.from(post, currentUserId, votePost, history);
         }
 
+        if (PostConstants.TYPE_DEBATE.equals(post.getPostType().getCode())) {
+            final DebatePost debatePost = debatePostRepository.findById(id)
+                    .orElseThrow(() -> new CustomException(ErrorCode.DEBATE_POST_NOT_FOUND));
+            return PostDetailResponse.from(post, currentUserId, debatePost);
+        }
+
         return PostDetailResponse.from(post, currentUserId);
     }
 
     @Transactional
     public PostDetailResponse createPost(final PostCreateRequest request,
             final CustomUserDetails userDetails) {
+        // VOTE·DEBATE는 전용 엔드포인트를 사용해야 함
+        if (PostConstants.TYPE_VOTE.equals(request.type()) || PostConstants.TYPE_DEBATE.equals(request.type())) {
+            throw new CustomException(ErrorCode.POST_TYPE_NOT_ALLOWED);
+        }
         final PostType postType = findPostTypeOrThrow(request.type());
 
         final User user;
@@ -123,14 +139,58 @@ public class PostService {
                 .build();
 
         final Post saved = postRepository.save(post);
-
-        // VOTE 타입이면 VotePost + 선택지 생성
-        if (PostConstants.TYPE_VOTE.equals(request.type())) {
-            final VotePost votePost = createVotePost(saved, request);
-            return PostDetailResponse.from(saved, (userDetails != null) ? userDetails.userId() : null, votePost, null);
-        }
-
         return PostDetailResponse.from(saved, (userDetails != null) ? userDetails.userId() : null);
+    }
+
+    /**
+     * POST /api/posts/debate — 토론 게시글 작성 (회원 전용)
+     * 주의: SecurityConfig에서 인증 필수 — userDetails null 도달 불가
+     */
+    @Transactional
+    public PostDetailResponse createDebatePost(final DebatePostCreateRequest request,
+            final CustomUserDetails userDetails) {
+        final PostType postType = findPostTypeOrThrow(PostConstants.TYPE_DEBATE);
+        final User user = findUserOrThrow(userDetails.userId());
+        final MbtiMetadata authorMbti = user.getMbti();
+        final MbtiMetadata targetMbti = resolveTargetMbti(request.targetMbti());
+
+        final Post post = Post.builder()
+                .title(request.title().strip())
+                .content(request.content())
+                .user(user)
+                .authorMbti(authorMbti)
+                .targetMbti(targetMbti)
+                .postType(postType)
+                .build();
+
+        final Post saved = postRepository.save(post);
+        final DebatePost debatePost = createDebatePostMeta(saved, request);
+        return PostDetailResponse.from(saved, userDetails.userId(), debatePost);
+    }
+
+    /**
+     * POST /api/posts/vote — 투표 게시글 작성 (회원 전용)
+     * 주의: SecurityConfig에서 인증 필수 — userDetails null 도달 불가
+     */
+    @Transactional
+    public PostDetailResponse createVotePost(final VotePostCreateRequest request,
+            final CustomUserDetails userDetails) {
+        final PostType postType = findPostTypeOrThrow(PostConstants.TYPE_VOTE);
+        final User user = findUserOrThrow(userDetails.userId());
+        final MbtiMetadata targetMbti = resolveTargetMbti(request.targetMbti());
+
+        final Post post = Post.builder()
+                .title(request.title().strip())
+                .content(request.content())
+                .user(user)
+                .authorMbti(user.getMbti())
+                .targetMbti(targetMbti)
+                .postType(postType)
+                .build();
+
+        final Post saved = postRepository.save(post);
+        final VotePost votePost = createVotePostMeta(saved, request);
+        return PostDetailResponse.from(saved, userDetails.userId(), votePost, null);
     }
 
     /**
@@ -139,7 +199,7 @@ public class PostService {
      * - voteOptions 최소 2개 필수
      * - MBTI 투표 시 같은 mbtiTarget 중복 불가 (DB 인덱스 + 서비스 사전 검증)
      */
-    private VotePost createVotePost(final Post post, final PostCreateRequest request) {
+    private VotePost createVotePostMeta(final Post post, final VotePostCreateRequest request) {
         final List<VoteOptionRequest> optionRequests = request.voteOptions();
         if (optionRequests == null || optionRequests.size() < 2) {
             throw new CustomException(ErrorCode.VOTE_OPTIONS_REQUIRED);
@@ -153,17 +213,15 @@ public class PostService {
         // DB flush 전에는 이전 저장 옵션을 existsByVotePost_Id... 쿼리가 인식 못 하므로
         // 요청 리스트 내 MBTI 중복을 인메모리에서 먼저 검증
         // 또한 MBTI 투표(mbtiTarget 있음)와 자유 투표(null)가 혼합되지 않도록 검증
-        final boolean hasMbti = optionRequests.stream()
-                .anyMatch(o -> o.mbtiTarget() != null && !o.mbtiTarget().isBlank());
-        final boolean hasNonMbti = optionRequests.stream()
-                .anyMatch(o -> o.mbtiTarget() == null || o.mbtiTarget().isBlank());
+        final boolean hasMbti    = optionRequests.stream().anyMatch(VoteOptionRequest::hasMbtiTarget);
+        final boolean hasNonMbti = optionRequests.stream().anyMatch(o -> !o.hasMbtiTarget());
         if (hasMbti && hasNonMbti) {
             throw new CustomException(ErrorCode.VOTE_MBTI_MODE_MIXED);
         }
 
         final Set<String> seenMbti = new HashSet<>();
         for (final VoteOptionRequest optReq : optionRequests) {
-            if (optReq.mbtiTarget() != null && !optReq.mbtiTarget().isBlank()) {
+            if (optReq.hasMbtiTarget()) {
                 if (!seenMbti.add(optReq.mbtiTarget())) {
                     throw new CustomException(ErrorCode.VOTE_MBTI_DUPLICATE);
                 }
@@ -180,7 +238,7 @@ public class PostService {
             final VoteOptionRequest optReq = optionRequests.get(i);
             MbtiMetadata mbtiTarget = null;
 
-            if (optReq.mbtiTarget() != null && !optReq.mbtiTarget().isBlank()) {
+            if (optReq.hasMbtiTarget()) {
                 mbtiTarget = mbtiMetadataRepository.findById(optReq.mbtiTarget())
                         .orElseThrow(() -> new CustomException(ErrorCode.MBTI_NOT_FOUND));
             }
@@ -202,13 +260,53 @@ public class PostService {
                 .orElseThrow(() -> new CustomException(ErrorCode.VOTE_POST_NOT_FOUND));
     }
 
+    /**
+     * DebatePost 메타 생성 (트랜잭션 내 호출)
+     * 주의: endsAt이 과거 시각이면 즉시 마감 토론이 되므로 차단
+     */
+    private DebatePost createDebatePostMeta(final Post post, final DebatePostCreateRequest request) {
+        if (request.endsAt() != null && request.endsAt().isBefore(Instant.now())) {
+            throw new CustomException(ErrorCode.DEBATE_ENDS_AT_INVALID);
+        }
+
+        final DebatePost debatePost = DebatePost.builder()
+                .post(post)
+                .proLabel(request.proLabel() != null && !request.proLabel().isBlank()
+                        ? request.proLabel().strip() : "찬성")
+                .conLabel(request.conLabel() != null && !request.conLabel().isBlank()
+                        ? request.conLabel().strip() : "반대")
+                .endsAt(request.endsAt())
+                .build();
+
+        return debatePostRepository.save(debatePost);
+    }
+
     @Transactional
     public PostDetailResponse updatePost(final Long id, final PostUpdateRequest request,
             final CustomUserDetails userDetails) {
         final Post post = findPostOrThrow(id);
         verifyOwnership(post, userDetails, request.guestPassword());
         post.update(request.title().strip(), request.content());
-        return PostDetailResponse.from(post, userDetails != null ? userDetails.userId() : null);
+
+        final UUID currentUserId = userDetails != null ? userDetails.userId() : null;
+        final String typeCode = post.getPostType().getCode();
+
+        if (PostConstants.TYPE_VOTE.equals(typeCode)) {
+            final VotePost votePost = votePostRepository.findWithOptionsById(id)
+                    .orElseThrow(() -> new CustomException(ErrorCode.VOTE_POST_NOT_FOUND));
+            final VotePostHistory history = (currentUserId != null)
+                    ? votePostHistoryRepository.findByVotePost_IdAndUser_Id(id, currentUserId).orElse(null)
+                    : null;
+            return PostDetailResponse.from(post, currentUserId, votePost, history);
+        }
+
+        if (PostConstants.TYPE_DEBATE.equals(typeCode)) {
+            final DebatePost debatePost = debatePostRepository.findById(id)
+                    .orElseThrow(() -> new CustomException(ErrorCode.DEBATE_POST_NOT_FOUND));
+            return PostDetailResponse.from(post, currentUserId, debatePost);
+        }
+
+        return PostDetailResponse.from(post, currentUserId);
     }
 
     @Transactional

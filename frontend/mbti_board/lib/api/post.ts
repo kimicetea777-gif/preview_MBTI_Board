@@ -6,6 +6,8 @@ import type {
   PostDetailResponse,
   PostListParams,
   PostCreateRequest,
+  VotePostCreateRequest,
+  DebatePostCreateRequest,
   PostUpdateRequest,
 } from "@/types/post";
 
@@ -26,6 +28,16 @@ export async function fetchPostById(id: number): Promise<PostDetailResponse> {
 
 export async function createPost(data: PostCreateRequest): Promise<PostDetailResponse> {
   const res = await apiClient.post<ApiResponse<PostDetailResponse>>(API.posts.list, data);
+  return res.data.data;
+}
+
+export async function createVotePost(data: VotePostCreateRequest): Promise<PostDetailResponse> {
+  const res = await apiClient.post<ApiResponse<PostDetailResponse>>(API.posts.voteCreate, data);
+  return res.data.data;
+}
+
+export async function createDebatePost(data: DebatePostCreateRequest): Promise<PostDetailResponse> {
+  const res = await apiClient.post<ApiResponse<PostDetailResponse>>(API.posts.debateCreate, data);
   return res.data.data;
 }
 

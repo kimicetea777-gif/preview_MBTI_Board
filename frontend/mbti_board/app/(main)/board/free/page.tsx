@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import Link from "next/link";
 import { usePostList } from "@/hooks/usePosts";
 import PostCard from "@/components/post/PostCard";
 import PostListFilter from "@/components/post/PostListFilter";
 import { ROUTES } from "@/lib/routes";
 import { POST_SORT } from "@/types/post";
 import type { PostSortType } from "@/types/post";
+import BoardHeader from "@/components/post/BoardHeader";
 
 function PostCardSkeleton() {
   return (
@@ -42,15 +42,8 @@ export default function FreeBoardPage() {
 
   return (
     <section className="max-w-2xl mx-auto px-4 py-6">
-      <div className="flex items-center justify-between mb-2">
-        <h1 className="text-xl font-bold text-gray-900">자유게시판</h1>
-        <Link
-          href={ROUTES.board.freeWrite}
-          className="rounded-lg bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700 transition-colors"
-        >
-          글쓰기
-        </Link>
-      </div>
+
+      <BoardHeader title="자유게시판" writeHref={ROUTES.board.freeWrite}/>
 
       <PostListFilter
         sort={sort}

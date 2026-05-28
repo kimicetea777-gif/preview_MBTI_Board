@@ -3,14 +3,20 @@ export const ROUTES = {
   signup: "/signup",
   signupVerify: "/signup/verify",
   my: "/my",
+  admin: "/admin",
+  mbti: {
+    list: "/mbti",
+    test: "/mbti/test",
+  },
   board: {
     free: "/board/free",
     vote: "/board/vote",
     debate: "/board/debate",
-    freeWrite: "/board/free/write",
-    voteWrite: "/board/vote/write",
-    debateWrite: "/board/debate/write",
+    freeWrite: "/board/write",
+    voteWrite: "/board/write?type=VOTE",
+    debateWrite: "/board/write?type=DEBATE",
     freePost: (id: number) => `/board/free/${id}`,
     votePost: (id: number) => `/board/vote/${id}`,
+    debatePost: (id: number) => `/board/debate/${id}`,
   },
 } as const;

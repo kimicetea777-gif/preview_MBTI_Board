@@ -16,6 +16,7 @@ interface Props {
   mbtiList: MbtiMetadata[];
   contentLabel?: string;
   contentPlaceholder?: string;
+  beforeTitle?: React.ReactNode;
   children?: React.ReactNode;
 }
 
@@ -35,6 +36,7 @@ export default function PostWriteForm({
   mbtiList,
   contentLabel,
   contentPlaceholder = "내용을 입력하세요.",
+  beforeTitle,
   children,
 }: Props) {
   const router = useRouter();
@@ -44,6 +46,7 @@ export default function PostWriteForm({
       <h1 className="text-xl font-bold text-gray-900 mb-6">{heading}</h1>
 
       <form onSubmit={onSubmit} className="space-y-5">
+        {beforeTitle}
         <input
           type="text"
           value={title}

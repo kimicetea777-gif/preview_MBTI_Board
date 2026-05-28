@@ -9,6 +9,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 
@@ -30,7 +32,11 @@ public class MbtiMetadata {
     @Column(name = "color_code", nullable = false, length = 7)
     private String colorCode; // #4A90E2 (Hex Code)
 
-    @Column(name = "description", nullable = false)
+    @Column(name = "summary", nullable = false, length = 100)
+    private String summary;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "description", nullable = false, columnDefinition = "jsonb")
     private String description;
 
     @Column(name = "created_at", nullable = false, updatable = false)

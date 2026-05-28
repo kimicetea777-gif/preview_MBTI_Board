@@ -8,6 +8,7 @@ import com.board.kimicetea.domain.comment.dto.CommentReactionRequest;
 import com.board.kimicetea.domain.comment.dto.CommentUpdateRequest;
 import com.board.kimicetea.domain.comment.repository.CommentReactionRepository;
 import com.board.kimicetea.domain.comment.repository.CommentRepository;
+import com.board.kimicetea.domain.post.dto.DebatePostCreateRequest;
 import com.board.kimicetea.domain.post.dto.PostCreateRequest;
 import com.board.kimicetea.domain.post.repository.PostRepository;
 import com.board.kimicetea.domain.user.repository.UserRepository;
@@ -93,7 +94,18 @@ class CommentControllerTest extends IntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Authorization", "Bearer " + accessToken)
                         .content(objectMapper.writeValueAsString(
-                                new PostCreateRequest("테스트 제목", CONTENT, type, null, null, null, null))))
+                                new PostCreateRequest("테스트 제목", CONTENT, type, null, null))))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return objectMapper.readTree(body).path("data").path("id").asLong();
+    }
+
+    private long DEBATE_게시글_작성_후_ID_추출(final String accessToken) throws Exception {
+        final String body = mockMvc.perform(post(DEBATE_POSTS_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .content(objectMapper.writeValueAsString(
+                                new DebatePostCreateRequest("토론 제목", CONTENT, null, null, null, null))))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         return objectMapper.readTree(body).path("data").path("id").asLong();
@@ -384,7 +396,7 @@ class CommentControllerTest extends IntegrationTestSupport {
     @DisplayName("2-9. DEBATE 게시글 — debateStance 없이 작성 → 400, '토론 게시글 댓글은 찬반 입장(1 또는 -1)을 선택해야 합니다.'")
     void 댓글_작성_DEBATE_stance_없음_실패() throws Exception {
         final String at = 회원가입_후_로그인_AT_추출(TEST_EMAIL, TEST_NICKNAME);
-        final long postId = 게시글_작성_후_ID_추출(at, "DEBATE");
+        final long postId = DEBATE_게시글_작성_후_ID_추출(at);
 
         mockMvc.perform(post(POSTS_URL + "/" + postId + "/comments")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -399,7 +411,7 @@ class CommentControllerTest extends IntegrationTestSupport {
     @DisplayName("2-10. DEBATE 게시글 — debateStance=1로 작성 → 201")
     void 댓글_작성_DEBATE_stance_지정_성공() throws Exception {
         final String at = 회원가입_후_로그인_AT_추출(TEST_EMAIL, TEST_NICKNAME);
-        final long postId = 게시글_작성_후_ID_추출(at, "DEBATE");
+        final long postId = DEBATE_게시글_작성_후_ID_추출(at);
 
         mockMvc.perform(post(POSTS_URL + "/" + postId + "/comments")
                         .contentType(MediaType.APPLICATION_JSON)

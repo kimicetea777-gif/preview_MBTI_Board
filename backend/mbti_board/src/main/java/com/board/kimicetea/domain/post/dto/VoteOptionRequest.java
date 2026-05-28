@@ -15,4 +15,8 @@ public record VoteOptionRequest(
 
         // MBTI 투표 선택지일 때 MBTI ID ("INFP" 등), 자유 선택지는 null
         String mbtiTarget
-) {}
+) {
+    public boolean hasMbtiTarget() {
+        return mbtiTarget != null && !mbtiTarget.isBlank();
+    }
+}

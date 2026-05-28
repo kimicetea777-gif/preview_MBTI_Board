@@ -42,9 +42,30 @@ public abstract class IntegrationTestSupport {
     protected static final String PASSWORD_URL         = "/api/users/me/password";
     protected static final String USER_URL             = "/api/users/";
 
+    // Admin - User
+    protected static final String ADMIN_USERS_URL       = "/api/admin/users";
+    protected static final String ADMIN_USER_STATE_URL  = "/api/admin/users/%s/state";
+    protected static final String ADMIN_USER_ROLE_URL   = "/api/admin/users/%s/role";
+
+    // Admin - Post
+    protected static final String ADMIN_POSTS_URL              = "/api/admin/posts";
+    protected static final String ADMIN_POST_VISIBILITY_URL    = "/api/admin/posts/%d/visibility";
+
+    // Admin - Comment
+    protected static final String ADMIN_COMMENTS_URL           = "/api/admin/comments";
+    protected static final String ADMIN_COMMENT_VISIBILITY_URL = "/api/admin/comments/%d/visibility";
+
     // Post
-    protected static final String POSTS_URL = "/api/posts";
+    protected static final String POSTS_URL        = "/api/posts";
+    protected static final String VOTE_POSTS_URL   = "/api/posts/vote";
+    protected static final String DEBATE_POSTS_URL = "/api/posts/debate";
 
     // Comment reactions — use as: REACTIONS_BASE + commentId + "/reactions"
     protected static final String REACTIONS_BASE = "/api/comments/";
+
+    // MBTI 검사 / 메타데이터
+    protected static final String MBTI_TEST_QUESTIONS_URL = "/api/mbti/test/questions";
+    protected static final String MBTI_SUBMIT_URL          = "/api/mbti/test/submit";
+    protected static final String MBTI_LIST_URL            = "/api/mbti";
+    protected static final String MBTI_HISTORY_URL         = "/api/users/me/mbti/history";
 }

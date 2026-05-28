@@ -41,8 +41,13 @@ public enum ErrorCode {
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "게시글을 찾을 수 없습니다."),
     POST_FORBIDDEN(HttpStatus.FORBIDDEN, "게시글 수정/삭제 권한이 없습니다."),
     POST_TYPE_NOT_FOUND(HttpStatus.BAD_REQUEST, "존재하지 않는 게시판 유형입니다."),
+    POST_TYPE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "지원하지 않는 게시판 유형입니다."),
     GUEST_PASSWORD_REQUIRED(HttpStatus.BAD_REQUEST, "비회원은 비밀번호를 입력해야 합니다."),
     GUEST_PASSWORD_MISMATCH(HttpStatus.FORBIDDEN, "비밀번호가 일치하지 않습니다."),
+
+    // Debate
+    DEBATE_POST_NOT_FOUND(HttpStatus.NOT_FOUND, "토론 게시글을 찾을 수 없습니다."),
+    DEBATE_ENDS_AT_INVALID(HttpStatus.BAD_REQUEST, "마감일은 현재 시각보다 이후여야 합니다."),
 
     // Vote
     VOTE_POST_NOT_FOUND(HttpStatus.NOT_FOUND, "투표 게시글을 찾을 수 없습니다."),
@@ -61,6 +66,9 @@ public enum ErrorCode {
     DEBATE_STANCE_REQUIRED(HttpStatus.BAD_REQUEST, "토론 게시글 댓글은 찬반 입장(1 또는 -1)을 선택해야 합니다."),
     DEBATE_STANCE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "일반·투표 게시글 댓글에는 찬반 입장을 설정할 수 없습니다."),
     INVALID_REACTION_TYPE(HttpStatus.BAD_REQUEST, "리액션 타입은 1(좋아요) 또는 -1(싫어요)이어야 합니다."),
+
+    // Admin
+    ADMIN_CANNOT_MODIFY_SELF(HttpStatus.BAD_REQUEST, "자기 자신의 상태/역할은 변경할 수 없습니다."),
 
     // Common
     AUTHENTICATION_REQUIRED(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."),

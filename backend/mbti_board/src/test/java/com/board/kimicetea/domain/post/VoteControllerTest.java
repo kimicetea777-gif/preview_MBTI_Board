@@ -5,6 +5,7 @@ import com.board.kimicetea.domain.auth.dto.LoginRequest;
 import com.board.kimicetea.domain.auth.dto.SignupRequest;
 import com.board.kimicetea.domain.post.dto.PostCreateRequest;
 import com.board.kimicetea.domain.post.dto.VoteOptionRequest;
+import com.board.kimicetea.domain.post.dto.VotePostCreateRequest;
 import com.board.kimicetea.domain.post.dto.VoteRequest;
 import com.board.kimicetea.domain.post.repository.PostRepository;
 import com.board.kimicetea.domain.post.repository.VotePostHistoryRepository;
@@ -106,11 +107,11 @@ class VoteControllerTest extends IntegrationTestSupport {
          */
         private long[] 투표_게시글_작성_후_ID_배열_추출(final String accessToken,
                         final List<VoteOptionRequest> options, final Instant endsAt) throws Exception {
-                final String body = mockMvc.perform(post(POSTS_URL)
+                final String body = mockMvc.perform(post(VOTE_POSTS_URL)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("Authorization", "Bearer " + accessToken)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("투표 제목", CONTENT, "VOTE", null, null, options,
+                                                new VotePostCreateRequest("투표 제목", CONTENT, null, options,
                                                                 endsAt))))
                                 .andExpect(status().isCreated())
                                 .andReturn().getResponse().getContentAsString();
@@ -135,7 +136,7 @@ class VoteControllerTest extends IntegrationTestSupport {
         }
 
         // ─────────────────────────────────────────────────────────────
-        // 1단계 — 투표 게시글 작성 (POST /api/posts with type=VOTE)
+        // 1단계 — 투표 게시글 작성 (POST /api/posts/vote)
         // ─────────────────────────────────────────────────────────────
 
         @Test
@@ -143,11 +144,11 @@ class VoteControllerTest extends IntegrationTestSupport {
         void 투표_게시글_작성_선택지2개_성공() throws Exception {
                 final String at = 회원가입_후_로그인_AT_추출();
 
-                mockMvc.perform(post(POSTS_URL)
+                mockMvc.perform(post(VOTE_POSTS_URL)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("Authorization", "Bearer " + at)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("투표 제목", CONTENT, "VOTE", null, null, TWO_OPTIONS,
+                                                new VotePostCreateRequest("투표 제목", CONTENT, null, TWO_OPTIONS,
                                                                 null))))
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.data.voteResult.options").isArray())
@@ -163,11 +164,11 @@ class VoteControllerTest extends IntegrationTestSupport {
                                 .mapToObj(i -> new VoteOptionRequest("선택지 " + i, null))
                                 .toList();
 
-                mockMvc.perform(post(POSTS_URL)
+                mockMvc.perform(post(VOTE_POSTS_URL)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("Authorization", "Bearer " + at)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("투표 제목", CONTENT, "VOTE", null, null, sixteenOptions,
+                                                new VotePostCreateRequest("투표 제목", CONTENT, null, sixteenOptions,
                                                                 null))))
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.data.voteResult.options.length()").value(16));
@@ -181,11 +182,11 @@ class VoteControllerTest extends IntegrationTestSupport {
                                 .mapToObj(i -> new VoteOptionRequest("선택지 " + i, null))
                                 .toList();
 
-                mockMvc.perform(post(POSTS_URL)
+                mockMvc.perform(post(VOTE_POSTS_URL)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("Authorization", "Bearer " + at)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("투표 제목", CONTENT, "VOTE", null, null,
+                                                new VotePostCreateRequest("투표 제목", CONTENT, null,
                                                                 seventeenOptions, null))))
                                 .andExpect(status().isBadRequest());
         }
@@ -195,12 +196,11 @@ class VoteControllerTest extends IntegrationTestSupport {
         void 투표_게시글_작성_선택지없음_실패() throws Exception {
                 final String at = 회원가입_후_로그인_AT_추출();
 
-                mockMvc.perform(post(POSTS_URL)
+                mockMvc.perform(post(VOTE_POSTS_URL)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("Authorization", "Bearer " + at)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("투표 제목", CONTENT, "VOTE", null, null, null,
-                                                                null))))
+                                                new VotePostCreateRequest("투표 제목", CONTENT, null, null, null))))
                                 .andExpect(status().isBadRequest())
                                 .andExpect(jsonPath("$.message").value("투표 게시글은 최소 2개 이상의 선택지가 필요합니다."));
         }
@@ -210,11 +210,11 @@ class VoteControllerTest extends IntegrationTestSupport {
         void 투표_게시글_작성_선택지1개_실패() throws Exception {
                 final String at = 회원가입_후_로그인_AT_추출();
 
-                mockMvc.perform(post(POSTS_URL)
+                mockMvc.perform(post(VOTE_POSTS_URL)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("Authorization", "Bearer " + at)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("투표 제목", CONTENT, "VOTE", null, null,
+                                                new VotePostCreateRequest("투표 제목", CONTENT, null,
                                                                 List.of(new VoteOptionRequest("하나뿐", null)), null))))
                                 .andExpect(status().isBadRequest());
                 // .andExpect(jsonPath("$.message").value("투표 게시글은 최소 2개 이상의 선택지가 필요합니다."));
@@ -225,11 +225,11 @@ class VoteControllerTest extends IntegrationTestSupport {
         void 투표_게시글_작성_과거_마감일_실패() throws Exception {
                 final String at = 회원가입_후_로그인_AT_추출();
 
-                mockMvc.perform(post(POSTS_URL)
+                mockMvc.perform(post(VOTE_POSTS_URL)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("Authorization", "Bearer " + at)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("투표 제목", CONTENT, "VOTE", null, null,
+                                                new VotePostCreateRequest("투표 제목", CONTENT, null,
                                                                 TWO_OPTIONS, Instant.now().minusSeconds(60)))))
                                 .andExpect(status().isBadRequest())
                                 .andExpect(jsonPath("$.message").value("마감일은 현재 시각보다 이후여야 합니다."));
@@ -240,11 +240,11 @@ class VoteControllerTest extends IntegrationTestSupport {
         void 투표_게시글_작성_MBTI_일반_혼합_실패() throws Exception {
                 final String at = 회원가입_후_로그인_AT_추출();
 
-                mockMvc.perform(post(POSTS_URL)
+                mockMvc.perform(post(VOTE_POSTS_URL)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("Authorization", "Bearer " + at)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("투표 제목", CONTENT, "VOTE", null, null,
+                                                new VotePostCreateRequest("투표 제목", CONTENT, null,
                                                                 List.of(
                                                                                 new VoteOptionRequest("INFP 선택지",
                                                                                                 "INFP"),
@@ -259,11 +259,11 @@ class VoteControllerTest extends IntegrationTestSupport {
         void 투표_게시글_작성_MBTI_중복_실패() throws Exception {
                 final String at = 회원가입_후_로그인_AT_추출();
 
-                mockMvc.perform(post(POSTS_URL)
+                mockMvc.perform(post(VOTE_POSTS_URL)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("Authorization", "Bearer " + at)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("투표 제목", CONTENT, "VOTE", null, null,
+                                                new VotePostCreateRequest("투표 제목", CONTENT, null,
                                                                 List.of(
                                                                                 new VoteOptionRequest("INFP 첫번째",
                                                                                                 "INFP"),
@@ -279,11 +279,11 @@ class VoteControllerTest extends IntegrationTestSupport {
         void 투표_게시글_작성_무기한_성공() throws Exception {
                 final String at = 회원가입_후_로그인_AT_추출();
 
-                mockMvc.perform(post(POSTS_URL)
+                mockMvc.perform(post(VOTE_POSTS_URL)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("Authorization", "Bearer " + at)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("무기한 투표", CONTENT, "VOTE", null, null,
+                                                new VotePostCreateRequest("무기한 투표", CONTENT, null,
                                                                 TWO_OPTIONS, null))))
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.data.voteResult.endsAt").doesNotExist())
@@ -396,7 +396,7 @@ class VoteControllerTest extends IntegrationTestSupport {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("Authorization", "Bearer " + at)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("자유글", CONTENT, "FREE", null, null, null, null))))
+                                                new PostCreateRequest("자유글", CONTENT, "FREE", null, null))))
                                 .andExpect(status().isCreated())
                                 .andReturn().getResponse().getContentAsString();
                 final long freePostId = objectMapper.readTree(body).path("data").path("id").asLong();

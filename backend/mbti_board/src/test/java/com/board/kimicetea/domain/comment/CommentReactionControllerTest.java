@@ -90,7 +90,7 @@ class CommentReactionControllerTest extends IntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Authorization", "Bearer " + accessToken)
                         .content(objectMapper.writeValueAsString(
-                                new PostCreateRequest("테스트 제목", CONTENT, "FREE", null, null, null, null))))
+                                new PostCreateRequest("테스트 제목", CONTENT, "FREE", null, null))))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         final long postId = objectMapper.readTree(postBody).path("data").path("id").asLong();

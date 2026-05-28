@@ -48,6 +48,7 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
 
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers(
                                 "/api/auth/signup",
                                 "/api/auth/login",
@@ -60,14 +61,18 @@ public class SecurityConfig {
                                 "/v3/api-docs/**")
                         .permitAll()
                         // /me보다 먼저 선언해야 아래 /api/users/* 패턴이 /me를 가로채지 않음
-                        .requestMatchers(HttpMethod.GET, "/api/users/me").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/users/me", "/api/users/me/mbti/history").authenticated()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/posts/**",
                                 "/api/comments/**",
-                                "/api/users/*",
-                                "/api/mbti/**")
+                                "/api/users/*")
                         .permitAll()
+                        // MBTI 검사 제출은 회원 전용 — anyRequest().authenticated()에 위임
+                        .requestMatchers(HttpMethod.POST, "/api/mbti/test/submit").authenticated()
+                        // MBTI 메타데이터·문항 조회는 완전 공개 (GET 전용)
+                        .requestMatchers(HttpMethod.GET, "/api/mbti", "/api/mbti/**").permitAll()
                         // 게시글·댓글 작성·수정·삭제는 비회원도 허용 (서비스 레이어에서 회원/비회원 분기)
+                        // 투표·토론 게시글 작성은 회원 전용 — anyRequest().authenticated()에 위임
                         .requestMatchers(HttpMethod.POST,   "/api/posts", "/api/posts/*/comments").permitAll()
                         .requestMatchers(HttpMethod.PATCH,  "/api/posts/*", "/api/posts/*/comments/*").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/api/posts/*", "/api/posts/*/comments/*").permitAll()

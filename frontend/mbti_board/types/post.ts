@@ -1,4 +1,16 @@
-export type PostType = "FREE" | "VOTE" | "DEBATE";
+export const POST_TYPE = {
+  FREE: "FREE",
+  VOTE: "VOTE",
+  DEBATE: "DEBATE",
+} as const;
+
+export type PostType = (typeof POST_TYPE)[keyof typeof POST_TYPE];
+
+export const POST_TYPE_LABELS: Record<PostType, string> = {
+  FREE: "자유글",
+  VOTE: "투표",
+  DEBATE: "토론",
+};
 
 // sort 값은 백엔드 PostSortType enum과 동일하게 대문자 사용
 export const POST_SORT = {
@@ -43,6 +55,16 @@ export interface VoteResult {
   endsAt: string | null;           // ISO 8601, null이면 무기한
 }
 
+// 토론 결과 응답 (GET /api/posts/{id} 포함)
+export interface DebateResult {
+  proLabel: string;
+  conLabel: string;
+  proCount: number;
+  conCount: number;
+  isClosed: boolean;
+  endsAt: string | null;           // ISO 8601, null이면 무기한
+}
+
 // GET /api/posts/{id} 상세 응답
 export interface PostDetailResponse extends PostSummaryResponse {
   content: string;                 // Tiptap JSON 직렬화 문자열
@@ -50,8 +72,8 @@ export interface PostDetailResponse extends PostSummaryResponse {
   isGuest: boolean;
   updatedAt: string;
   voteResult?: VoteResult;         // VOTE 타입일 때만 포함
+  debateResult?: DebateResult;     // DEBATE 타입일 때만 포함
 }
-
 
 export interface PostListParams {
   type: PostType;
@@ -68,15 +90,32 @@ export interface VoteOptionRequest {
   mbtiTarget?: string;             // MBTI 투표 모드 전용 — 일반 모드는 undefined
 }
 
-// POST /api/posts 요청
+// POST /api/posts 요청 (FREE 전용 — VOTE·DEBATE는 전용 엔드포인트 사용)
 export interface PostCreateRequest {
-  type: PostType;
+  type: "FREE";
   title: string;
   content: string;                 // Tiptap JSON 직렬화 문자열
   guestPassword?: string;
   targetMbti?: string;
-  voteOptions?: VoteOptionRequest[]; // VOTE 타입 전용
-  endsAt?: string;                   // ISO 8601, VOTE·DEBATE 공통 마감일
+}
+
+// POST /api/posts/vote 요청 (회원 전용)
+export interface VotePostCreateRequest {
+  title: string;
+  content: string;                 // Tiptap JSON 직렬화 문자열
+  targetMbti?: string;
+  voteOptions: VoteOptionRequest[];
+  endsAt?: string;                 // ISO 8601
+}
+
+// POST /api/posts/debate 요청 (회원 전용)
+export interface DebatePostCreateRequest {
+  title: string;
+  content: string;                 // Tiptap JSON 직렬화 문자열
+  targetMbti?: string;
+  endsAt?: string;                 // ISO 8601, null이면 무기한
+  proLabel?: string;               // null이면 기본값 "찬성"
+  conLabel?: string;               // null이면 기본값 "반대"
 }
 
 // PATCH /api/posts/{id} 요청

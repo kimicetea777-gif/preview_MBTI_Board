@@ -96,8 +96,7 @@ class PostControllerTest extends IntegrationTestSupport {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("Authorization", "Bearer " + accessToken)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("테스트 제목", CONTENT, "FREE", null, null, null, null))))
-                                // .andDo(print())
+                                                new PostCreateRequest("테스트 제목", CONTENT, "FREE", null, null))))
                                 .andExpect(status().isCreated())
                                 .andReturn().getResponse().getContentAsString();
 
@@ -109,7 +108,7 @@ class PostControllerTest extends IntegrationTestSupport {
                 final String body = mockMvc.perform(post(POSTS_URL)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("비회원 제목", CONTENT, "FREE", guestPassword, null, null, null))))
+                                                new PostCreateRequest("비회원 제목", CONTENT, "FREE", guestPassword, null))))
                                 .andExpect(status().isCreated())
                                 .andReturn().getResponse().getContentAsString();
 
@@ -242,7 +241,7 @@ class PostControllerTest extends IntegrationTestSupport {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("Authorization", "Bearer " + at)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("회원 작성글", CONTENT, "FREE", null, null, null, null))))
+                                                new PostCreateRequest("회원 작성글", CONTENT, "FREE", null, null))))
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.data.title").value("회원 작성글"))
                                 .andExpect(jsonPath("$.data.isOwner").value(true))
@@ -256,7 +255,7 @@ class PostControllerTest extends IntegrationTestSupport {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                                 new PostCreateRequest("비회원 작성글", CONTENT, "FREE", GUEST_PASSWORD,
-                                                                null, null, null))))
+                                                                null))))
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.data.isGuest").value(true))
                                 .andExpect(jsonPath("$.data.authorMbtiId").value("NONE"));
@@ -268,7 +267,7 @@ class PostControllerTest extends IntegrationTestSupport {
                 mockMvc.perform(post(POSTS_URL)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("비회원 작성글", CONTENT, "FREE", null, null, null, null))))
+                                                new PostCreateRequest("비회원 작성글", CONTENT, "FREE", null, null))))
                                 .andExpect(status().isBadRequest())
                                 .andExpect(jsonPath("$.message").value("비회원은 비밀번호를 입력해야 합니다."));
         }
@@ -282,13 +281,41 @@ class PostControllerTest extends IntegrationTestSupport {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("Authorization", "Bearer " + at)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("제목", CONTENT, "INVALID_TYPE", null, null, null, null))))
+                                                new PostCreateRequest("제목", CONTENT, "WRONG", null, null))))
                                 .andExpect(status().isBadRequest())
                                 .andExpect(jsonPath("$.message").value("존재하지 않는 게시판 유형입니다."));
         }
 
         @Test
-        @DisplayName("3-5. title 공백으로 작성 → 400 Bad Request")
+        @DisplayName("3-5. type=VOTE로 /api/posts 요청 → 400, '지원하지 않는 게시판 유형입니다.'")
+        void 게시글_작성_VOTE_타입_전용엔드포인트_사용_실패() throws Exception {
+                final String at = 회원가입_후_로그인_AT_추출(TEST_EMAIL, TEST_NICKNAME);
+
+                mockMvc.perform(post(POSTS_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .header("Authorization", "Bearer " + at)
+                                .content(objectMapper.writeValueAsString(
+                                                new PostCreateRequest("투표 제목", CONTENT, "VOTE", null, null))))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.message").value("지원하지 않는 게시판 유형입니다."));
+        }
+
+        @Test
+        @DisplayName("3-6. type=DEBATE로 /api/posts 요청 → 400, '지원하지 않는 게시판 유형입니다.'")
+        void 게시글_작성_DEBATE_타입_전용엔드포인트_사용_실패() throws Exception {
+                final String at = 회원가입_후_로그인_AT_추출(TEST_EMAIL, TEST_NICKNAME);
+
+                mockMvc.perform(post(POSTS_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .header("Authorization", "Bearer " + at)
+                                .content(objectMapper.writeValueAsString(
+                                                new PostCreateRequest("토론 제목", CONTENT, "DEBATE", null, null))))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.message").value("지원하지 않는 게시판 유형입니다."));
+        }
+
+        @Test
+        @DisplayName("3-7. title 공백으로 작성 → 400 Bad Request")
         void 게시글_작성_title_공백_실패() throws Exception {
                 final String at = 회원가입_후_로그인_AT_추출(TEST_EMAIL, TEST_NICKNAME);
 
@@ -296,12 +323,12 @@ class PostControllerTest extends IntegrationTestSupport {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("Authorization", "Bearer " + at)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("   ", CONTENT, "FREE", null, null, null, null))))
+                                                new PostCreateRequest("   ", CONTENT, "FREE", null, null))))
                                 .andExpect(status().isBadRequest());
         }
 
         @Test
-        @DisplayName("3-6. targetMbti 지정 작성 성공 → 201, targetMbtiId 반환")
+        @DisplayName("3-8. targetMbti 지정 작성 성공 → 201, targetMbtiId 반환")
         void 게시글_작성_targetMbti_지정_성공() throws Exception {
                 final String at = 회원가입_후_로그인_AT_추출(TEST_EMAIL, TEST_NICKNAME);
 
@@ -309,13 +336,13 @@ class PostControllerTest extends IntegrationTestSupport {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("Authorization", "Bearer " + at)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("INFP에게", CONTENT, "FREE", null, "INFP", null, null))))
+                                                new PostCreateRequest("INFP에게", CONTENT, "FREE", null, "INFP"))))
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.data.targetMbtiId").value("INFP"));
         }
 
         @Test
-        @DisplayName("3-7. targetMbti=ALL 지정 시 targetMbtiId=null 반환")
+        @DisplayName("3-9. targetMbti=ALL 지정 시 targetMbtiId=null 반환")
         void 게시글_작성_targetMbti_ALL_성공() throws Exception {
                 final String at = 회원가입_후_로그인_AT_추출(TEST_EMAIL, TEST_NICKNAME);
 
@@ -323,7 +350,7 @@ class PostControllerTest extends IntegrationTestSupport {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("Authorization", "Bearer " + at)
                                 .content(objectMapper.writeValueAsString(
-                                                new PostCreateRequest("전체 대상", CONTENT, "FREE", null, "ALL", null, null))))
+                                                new PostCreateRequest("전체 대상", CONTENT, "FREE", null, "ALL"))))
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.data.targetMbtiId").doesNotExist());
         }

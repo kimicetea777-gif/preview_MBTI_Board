@@ -11,4 +11,7 @@ import org.springframework.data.domain.Pageable;
 public interface PostRepositoryCustom {
 
     Page<Post> findPosts(String typeCode, PostSortType sort, String authorMbti, String targetMbti, Pageable pageable);
+
+    /** 어드민 전용 — isVisible 필터 없음, 숨겨진 게시글 포함 조회 */
+    Page<Post> findAllPostsForAdmin(String typeCode, Boolean isVisible, Pageable pageable);
 }

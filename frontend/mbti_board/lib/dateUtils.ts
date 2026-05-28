@@ -1,5 +1,5 @@
-export function getDeadlineLabel(endsAt: string | null, isEnded: boolean): string {
-  if (isEnded) return "투표 종료";
+export function getDeadlineLabel(endsAt: string | null, isEnded: boolean, closedLabel = "투표 종료"): string {
+  if (isEnded) return closedLabel;
   if (!endsAt) return "기한 없음";
   const days = Math.ceil((new Date(endsAt).getTime() - Date.now()) / 86_400_000);
   if (days <= 0) return "오늘 마감";

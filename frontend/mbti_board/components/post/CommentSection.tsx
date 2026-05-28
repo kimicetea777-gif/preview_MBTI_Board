@@ -1,21 +1,24 @@
 "use client";
 
+import { useState } from "react";
 import { useComments } from "@/hooks/useComments";
 import MbtiBadge from "@/components/common/MbtiBadge";
 import { formatDate } from "@/lib/dateUtils";
 import CommentForm from "@/components/post/CommentForm";
 import CommentReactionButtons from "@/components/post/CommentReactionButtons";
 import { STANCE } from "@/types/comment";
-import type { Comment } from "@/types/comment";
+import type { Comment, DebateStance } from "@/types/comment";
 
-/* isReply : 대댓글 표시용 */
 interface CommentItemProps {
   comment: Comment;
   postId: number;
   isReply?: boolean;
+  debateStance?: DebateStance | null;
 }
 
-function CommentItem({ comment, postId, isReply = false }: CommentItemProps) {
+function CommentItem({ comment, postId, isReply = false, debateStance }: CommentItemProps) {
+  const [showReplyForm, setShowReplyForm] = useState(false);
+
   return (
     <li>
       <article
@@ -49,18 +52,38 @@ function CommentItem({ comment, postId, isReply = false }: CommentItemProps) {
           {comment.content}
         </p>
 
-        <footer>
+        <footer className="flex items-start justify-between">
           <CommentReactionButtons comment={comment} postId={postId} />
+          {!isReply && (
+            <button
+              type="button"
+              onClick={() => setShowReplyForm((v) => !v)}
+              className="mt-2 text-xs text-gray-400 hover:text-gray-700 transition-colors shrink-0"
+            >
+              {showReplyForm ? "취소" : "답글"}
+            </button>
+          )}
         </footer>
       </article>
 
-      {/* 대댓글 — 서버가 1단계 깊이만 보장하므로 재귀 없이 단일 레벨 렌더링 */}
+      {/* 서버가 1단계 깊이만 보장하므로 재귀 없이 단일 레벨 렌더링 */}
       {comment.replies.length > 0 && (
         <ul>
           {comment.replies.map((reply) => (
-            <CommentItem key={reply.id} comment={reply} postId={postId} isReply />
+            <CommentItem key={reply.id} comment={reply} postId={postId} isReply debateStance={debateStance} />
           ))}
         </ul>
+      )}
+
+      {showReplyForm && (
+        <div className="ml-8 pl-4 border-l-2 border-gray-100 py-2">
+          <CommentForm
+            postId={postId}
+            parentId={comment.id}
+            debateStance={debateStance}
+            onSuccess={() => setShowReplyForm(false)}
+          />
+        </div>
       )}
     </li>
   );
@@ -86,9 +109,10 @@ function CommentSkeleton() {
 
 interface Props {
   postId: number;
+  debateStance?: DebateStance | null;
 }
 
-export default function CommentSection({ postId }: Props) {
+export default function CommentSection({ postId, debateStance }: Props) {
   const { data: comments, isLoading, isError } = useComments(postId);
 
   if (isLoading) return <CommentSkeleton />;
@@ -110,12 +134,12 @@ export default function CommentSection({ postId }: Props) {
         <span className="font-normal text-gray-500">{totalCount}</span>
       </h2>
 
-      <CommentForm postId={postId} />
+      <CommentForm postId={postId} debateStance={debateStance} />
 
       {comments && comments.length > 0 ? (
         <ul className="divide-y divide-gray-100">
           {comments.map((comment) => (
-            <CommentItem key={comment.id} comment={comment} postId={postId} />
+            <CommentItem key={comment.id} comment={comment} postId={postId} debateStance={debateStance} />
           ))}
         </ul>
       ) : (

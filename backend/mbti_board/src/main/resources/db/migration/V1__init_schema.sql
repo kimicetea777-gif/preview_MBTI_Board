@@ -6,7 +6,8 @@ CREATE TABLE mbti_metadata (
     id VARCHAR(6) PRIMARY KEY,
     icon_url TEXT,
     color_code VARCHAR(7) NOT NULL,
-    description TEXT NOT NULL,
+    summary VARCHAR(100) NOT NULL,
+    description JSONB NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
@@ -65,10 +66,10 @@ CREATE TABLE mbti_test_history (
     id BIGSERIAL PRIMARY KEY,
     user_id UUID NOT NULL,
     mbti_id VARCHAR(6) NOT NULL,
-    ei_score SMALLINT NOT NULL CHECK (ei_score BETWEEN 0 AND 100),
-    sn_score SMALLINT NOT NULL CHECK (sn_score BETWEEN 0 AND 100),
-    tf_score SMALLINT NOT NULL CHECK (tf_score BETWEEN 0 AND 100),
-    jp_score SMALLINT NOT NULL CHECK (jp_score BETWEEN 0 AND 100),
+    ei_score SMALLINT NOT NULL CHECK (ei_score BETWEEN -16 AND 16),
+    sn_score SMALLINT NOT NULL CHECK (sn_score BETWEEN -16 AND 16),
+    tf_score SMALLINT NOT NULL CHECK (tf_score BETWEEN -16 AND 16),
+    jp_score SMALLINT NOT NULL CHECK (jp_score BETWEEN -16 AND 16),
     test_version VARCHAR(10) DEFAULT 'v1.0' NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     CONSTRAINT fk_mbti_test_history_users FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
@@ -106,14 +107,7 @@ CREATE TABLE posts (
     CONSTRAINT fk_posts_users FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL,
     CONSTRAINT fk_posts_mbti_metadata FOREIGN KEY (author_mbti) REFERENCES mbti_metadata (id) ON DELETE RESTRICT,
     CONSTRAINT fk_posts_target_mbti FOREIGN KEY (target_mbti) REFERENCES mbti_metadata (id) ON DELETE SET NULL,
-    CONSTRAINT fk_posts_post_types FOREIGN KEY (type_id) REFERENCES post_types (id) ON DELETE RESTRICT,
-    CONSTRAINT chk_posts_guest_validation CHECK (
-        (user_id IS NOT NULL)
-        OR (
-            user_id IS NULL
-            AND guest_password IS NOT NULL
-        )
-    )
+    CONSTRAINT fk_posts_post_types FOREIGN KEY (type_id) REFERENCES post_types (id) ON DELETE RESTRICT
 );
 
 CREATE TABLE vote_posts (
@@ -179,14 +173,7 @@ CREATE TABLE comments (
     CONSTRAINT fk_comments_posts FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
     CONSTRAINT fk_comments_users FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL,
     CONSTRAINT fk_comments_mbti_metadata FOREIGN KEY (author_mbti) REFERENCES mbti_metadata (id) ON DELETE RESTRICT,
-    CONSTRAINT fk_comments_parent FOREIGN KEY (parent_id) REFERENCES comments (id) ON DELETE CASCADE,
-    CONSTRAINT chk_comments_guest_validation CHECK (
-        (user_id IS NOT NULL)
-        OR (
-            user_id IS NULL
-            AND guest_password IS NOT NULL
-        )
-    )
+    CONSTRAINT fk_comments_parent FOREIGN KEY (parent_id) REFERENCES comments (id) ON DELETE CASCADE
 );
 
 CREATE TABLE comment_reactions (
@@ -314,8 +301,49 @@ CREATE TRIGGER trg_debate_stance_count
 AFTER INSERT OR UPDATE OF is_visible OR DELETE ON comments
 FOR EACH ROW EXECUTE FUNCTION update_debate_stance_count();
 
+-- 신규 삽입 시에만 작성자 정보 검증 (ON DELETE SET NULL 캐스케이드 UPDATE는 대상 외)
+CREATE OR REPLACE FUNCTION validate_post_author()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.user_id IS NULL AND NEW.guest_password IS NULL THEN
+        RAISE EXCEPTION 'post must have either user_id or guest_password';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_validate_post_author
+    BEFORE INSERT ON posts
+    FOR EACH ROW EXECUTE FUNCTION validate_post_author();
+
+CREATE OR REPLACE FUNCTION validate_comment_author()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.user_id IS NULL AND NEW.guest_password IS NULL THEN
+        RAISE EXCEPTION 'comment must have either user_id or guest_password';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_validate_comment_author
+    BEFORE INSERT ON comments
+    FOR EACH ROW EXECUTE FUNCTION validate_comment_author();
+
 -- ===================================================
--- 5. Indexes
+-- 5. MBTI Test Domain
+-- ===================================================
+
+CREATE TABLE mbti_questions (
+    id           BIGSERIAL PRIMARY KEY,
+    category     VARCHAR(2)  NOT NULL CHECK (category IN ('EI', 'SN', 'TF', 'JP')),
+    title        TEXT        NOT NULL,
+    is_reverse   BOOLEAN     NOT NULL,
+    test_version VARCHAR(10) DEFAULT 'v1.0' NOT NULL
+);
+
+-- ===================================================
+-- 6. Indexes
 -- ===================================================
 
 CREATE INDEX idx_posts_user_id ON posts (user_id);

@@ -92,6 +92,11 @@ public class Post {
         this.isVisible = false;
     }
 
+    /** 어드민 숨김/복구 전용 — 일반 사용자 플로우에서는 hide() 사용 */
+    public void changeVisibility(final boolean visible) {
+        this.isVisible = visible;
+    }
+
     public void update(String title, String content) {
         this.title = title;
         this.content = content;

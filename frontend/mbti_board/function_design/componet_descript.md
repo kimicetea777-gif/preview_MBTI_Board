@@ -155,3 +155,92 @@
 - `app/(main)/board/vote/write/page.tsx` — 투표 게시글 작성; PostWriteForm 사용, 일반/MBTI 모드 토글·선택지 추가·삭제·마감일 children 주입
 - `app/(main)/board/vote/[id]/page.tsx` — 투표 상세 서버 래퍼; await params + ID 유효성 검증 후 VoteDetailContent 렌더링
 - `app/(main)/board/vote/[id]/VoteDetailContent.tsx` — 투표 상세 클라이언트 컴포넌트; 진행 중(라디오 투표)·종료(결과 바) 분기, 투표 변경 지원, 마감 D-day 표시
+
+---
+
+# Phase 5 — 토론 게시판
+
+## Lib
+
+- `lib/api/post.ts` — createVotePost(POST /api/posts/vote), createDebatePost(POST /api/posts/debate) API 함수 추가
+
+## Pages
+
+- `app/(main)/board/debate/page.tsx` — 토론게시판 목록; useInfiniteQuery + IntersectionObserver 무한 스크롤, 정렬·MBTI 필터
+- `app/(main)/board/debate/write/page.tsx` — /board/write?type=DEBATE 로 redirect
+- `app/(main)/board/debate/[id]/page.tsx` — 토론 상세 서버 래퍼; await params + ID 유효성 검증 후 DebateDetailContent 렌더링
+- `app/(main)/board/debate/[id]/DebateDetailContent.tsx` — 토론 상세 클라이언트 컴포넌트; 찬반 비율 바·인원 수 표시, 인라인 수정·삭제, GuestPasswordModal, 찬반 선택 버튼(비회원 disable)
+
+---
+
+# Phase 6 — 통합 작성 페이지
+
+## Components
+
+- `components/post/PostWriteForm.tsx` — beforeTitle slot 추가; 폼 상단(제목 위)에 타입 토글 등 커스텀 콘텐츠 삽입 가능
+
+## Pages
+
+- `app/(main)/board/write/page.tsx` — 통합 작성 서버 컴포넌트; searchParams.type(FREE/VOTE/DEBATE)을 파싱해 WriteFormContent에 initialType 전달
+- `app/(main)/board/write/WriteFormContent.tsx` — 통합 작성 클라이언트 컴포넌트; 자유글·투표·토론 타입 토글 UI, 타입별 조건부 필드(투표 선택지, 찬반 레이블, 마감일, 비회원 비밀번호), 타입에 따라 올바른 API 호출 후 해당 게시판으로 리다이렉트
+- `app/(main)/board/free/write/page.tsx` — /board/write 로 redirect
+- `app/(main)/board/vote/write/page.tsx` — /board/write?type=VOTE 로 redirect
+
+---
+
+# Phase 6 (dev_steps) — MBTI 검사
+
+## Pages
+
+- `app/(main)/mbti/test/page.tsx` — `/mbti/test` 서버 래퍼; MbtiTestContent 렌더링
+- `app/(main)/mbti/test/MbtiTestContent.tsx` — MBTI 검사 클라이언트 컴포넌트; 문항 스텝 UI·진행 바·5지선다 채점·결과 카드·저장 모달, 비로그인 시 sessionStorage 점수 임시 저장 후 로그인 복귀 자동 제출, 재검사 시 캐시 무효화로 새 문항 랜덤 추출
+
+---
+
+# Phase 6-6 — MBTI 유형 목록 페이지
+
+## Types
+
+- `types/mbti.ts` — `MBTI_GROUPS` 상수 추가: 4개 기질 그룹(분석가/외교관/관리자/탐험가)별 MBTI ID 배열
+
+## Components
+
+- `components/mbti/MbtiTypeCard.tsx` — 단일 MBTI 유형 카드; iconUrl 이미지(없으면 colorCode 원형 폴백), 유형 코드(id), 요약(summary) 표시, 상단 colorCode 테마 보더
+
+## Pages
+
+- `app/(main)/mbti/page.tsx` — `/mbti` 서버 래퍼; MbtiListContent 렌더링
+- `app/(main)/mbti/MbtiListContent.tsx` — MBTI 유형 목록 클라이언트 컴포넌트; useMbtiList로 전체 조회 후 MBTI_GROUPS 기준 4개 섹션 그리드, 로딩 스켈레톤, NONE 필터링, 검사 CTA 버튼
+
+---
+
+# Phase 7-3 — 어드민 대시보드
+
+## Types
+
+- `types/admin.ts` — 어드민 전용 응답·요청 타입; AdminUserSummaryResponse, AdminPostSummaryResponse, AdminCommentSummaryResponse, 변경 요청 DTO, 필터 파라미터, 상태·역할 레이블 상수
+
+## Lib
+
+- `lib/apiEndpoints.ts` — admin 섹션 추가: users, userState, userRole, posts, postVisibility, comments, commentVisibility 엔드포인트 상수
+- `lib/routes.ts` — ROUTES.admin 추가: "/admin"
+- `lib/api/admin.ts` — fetchAdminUsers, changeUserState, changeUserRole, fetchAdminPosts, changePostVisibility, fetchAdminComments, changeCommentVisibility API 함수
+
+## Hooks
+
+- `hooks/useAdmin.ts` — adminKeys 쿼리키 팩토리 + useAdminUsers/Posts/Comments(useQuery), useChangeUserState/Role/PostVisibility/CommentVisibility(useMutation) — onSuccess 시 해당 도메인 쿼리 무효화
+
+## Components
+
+- `components/admin/AdminDashboard.tsx` — 어드민 대시보드 탭 컨테이너; 유저·게시글·댓글 관리 탭 전환, 각 탭에 해당 테이블 컴포넌트 렌더링
+- `components/admin/AdminUserTable.tsx` — 유저 관리 테이블; 이메일·상태·역할 필터, 역할/상태 인라인 드롭다운 변경(useMutation), 페이지네이션
+- `components/admin/AdminPostTable.tsx` — 게시글 관리 테이블; 유형·가시성 필터, 숨김/복구 버튼(useMutation), 페이지네이션
+- `components/admin/AdminCommentTable.tsx` — 댓글 관리 테이블; 게시글ID·가시성 필터, 숨김/복구 버튼(useMutation), 페이지네이션
+
+## Middleware
+
+- `middleware.ts` — /admin/:path* 경로 추가: session 쿠키 없으면 /login 리다이렉트 (ADMIN 권한 검증은 API 서버에서 수행)
+
+## Pages
+
+- `app/(main)/admin/page.tsx` — `/admin` 서버 컴포넌트; AdminDashboard 렌더링
