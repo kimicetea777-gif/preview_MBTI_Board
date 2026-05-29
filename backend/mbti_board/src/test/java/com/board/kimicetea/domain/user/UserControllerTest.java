@@ -4,6 +4,10 @@ import com.board.kimicetea.IntegrationTestSupport;
 import com.board.kimicetea.domain.auth.dto.LoginRequest;
 import com.board.kimicetea.domain.auth.dto.SignupRequest;
 import com.board.kimicetea.domain.mbti.repository.MbtiMetadataRepository;
+import com.board.kimicetea.domain.post.dto.PostCreateRequest;
+import com.board.kimicetea.domain.post.dto.VoteOptionRequest;
+import com.board.kimicetea.domain.post.dto.VotePostCreateRequest;
+import com.board.kimicetea.domain.post.repository.PostRepository;
 import com.board.kimicetea.domain.user.dto.ChangePasswordRequest;
 import com.board.kimicetea.domain.user.dto.UpdateProfileRequest;
 import com.board.kimicetea.domain.user.dto.WithdrawalRequest;
@@ -28,6 +32,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -47,6 +52,8 @@ class UserControllerTest extends IntegrationTestSupport {
         ObjectMapper objectMapper;
         @Autowired
         UserRepository userRepository;
+        @Autowired
+        PostRepository postRepository;
         @Autowired
         MbtiMetadataRepository mbtiMetadataRepository;
         @Autowired
@@ -70,12 +77,19 @@ class UserControllerTest extends IntegrationTestSupport {
 
         @AfterEach
         void tearDown() {
+                postRepository.deleteAll(); // FK(user_id) ON DELETE SET NULL — 게시글 먼저 삭제
                 userRepository.deleteAll();
                 redisTemplate.execute((RedisCallback<Void>) connection -> {
                         connection.serverCommands().flushAll();
                         return null;
                 });
         }
+
+        private static final String CONTENT = "{\"type\":\"doc\",\"content\":[]}";
+
+        private static final List<VoteOptionRequest> TWO_OPTIONS = List.of(
+                        new VoteOptionRequest("선택지 A", null),
+                        new VoteOptionRequest("선택지 B", null));
 
         // ─────────────────────────────────────────────────────────────
         // 헬퍼
@@ -113,6 +127,26 @@ class UserControllerTest extends IntegrationTestSupport {
                                 .andExpect(status().isOk());
 
                 return redisTemplate.opsForValue().get("WD:" + userId);
+        }
+
+        /** FREE 게시글 작성 헬퍼 */
+        private void FREE_게시글_작성(final String accessToken, final String title) throws Exception {
+                mockMvc.perform(post(POSTS_URL)
+                                .header("Authorization", "Bearer " + accessToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                new PostCreateRequest(title, CONTENT, "FREE", null, null))))
+                                .andExpect(status().isCreated());
+        }
+
+        /** VOTE 게시글 작성 헬퍼 */
+        private void VOTE_게시글_작성(final String accessToken) throws Exception {
+                mockMvc.perform(post(VOTE_POSTS_URL)
+                                .header("Authorization", "Bearer " + accessToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                new VotePostCreateRequest("투표 제목", CONTENT, null, TWO_OPTIONS, null))))
+                                .andExpect(status().isCreated());
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -486,5 +520,207 @@ class UserControllerTest extends IntegrationTestSupport {
                                 .content(objectMapper.writeValueAsString(new WithdrawalRequest("123456"))))
                                 .andExpect(status().isBadRequest())
                                 .andExpect(jsonPath("$.message").value("인증 코드가 만료되었습니다. 다시 요청해 주세요."));
+        }
+
+        // ═════════════════════════════════════════════════════════════
+        // Phase 9 — 내가 작성한 게시글 목록 (GET /api/users/me/posts)
+        // ═════════════════════════════════════════════════════════════
+
+        // ─────────────────────────────────────────────────────────────
+        // 9-1. 내 게시글 목록 전체 조회 → 200, totalElements=2
+        // ─────────────────────────────────────────────────────────────
+
+        @Test
+        @DisplayName("9-1. 내 게시글 2개 작성 후 전체 조회 → 200, totalElements=2")
+        void 내_게시글_목록_전체_조회_성공() throws Exception {
+                final String at = 회원가입_후_로그인_AT_추출();
+                FREE_게시글_작성(at, "첫 번째 글");
+                FREE_게시글_작성(at, "두 번째 글");
+
+                mockMvc.perform(get(MY_POSTS_URL)
+                                .header("Authorization", "Bearer " + at))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.success").value(true))
+                                .andExpect(jsonPath("$.data.totalElements").value(2))
+                                .andExpect(jsonPath("$.data.content").isArray());
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // 9-2. AT 없이 요청 → 401
+        // ─────────────────────────────────────────────────────────────
+
+        @Test
+        @DisplayName("9-2. AT 없이 내 게시글 목록 요청 → 401, '인증이 필요합니다.'")
+        void 내_게시글_목록_인증_없음_실패() throws Exception {
+                mockMvc.perform(get(MY_POSTS_URL))
+                                .andExpect(status().isUnauthorized())
+                                .andExpect(jsonPath("$.success").value(false))
+                                .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // 9-3. type=FREE 필터 → FREE 게시글만 반환
+        // ─────────────────────────────────────────────────────────────
+
+        @Test
+        @DisplayName("9-3. FREE 1개·VOTE 1개 작성 후 type=FREE 조회 → totalElements=1, postType=FREE")
+        void 내_게시글_목록_type_FREE_필터_성공() throws Exception {
+                final String at = 회원가입_후_로그인_AT_추출();
+                FREE_게시글_작성(at, "자유글");
+                VOTE_게시글_작성(at);
+
+                mockMvc.perform(get(MY_POSTS_URL)
+                                .header("Authorization", "Bearer " + at)
+                                .param("type", "FREE"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.data.totalElements").value(1))
+                                .andExpect(jsonPath("$.data.content[0].typeCode").value("FREE"));
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // 9-4. type=VOTE 필터 → VOTE 게시글만 반환
+        // ─────────────────────────────────────────────────────────────
+
+        @Test
+        @DisplayName("9-4. FREE 1개·VOTE 1개 작성 후 type=VOTE 조회 → totalElements=1, postType=VOTE")
+        void 내_게시글_목록_type_VOTE_필터_성공() throws Exception {
+                final String at = 회원가입_후_로그인_AT_추출();
+                FREE_게시글_작성(at, "자유글");
+                VOTE_게시글_작성(at);
+
+                mockMvc.perform(get(MY_POSTS_URL)
+                                .header("Authorization", "Bearer " + at)
+                                .param("type", "VOTE"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.data.totalElements").value(1))
+                                .andExpect(jsonPath("$.data.content[0].typeCode").value("VOTE"));
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // 9-5. 타인 게시글은 내 목록에 포함되지 않음
+        // ─────────────────────────────────────────────────────────────
+
+        @Test
+        @DisplayName("9-5. 내 게시글 1개 + 타인 게시글 1개 → 내 목록 totalElements=1")
+        void 내_게시글_목록_타인_게시글_미포함_성공() throws Exception {
+                final String myAt = 회원가입_후_로그인_AT_추출();
+
+                // 타인 가입 및 게시글 작성
+                tokenRedisService.markEmailVerified(OTHER_EMAIL);
+                mockMvc.perform(post(SIGNUP_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                new SignupRequest(OTHER_EMAIL, TEST_PASSWORD, OTHER_NICKNAME, TEST_MBTI))))
+                                .andExpect(status().isCreated());
+                final String body = mockMvc.perform(post(LOGIN_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(new LoginRequest(OTHER_EMAIL, TEST_PASSWORD))))
+                                .andReturn().getResponse().getContentAsString();
+                final String otherAt = objectMapper.readTree(body).path("data").path("accessToken").asText();
+                FREE_게시글_작성(otherAt, "타인 글");
+
+                FREE_게시글_작성(myAt, "내 글");
+
+                mockMvc.perform(get(MY_POSTS_URL)
+                                .header("Authorization", "Bearer " + myAt))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.data.totalElements").value(1))
+                                .andExpect(jsonPath("$.data.content[0].title").value("내 글"));
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // 9-6. 내 게시글 없을 때 → 200, 빈 목록
+        // ─────────────────────────────────────────────────────────────
+
+        @Test
+        @DisplayName("9-6. 게시글 없는 회원 조회 → 200, 빈 content")
+        void 내_게시글_목록_비어있음_성공() throws Exception {
+                final String at = 회원가입_후_로그인_AT_추출();
+
+                mockMvc.perform(get(MY_POSTS_URL)
+                                .header("Authorization", "Bearer " + at))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.data.totalElements").value(0))
+                                .andExpect(jsonPath("$.data.content").isEmpty());
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // 9-7. type 소문자 입력 → 대소문자 정규화 후 정상 조회
+        // ─────────────────────────────────────────────────────────────
+
+        @Test
+        @DisplayName("9-7. type=free (소문자) 입력 → 대소문자 정규화, 200 OK")
+        void 내_게시글_목록_type_소문자_정규화_성공() throws Exception {
+                final String at = 회원가입_후_로그인_AT_추출();
+                FREE_게시글_작성(at, "소문자 타입 테스트");
+
+                mockMvc.perform(get(MY_POSTS_URL)
+                                .header("Authorization", "Bearer " + at)
+                                .param("type", "free"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.data.totalElements").value(1));
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // 9-8. type=INVALID → 400, '존재하지 않는 게시판 유형입니다.'
+        // ─────────────────────────────────────────────────────────────
+
+        @Test
+        @DisplayName("9-8. type=INVALID → 400, '존재하지 않는 게시판 유형입니다.'")
+        void 내_게시글_목록_유효하지_않은_type_실패() throws Exception {
+                final String at = 회원가입_후_로그인_AT_추출();
+
+                mockMvc.perform(get(MY_POSTS_URL)
+                                .header("Authorization", "Bearer " + at)
+                                .param("type", "INVALID"))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.success").value(false))
+                                .andExpect(jsonPath("$.message").value("존재하지 않는 게시판 유형입니다."));
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // 9-9. page=-1 → 400 Bad Request
+        // ─────────────────────────────────────────────────────────────
+
+        @Test
+        @DisplayName("9-9. page=-1 → 400 Bad Request")
+        void 내_게시글_목록_page_음수_실패() throws Exception {
+                final String at = 회원가입_후_로그인_AT_추출();
+
+                mockMvc.perform(get(MY_POSTS_URL)
+                                .header("Authorization", "Bearer " + at)
+                                .param("page", "-1"))
+                                .andExpect(status().isBadRequest());
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // 9-10. 소프트 삭제된 내 게시글은 목록에 미포함
+        // ─────────────────────────────────────────────────────────────
+
+        @Test
+        @DisplayName("9-10. 내 게시글 2개 중 1개 삭제 후 조회 → totalElements=1")
+        void 내_게시글_목록_소프트_삭제_미포함_성공() throws Exception {
+                final String at = 회원가입_후_로그인_AT_추출();
+                FREE_게시글_작성(at, "남길 글");
+
+                // 두 번째 글 작성 후 ID 추출하여 삭제
+                final String created = mockMvc.perform(post(POSTS_URL)
+                                .header("Authorization", "Bearer " + at)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                new PostCreateRequest("삭제할 글", CONTENT, "FREE", null, null))))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+                final long deletedId = objectMapper.readTree(created).path("data").path("id").asLong();
+
+                mockMvc.perform(delete(POSTS_URL + "/" + deletedId)
+                                .header("Authorization", "Bearer " + at))
+                                .andExpect(status().isOk());
+
+                mockMvc.perform(get(MY_POSTS_URL)
+                                .header("Authorization", "Bearer " + at))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.data.totalElements").value(1))
+                                .andExpect(jsonPath("$.data.content[0].title").value("남길 글"));
         }
 }

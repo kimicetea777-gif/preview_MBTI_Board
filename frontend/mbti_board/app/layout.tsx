@@ -22,7 +22,7 @@ export default function RootLayout({
   return (
     <html lang="ko" className={cn("h-full antialiased", "font-sans", geist.variable)} suppressHydrationWarning>
       <body className="min-h-full flex flex-col">
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange themes={["light", "dark", "theme-navy", "theme-rose"]}>
           <QueryProvider>
             <AuthSyncProvider>
               {children}

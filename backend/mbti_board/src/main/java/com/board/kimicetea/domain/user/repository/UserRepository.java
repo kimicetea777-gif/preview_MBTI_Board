@@ -16,6 +16,8 @@ public interface UserRepository extends JpaRepository<User, UUID>, UserRepositor
 
     Optional<User> findBySocialProviderAndProviderId(String socialProvider, String providerId);
 
+    Optional<User> findByNickname(String nickname);
+
     @EntityGraph(attributePaths = { "mbti" })
     Optional<User> findWithMbtiById(UUID id);
 }

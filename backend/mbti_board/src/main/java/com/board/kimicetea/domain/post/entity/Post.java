@@ -43,6 +43,13 @@ public class Post {
     @Column(name = "content", nullable = false, columnDefinition = "jsonb")
     private String content;
 
+    @Column(name = "content_preview", length = 300)
+    private String contentPreview;
+
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "image_urls", columnDefinition = "text[]")
+    private String[] imageUrls;
+
     @Column(name = "guest_password")
     private String guestPassword;
 
@@ -97,8 +104,10 @@ public class Post {
         this.isVisible = visible;
     }
 
-    public void update(String title, String content) {
+    public void update(final String title, final String content, final String contentPreview, final String[] imageUrls) {
         this.title = title;
         this.content = content;
+        this.contentPreview = contentPreview;
+        this.imageUrls = imageUrls;
     }
 }

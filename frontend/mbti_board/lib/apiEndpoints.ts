@@ -6,11 +6,16 @@ export const API = {
     logout: "/api/auth/logout",
     emailVerifySend: "/api/auth/email-verify/send",
     emailVerifyConfirm: "/api/auth/email-verify/confirm",
+    findEmail: "/api/auth/find-email",
+    passwordResetRequest: "/api/auth/password-reset/request",
+    passwordResetConfirm: "/api/auth/password-reset/confirm",
   },
   users: {
     me: "/api/users/me",
+    mePosts: "/api/users/me/posts",
     mePassword: "/api/users/me/password",
     meWithdrawalVerify: "/api/users/me/withdrawal-verify",
+    meWithdrawal: "/api/users/me",
     byId: (id: string) => `/api/users/${id}`,
     mbtiHistory: "/api/users/me/mbti/history",
   },
@@ -34,6 +39,10 @@ export const API = {
   votes: {
     cast: (postId: number) => `/api/posts/${postId}/vote`,
     result: (postId: number) => `/api/posts/${postId}/vote/result`,
+  },
+  images: {
+    upload: "/api/upload", // Next.js Route Handler (Sharp 처리) — Java 백엔드 경유 안 함
+    cancel: "/api/images", // Java 백엔드 직접 호출 — PENDING 이미지 취소 (DELETE)
   },
   admin: {
     users: "/api/admin/users",

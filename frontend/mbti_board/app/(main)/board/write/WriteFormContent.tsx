@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/authStore";
@@ -15,6 +15,7 @@ import { MBTI_ALL, NONE_MBTI_ID } from "@/types/mbti";
 import { VOTE_OPTION_MIN, VOTE_OPTION_MAX, POST_TYPE, POST_TYPE_LABELS } from "@/types/post";
 import type { PostType, VoteOptionRequest } from "@/types/post";
 import { getMinDatetimeLocal } from "@/lib/dateUtils";
+import { API } from "@/lib/apiEndpoints";
 
 interface OptionRow {
   optionText: string;
@@ -29,6 +30,34 @@ export default function WriteFormContent({ initialType }: Props) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const isLoggedIn = useAuthStore((s) => s.accessToken) !== null;
+
+  // 업로드된 이미지 URL 추적 — 게시글 저장 없이 이탈 시 PENDING 취소 요청에 사용
+  const uploadedUrlsRef = useRef<Set<string>>(new Set());
+  // 저장 성공 시 true로 설정해 unmount cleanup이 취소 요청을 보내지 않도록 방어
+  const savedRef = useRef(false);
+
+  const handleUpload = useCallback((url: string) => {
+    uploadedUrlsRef.current.add(url);
+  }, []);
+
+  // 컴포넌트 언마운트(취소·뒤로가기·탭 이탈) 시 PENDING 이미지 취소 요청
+  useEffect(() => {
+    // ref 객체 자체를 캡처 (cleanup 시점에 .current 최신값을 읽기 위함)
+    const urlsRef = uploadedUrlsRef;
+    const isSavedRef = savedRef;
+    return () => {
+      if (isSavedRef.current || urlsRef.current.size === 0) return;
+      const urls = [...urlsRef.current];
+      // keepalive: 페이지 언로드 중에도 요청이 완료될 수 있도록 보장
+      fetch(API.images.cancel, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urls }),
+        keepalive: true,
+        credentials: "include",
+      });
+    };
+  }, []);
 
   const [postType, setPostType] = useState<PostType>(initialType);
 
@@ -65,6 +94,7 @@ export default function WriteFormContent({ initialType }: Props) {
   const freeMutation = useMutation({
     mutationFn: createPost,
     onSuccess: (data) => {
+      savedRef.current = true;
       queryClient.invalidateQueries({ queryKey: postKeys.lists() });
       router.push(ROUTES.board.freePost(data.id));
     },
@@ -74,6 +104,7 @@ export default function WriteFormContent({ initialType }: Props) {
   const voteMutation = useMutation({
     mutationFn: createVotePost,
     onSuccess: (data) => {
+      savedRef.current = true;
       queryClient.invalidateQueries({ queryKey: postKeys.lists() });
       router.push(ROUTES.board.votePost(data.id));
     },
@@ -83,6 +114,7 @@ export default function WriteFormContent({ initialType }: Props) {
   const debateMutation = useMutation({
     mutationFn: createDebatePost,
     onSuccess: (data) => {
+      savedRef.current = true;
       queryClient.invalidateQueries({ queryKey: postKeys.lists() });
       router.push(ROUTES.board.debatePost(data.id));
     },
@@ -259,6 +291,7 @@ export default function WriteFormContent({ initialType }: Props) {
       targetMbti={targetMbti}
       onTargetMbtiChange={setTargetMbti}
       onContentChange={setContent}
+      onUpload={handleUpload}
       mbtiList={mbtiList}
       beforeTitle={typeToggle}
       contentLabel={postType !== POST_TYPE.FREE ? "내용 (선택)" : undefined}

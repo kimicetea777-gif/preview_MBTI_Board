@@ -48,6 +48,16 @@ jwt:
 frontend:
   url: http://localhost:3000
 
+r2:
+  access-key: test-access-key
+  secret-key: test-secret-key
+  account-id: test-account-id
+  bucket: test-bucket
+  public-url: http://test-r2.local
+
+internal:
+  api-key: test-internal-api-key
+
 app:
   cookie:
     secure: false

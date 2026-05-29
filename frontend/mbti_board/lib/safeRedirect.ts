@@ -3,5 +3,7 @@
  * 내부 경로("/board/free" 등)만 허용하고 그 외는 "/"로 폴백.
  */
 export function toSafeRedirect(redirectTo: string): string {
-  return redirectTo.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : "/";
+  return redirectTo.startsWith("/") && !redirectTo.startsWith("//") 
+    ? redirectTo 
+    : "/";
 }

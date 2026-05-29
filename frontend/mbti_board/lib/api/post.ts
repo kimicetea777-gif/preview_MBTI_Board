@@ -5,6 +5,7 @@ import type {
   PostSummaryResponse,
   PostDetailResponse,
   PostListParams,
+  MyPostListParams,
   PostCreateRequest,
   VotePostCreateRequest,
   DebatePostCreateRequest,
@@ -53,4 +54,14 @@ export async function deletePost(id: number, guestPassword?: string): Promise<vo
   await apiClient.delete(API.posts.byId(id), {
     headers: guestPassword ? { "X-Guest-Password": guestPassword } : {},
   });
+}
+
+export async function fetchMyPosts(
+  params: MyPostListParams
+): Promise<PageResponse<PostSummaryResponse>> {
+  const res = await apiClient.get<ApiResponse<PageResponse<PostSummaryResponse>>>(
+    API.users.mePosts,
+    { params }
+  );
+  return res.data.data;
 }

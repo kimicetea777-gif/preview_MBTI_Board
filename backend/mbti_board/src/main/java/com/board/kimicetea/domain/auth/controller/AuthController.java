@@ -2,8 +2,12 @@ package com.board.kimicetea.domain.auth.controller;
 
 import com.board.kimicetea.domain.auth.dto.EmailVerifyConfirmRequest;
 import com.board.kimicetea.domain.auth.dto.EmailVerifySendRequest;
+import com.board.kimicetea.domain.auth.dto.FindEmailRequest;
+import com.board.kimicetea.domain.auth.dto.FindEmailResponse;
 import com.board.kimicetea.domain.auth.dto.LoginRequest;
 import com.board.kimicetea.domain.auth.dto.LoginResponse;
+import com.board.kimicetea.domain.auth.dto.PasswordResetConfirmRequest;
+import com.board.kimicetea.domain.auth.dto.PasswordResetRequestBody;
 import com.board.kimicetea.domain.auth.dto.SignupRequest;
 import com.board.kimicetea.domain.auth.service.AuthService;
 import com.board.kimicetea.domain.user.security.CustomUserDetails;
@@ -35,6 +39,49 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
         private final AuthService authService;
+
+        /**
+         * 닉네임으로 이메일 찾기 — WITHDRAWN 계정은 404 반환
+         */
+        @Operation(summary = "이메일 찾기", description = "닉네임으로 마스킹된 이메일을 조회합니다.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "이메일 조회 성공"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "해당 닉네임의 사용자 없음")
+        })
+        @PostMapping("/find-email")
+        public ResponseEntity<ApiResponse<FindEmailResponse>> findEmail(
+                        @Valid @RequestBody final FindEmailRequest request) {
+                return ResponseEntity.ok(ApiResponse.ok(authService.findEmail(request)));
+        }
+
+        /**
+         * 비밀번호 재설정 이메일 발송 — 이메일 열거 방지를 위해 항상 동일 응답 반환
+         */
+        @Operation(summary = "비밀번호 재설정 이메일 발송", description = "이메일로 비밀번호 재설정 링크를 발송합니다. 이메일 존재 여부와 무관하게 항상 200을 반환합니다.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "발송 처리 완료")
+        })
+        @PostMapping("/password-reset/request")
+        public ResponseEntity<ApiResponse<Void>> requestPasswordReset(
+                        @Valid @RequestBody final PasswordResetRequestBody request) {
+                authService.requestPasswordReset(request);
+                return ResponseEntity.ok(ApiResponse.ok("이메일이 발송되었습니다."));
+        }
+
+        /**
+         * 비밀번호 재설정 확인 — 토큰 검증 후 비밀번호 변경 + 전 기기 강제 로그아웃
+         */
+        @Operation(summary = "비밀번호 재설정 확인", description = "재설정 토큰과 새 비밀번호로 비밀번호를 변경합니다. 전 기기 강제 로그아웃됩니다.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "비밀번호 변경 성공"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "토큰 만료 또는 무효")
+        })
+        @PostMapping("/password-reset/confirm")
+        public ResponseEntity<ApiResponse<Void>> confirmPasswordReset(
+                        @Valid @RequestBody final PasswordResetConfirmRequest request) {
+                authService.confirmPasswordReset(request);
+                return ResponseEntity.ok(ApiResponse.ok("비밀번호가 변경되었습니다."));
+        }
 
         /**
          * 이메일 인증 링크 발송 — 프론트 /signup/verify?token={uuid} 로 연결되는 링크 발송

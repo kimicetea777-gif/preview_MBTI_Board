@@ -35,6 +35,22 @@ public class EmailService {
         mailSender.send(message);
     }
 
+    /** 비밀번호 재설정 링크 발송 */
+    public void sendPasswordResetEmail(final String to, final String resetLink) {
+        final SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(from);
+        message.setTo(to);
+        message.setSubject("[MBTI Board] 비밀번호 재설정");
+        message.setText("""
+                아래 링크를 클릭해 비밀번호를 재설정하세요. (30분 이내)
+
+                %s
+
+                요청하지 않은 경우 이 메일을 무시하세요.
+                """.formatted(resetLink));
+        mailSender.send(message);
+    }
+
     /** 회원 탈퇴 OTP 발송 */
     public void sendWithdrawalOtp(final String to, final String otp) {
         final SimpleMailMessage message = new SimpleMailMessage();

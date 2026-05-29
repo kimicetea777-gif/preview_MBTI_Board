@@ -12,6 +12,10 @@
 
 - `store/authStore.ts` — Zustand로 Access Token을 메모리에 저장·조회하는 전역 인증 상태
 
+## Theme
+
+- `components/theme/ThemeSwitcher.tsx` — 테마 선택 버튼 (라이트/다크/네이비/로즈); next-themes `useTheme` 사용
+
 ## Lib
 
 - `lib/authChannel.ts` — BroadcastChannel을 이용한 탭 간 AT 갱신 및 로그아웃 이벤트 동기화 유틸
@@ -147,7 +151,7 @@
 ## Components
 
 - `components/post/PostWriteForm.tsx` — 게시글 작성 공용 폼 셸; 제목·대상MBTI·내용 에디터·취소/등록 버튼 공통 렌더링, 게시판별 추가 필드는 children으로 주입
-- `components/post/PostCard.tsx` — href prop으로 상세 경로를 외부에서 주입; 각 목록 페이지가 ROUTES 상수로 계산해 전달
+- `components/post/PostCard.tsx` — href prop으로 상세 경로를 외부에서 주입; 각 목록 페이지가 ROUTES 상수로 계산해 전달. `showType` prop 시 게시판 유형 뱃지(자유/투표/토론) 표시
 
 ## Pages
 
@@ -244,3 +248,83 @@
 ## Pages
 
 - `app/(main)/admin/page.tsx` — `/admin` 서버 컴포넌트; AdminDashboard 렌더링
+
+---
+
+# Phase 8 (8-4 / 8-5) — 회원 정보 찾기
+
+## Types
+
+- `types/auth.ts` — `FindEmailRequest`, `FindEmailResponse`, `PasswordResetRequest` 타입 추가
+
+## Lib
+
+- `lib/apiEndpoints.ts` — auth 섹션에 findEmail, passwordResetRequest 엔드포인트 상수 추가
+- `lib/routes.ts` — `ROUTES.accountFind` 추가: "/account/find"
+- `lib/api/auth.ts` — `findEmail`, `requestPasswordReset` API 함수 추가
+
+## Components
+
+- `components/auth/FindAccountContent.tsx` — 이메일 찾기(닉네임 입력·마스킹 결과·소셜 안내) / 비밀번호 찾기(2단계: 이메일 입력 → 발송 완료) 탭 UI 클라이언트 컴포넌트
+- `components/auth/LoginForm.tsx` — 로그인 폼 하단에 "이메일 찾기 | 비밀번호 찾기" 링크 추가 (8-4)
+
+## Pages
+
+- `app/(auth)/account/find/page.tsx` — `/account/find` 서버 컴포넌트; searchParams.tab("email"/"password")으로 FindAccountContent 초기 탭 제어
+
+---
+
+# Phase 8-6 — 비밀번호 재설정 페이지
+
+## Types
+
+- `types/auth.ts` — `PasswordResetConfirmRequest` 타입 추가 (`token`, `newPassword`)
+
+## Lib
+
+- `lib/apiEndpoints.ts` — auth 섹션에 `passwordResetConfirm` 엔드포인트 상수 추가
+- `lib/routes.ts` — `ROUTES.accountResetPassword` 추가: "/account/reset-password"
+- `lib/api/auth.ts` — `confirmPasswordReset` API 함수 추가
+
+## Components
+
+- `components/auth/ResetPasswordContent.tsx` — 비밀번호 재설정 클라이언트 컴포넌트; 마운트 시 token 없으면 /account/find 리다이렉트, 새 비밀번호·확인 입력 폼, 클라이언트 유효성 검증(8자 이상·일치 여부), 성공 시 /login 리다이렉트+토스트, API 400 시 에러 안내+"다시 요청하기" 링크
+
+## Pages
+
+- `app/(auth)/account/reset-password/page.tsx` — `/account/reset-password` 서버 컴포넌트; searchParams.token을 ResetPasswordContent에 전달
+
+---
+
+# Phase 9 — 마이페이지 기능 확장
+
+## Types
+
+- `types/post.ts` — `PostSummaryResponse`에 `typeCode: PostType` 필드 추가; `MyPostListParams` 인터페이스 추가 (type·sort·page·size 파라미터)
+
+## Lib
+
+- `lib/apiEndpoints.ts` — users 섹션에 `mePosts: "/api/users/me/posts"` 상수 추가
+- `lib/api/post.ts` — `fetchMyPosts(params: MyPostListParams)` API 함수 추가; `GET /api/users/me/posts` 호출
+
+## Components
+
+- `components/my/MyPostsSection.tsx` — 내가 작성한 게시글 목록 클라이언트 컴포넌트; 전체/자유글/투표/토론 탭 필터, useQuery로 페이지 단위 조회, typeCode별 상세 링크 생성(ROUTES 활용), 페이지네이션 이전/다음 버튼, 빈 상태 안내
+- `components/my/MyPageContent.tsx` — MyPostsSection 추가 (프로필 카드 하단); 회원 탈퇴 "위험 구역" 섹션 + 2단계 모달(탈퇴 안내 → OTP 입력) 추가
+
+## 9-2 Lib 추가
+
+- `lib/apiEndpoints.ts` — users 섹션에 `meWithdrawal: "/api/users/me"` 상수 추가 (DELETE 탈퇴 엔드포인트)
+- `lib/api/user.ts` — `sendWithdrawalOtp()`, `withdraw(code)` API 함수 추가; OTP 발송(`POST /api/users/me/withdrawal-verify`) 및 탈퇴 실행(`DELETE /api/users/me`)
+
+---
+
+# Main Page — 전체 게시판 홈
+
+## Pages
+
+- `app/(main)/page.tsx` — `/` 홈 클라이언트 컴포넌트; type 없이 GET /api/posts 조회해 FREE·VOTE·DEBATE 전체 혼합 피드, showType PostCard 뱃지로 유형 구분, IntersectionObserver 무한 스크롤, 정렬·MBTI 필터
+
+## Components
+
+- `components/post/PostCard.tsx` — `showType` prop 추가: 게시판 유형 뱃지(자유=파랑/투표=보라/토론=주황) 조건부 표시

@@ -24,3 +24,21 @@ export interface EmailVerifySendRequest {
 export interface EmailVerifyConfirmRequest {
   token: string;
 }
+
+export interface FindEmailRequest {
+  nickname: string;
+}
+
+export interface FindEmailResponse {
+  maskedEmail: string;
+  isSocialOnly: boolean;
+}
+
+export interface PasswordResetRequest {
+  email: string;
+}
+
+export interface PasswordResetConfirmRequest {
+  token: string;
+  newPassword: string;
+}

@@ -3,7 +3,10 @@ package com.board.kimicetea.domain.auth;
 import com.board.kimicetea.IntegrationTestSupport;
 import com.board.kimicetea.domain.auth.dto.EmailVerifyConfirmRequest;
 import com.board.kimicetea.domain.auth.dto.EmailVerifySendRequest;
+import com.board.kimicetea.domain.auth.dto.FindEmailRequest;
 import com.board.kimicetea.domain.auth.dto.LoginRequest;
+import com.board.kimicetea.domain.auth.dto.PasswordResetConfirmRequest;
+import com.board.kimicetea.domain.auth.dto.PasswordResetRequestBody;
 import com.board.kimicetea.domain.auth.dto.SignupRequest;
 import com.board.kimicetea.domain.mbti.repository.MbtiMetadataRepository;
 import com.board.kimicetea.domain.user.entity.User;
@@ -578,5 +581,379 @@ class AuthControllerTest extends IntegrationTestSupport {
 
                 // 가입 완료 후 EV:DONE 키 제거 확인
                 assertThat(tokenRedisService.isEmailVerified(TEST_EMAIL)).isFalse();
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // 10단계 — 이메일 찾기
+        // ─────────────────────────────────────────────────────────────
+
+        /** 이메일 인증 → 회원가입만 수행하는 헬퍼 (로그인 불필요 시 사용) */
+        private void 로컬_회원_생성(final String email, final String nickname) throws Exception {
+                tokenRedisService.markEmailVerified(email);
+                mockMvc.perform(post(SIGNUP_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                new SignupRequest(email, TEST_PASSWORD, nickname, TEST_MBTI))))
+                                .andExpect(status().isCreated());
+        }
+
+        @Test
+        @DisplayName("10-1. 존재하는 닉네임으로 이메일 찾기 → 200 OK, 마스킹 이메일 반환, isSocialOnly=false")
+        void 이메일_찾기_성공() throws Exception {
+                로컬_회원_생성(TEST_EMAIL, TEST_NICKNAME);
+
+                mockMvc.perform(post(FIND_EMAIL_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(new FindEmailRequest(TEST_NICKNAME))))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.success").value(true))
+                                .andExpect(jsonPath("$.data.maskedEmail").value("au***@example.com"))
+                                .andExpect(jsonPath("$.data.isSocialOnly").value(false));
+        }
+
+        @Test
+        @DisplayName("10-2. 존재하지 않는 닉네임으로 이메일 찾기 → 404, '존재하지 않는 사용자입니다.'")
+        void 이메일_찾기_닉네임_없음_실패() throws Exception {
+                mockMvc.perform(post(FIND_EMAIL_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(new FindEmailRequest("없는닉네임"))))
+                                .andExpect(status().isNotFound())
+                                .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
+        }
+
+        @Test
+        @DisplayName("10-3. WITHDRAWN 상태 계정 이메일 찾기 → 404, '존재하지 않는 사용자입니다.'")
+        void 이메일_찾기_탈퇴_계정_실패() throws Exception {
+                로컬_회원_생성(TEST_EMAIL, TEST_NICKNAME);
+                final User user = userRepository.findByEmail(TEST_EMAIL).orElseThrow();
+                user.changeState(UserState.WITHDRAWN);
+                userRepository.save(user);
+
+                mockMvc.perform(post(FIND_EMAIL_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(new FindEmailRequest(TEST_NICKNAME))))
+                                .andExpect(status().isNotFound())
+                                .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
+        }
+
+        @Test
+        @DisplayName("10-4. 소셜 계정 이메일 찾기 → 200 OK, isSocialOnly=true")
+        void 이메일_찾기_소셜_계정_성공() throws Exception {
+                final User socialUser = User.builder()
+                                .email(SOCIAL_EMAIL)
+                                .nickname("소셜찾기유저")
+                                .socialProvider("google")
+                                .providerId("test-provider-id-002")
+                                .mbti(mbtiMetadataRepository.findById("NONE").orElseThrow())
+                                .mbtiVerified(MbtiVerified.DEFAULT)
+                                .role(UserRole.USER)
+                                .state(UserState.NORMAL)
+                                .build();
+                userRepository.save(socialUser);
+
+                mockMvc.perform(post(FIND_EMAIL_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(new FindEmailRequest("소셜찾기유저"))))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.data.isSocialOnly").value(true));
+        }
+
+        @Test
+        @DisplayName("10-5. 마스킹 포맷 검증 — '@' 앞 2자만 노출, 나머지 '***' 처리")
+        void 이메일_찾기_마스킹_포맷_검증() throws Exception {
+                로컬_회원_생성("abcdef@gmail.com", "마스킹테스트유저");
+
+                mockMvc.perform(post(FIND_EMAIL_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(new FindEmailRequest("마스킹테스트유저"))))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.data.maskedEmail").value("ab***@gmail.com"));
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // 11단계 — 비밀번호 재설정 요청
+        // ─────────────────────────────────────────────────────────────
+
+        @Test
+        @DisplayName("11-1. 존재하지 않는 이메일로 요청 → 200 OK, Redis 키 생성 없음 (이메일 열거 방지)")
+        void 비밀번호_재설정_요청_미존재_이메일() throws Exception {
+                mockMvc.perform(post(PW_RESET_REQUEST_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                new PasswordResetRequestBody("nobody@example.com"))))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.message").value("이메일이 발송되었습니다."));
+
+                assertThat(redisTemplate.keys("PW:RESET:*")).isEmpty();
+        }
+
+        @Test
+        @DisplayName("11-2. NORMAL 계정 비밀번호 재설정 요청 → 200 OK, Redis PW:RESET:* 키 쌍 생성")
+        void 비밀번호_재설정_요청_정상_계정() throws Exception {
+                로컬_회원_생성(TEST_EMAIL, TEST_NICKNAME);
+
+                mockMvc.perform(post(PW_RESET_REQUEST_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                new PasswordResetRequestBody(TEST_EMAIL))))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.message").value("이메일이 발송되었습니다."));
+
+                final String token = tokenRedisService.getPasswordResetTokenByEmail(TEST_EMAIL);
+                assertThat(token).isNotNull();
+                assertThat(tokenRedisService.getEmailByPasswordResetToken(token)).isEqualTo(TEST_EMAIL);
+        }
+
+        @Test
+        @DisplayName("11-3. LOCKED 계정 비밀번호 재설정 요청 → 200 OK, Redis 키 생성")
+        void 비밀번호_재설정_요청_잠금_계정() throws Exception {
+                로컬_회원_생성(TEST_EMAIL, TEST_NICKNAME);
+                final User user = userRepository.findByEmail(TEST_EMAIL).orElseThrow();
+                user.changeState(UserState.LOCKED);
+                userRepository.save(user);
+
+                mockMvc.perform(post(PW_RESET_REQUEST_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                new PasswordResetRequestBody(TEST_EMAIL))))
+                                .andExpect(status().isOk());
+
+                assertThat(tokenRedisService.getPasswordResetTokenByEmail(TEST_EMAIL)).isNotNull();
+        }
+
+        @Test
+        @DisplayName("11-4. 소셜 계정 비밀번호 재설정 요청 → 200 OK, Redis 키 생성 없음")
+        void 비밀번호_재설정_요청_소셜_계정() throws Exception {
+                final User socialUser = User.builder()
+                                .email(SOCIAL_EMAIL)
+                                .nickname("소셜리셋유저")
+                                .socialProvider("google")
+                                .providerId("test-provider-id-003")
+                                .mbti(mbtiMetadataRepository.findById("NONE").orElseThrow())
+                                .mbtiVerified(MbtiVerified.DEFAULT)
+                                .role(UserRole.USER)
+                                .state(UserState.NORMAL)
+                                .build();
+                userRepository.save(socialUser);
+
+                mockMvc.perform(post(PW_RESET_REQUEST_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                new PasswordResetRequestBody(SOCIAL_EMAIL))))
+                                .andExpect(status().isOk());
+
+                assertThat(tokenRedisService.getPasswordResetTokenByEmail(SOCIAL_EMAIL)).isNull();
+        }
+
+        @Test
+        @DisplayName("11-5. PENDING 계정 비밀번호 재설정 요청 → 200 OK, Redis 키 생성 없음")
+        void 비밀번호_재설정_요청_PENDING_계정() throws Exception {
+                로컬_회원_생성(TEST_EMAIL, TEST_NICKNAME);
+                final User user = userRepository.findByEmail(TEST_EMAIL).orElseThrow();
+                user.changeState(UserState.PENDING);
+                userRepository.save(user);
+
+                mockMvc.perform(post(PW_RESET_REQUEST_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                new PasswordResetRequestBody(TEST_EMAIL))))
+                                .andExpect(status().isOk());
+
+                assertThat(tokenRedisService.getPasswordResetTokenByEmail(TEST_EMAIL)).isNull();
+        }
+
+        @Test
+        @DisplayName("11-6. PERMANENT_BAN 계정 비밀번호 재설정 요청 → 200 OK, Redis 키 생성 없음")
+        void 비밀번호_재설정_요청_영구정지_계정() throws Exception {
+                로컬_회원_생성(TEST_EMAIL, TEST_NICKNAME);
+                final User user = userRepository.findByEmail(TEST_EMAIL).orElseThrow();
+                user.changeState(UserState.PERMANENT_BAN);
+                userRepository.save(user);
+
+                mockMvc.perform(post(PW_RESET_REQUEST_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                new PasswordResetRequestBody(TEST_EMAIL))))
+                                .andExpect(status().isOk());
+
+                assertThat(tokenRedisService.getPasswordResetTokenByEmail(TEST_EMAIL)).isNull();
+        }
+
+        @Test
+        @DisplayName("11-7. 재요청 시 기존 토큰 무효화 → 기존 토큰 조회 시 null, 새 토큰만 유효")
+        void 비밀번호_재설정_재요청_기존_토큰_무효화() throws Exception {
+                로컬_회원_생성(TEST_EMAIL, TEST_NICKNAME);
+
+                mockMvc.perform(post(PW_RESET_REQUEST_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                new PasswordResetRequestBody(TEST_EMAIL))))
+                                .andExpect(status().isOk());
+                final String firstToken = tokenRedisService.getPasswordResetTokenByEmail(TEST_EMAIL);
+
+                mockMvc.perform(post(PW_RESET_REQUEST_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                new PasswordResetRequestBody(TEST_EMAIL))))
+                                .andExpect(status().isOk());
+                final String secondToken = tokenRedisService.getPasswordResetTokenByEmail(TEST_EMAIL);
+
+                assertThat(secondToken).isNotEqualTo(firstToken);
+                assertThat(tokenRedisService.getEmailByPasswordResetToken(firstToken)).isNull();
+                assertThat(tokenRedisService.getEmailByPasswordResetToken(secondToken)).isEqualTo(TEST_EMAIL);
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // 12단계 — 비밀번호 재설정 확인
+        // ─────────────────────────────────────────────────────────────
+
+        private static final String NEW_PASSWORD = "newPassword123!";
+
+        @Test
+        @DisplayName("12-1. 유효한 토큰으로 비밀번호 재설정 → 200 OK, '비밀번호가 변경되었습니다.'")
+        void 비밀번호_재설정_확인_성공() throws Exception {
+                로컬_회원_생성(TEST_EMAIL, TEST_NICKNAME);
+                final String token = "test-reset-token-001";
+                tokenRedisService.savePasswordResetToken(token, TEST_EMAIL);
+
+                mockMvc.perform(post(PW_RESET_CONFIRM_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                new PasswordResetConfirmRequest(token, NEW_PASSWORD))))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.success").value(true))
+                                .andExpect(jsonPath("$.message").value("비밀번호가 변경되었습니다."));
+        }
+
+        @Test
+        @DisplayName("12-2. 재설정 후 새 비밀번호로 로그인 성공 → 200 OK")
+        void 비밀번호_재설정_후_새_비밀번호_로그인_성공() throws Exception {
+                로컬_회원_생성(TEST_EMAIL, TEST_NICKNAME);
+                final String token = "test-reset-token-002";
+                tokenRedisService.savePasswordResetToken(token, TEST_EMAIL);
+
+                mockMvc.perform(post(PW_RESET_CONFIRM_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                new PasswordResetConfirmRequest(token, NEW_PASSWORD))))
+                                .andExpect(status().isOk());
+
+                mockMvc.perform(post(LOGIN_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                new LoginRequest(TEST_EMAIL, NEW_PASSWORD))))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.data.accessToken").isNotEmpty());
+        }
+
+        @Test
+        @DisplayName("12-3. 재설정 후 기존 비밀번호로 로그인 실패 → 401")
+        void 비밀번호_재설정_후_기존_비밀번호_로그인_실패() throws Exception {
+                로컬_회원_생성(TEST_EMAIL, TEST_NICKNAME);
+                final String token = "test-reset-token-003";
+                tokenRedisService.savePasswordResetToken(token, TEST_EMAIL);
+
+                mockMvc.perform(post(PW_RESET_CONFIRM_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                new PasswordResetConfirmRequest(token, NEW_PASSWORD))))
+                                .andExpect(status().isOk());
+
+                mockMvc.perform(post(LOGIN_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                new LoginRequest(TEST_EMAIL, TEST_PASSWORD))))
+                                .andExpect(status().isUnauthorized())
+                                .andExpect(jsonPath("$.message").value("이메일 또는 비밀번호가 올바르지 않습니다."));
+        }
+
+        @Test
+        @DisplayName("12-4. 유효하지 않은 토큰 → 400, '유효하지 않은 비밀번호 재설정 링크입니다. 다시 요청해 주세요.'")
+        void 비밀번호_재설정_확인_유효하지_않은_토큰_실패() throws Exception {
+                mockMvc.perform(post(PW_RESET_CONFIRM_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                new PasswordResetConfirmRequest("invalid-token", NEW_PASSWORD))))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.message").value(
+                                                "유효하지 않은 비밀번호 재설정 링크입니다. 다시 요청해 주세요."));
+        }
+
+        @Test
+        @DisplayName("12-5. 재설정 후 Redis PW:RESET:* 키 쌍 모두 삭제 확인")
+        void 비밀번호_재설정_후_Redis_토큰_삭제_확인() throws Exception {
+                로컬_회원_생성(TEST_EMAIL, TEST_NICKNAME);
+                final String token = "test-reset-token-004";
+                tokenRedisService.savePasswordResetToken(token, TEST_EMAIL);
+
+                mockMvc.perform(post(PW_RESET_CONFIRM_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                new PasswordResetConfirmRequest(token, NEW_PASSWORD))))
+                                .andExpect(status().isOk());
+
+                assertThat(tokenRedisService.getEmailByPasswordResetToken(token)).isNull();
+                assertThat(tokenRedisService.getPasswordResetTokenByEmail(TEST_EMAIL)).isNull();
+        }
+
+        @Test
+        @DisplayName("12-6. 재설정 후 전 기기 RT 삭제 확인 (강제 로그아웃)")
+        void 비밀번호_재설정_후_전기기_RT_삭제_확인() throws Exception {
+                로컬_회원_생성(TEST_EMAIL, TEST_NICKNAME);
+
+                final String atA = 로그인_후_AT_추출();
+                final String atB = 로그인_후_AT_추출();
+                final Claims claimsA = jwtProvider.parseToken(atA);
+                final Claims claimsB = jwtProvider.parseToken(atB);
+                final String userId   = claimsA.getSubject();
+                final String deviceIdA = claimsA.get("deviceId", String.class);
+                final String deviceIdB = claimsB.get("deviceId", String.class);
+
+                assertThat(tokenRedisService.getRefreshToken(userId, deviceIdA)).isNotNull();
+                assertThat(tokenRedisService.getRefreshToken(userId, deviceIdB)).isNotNull();
+
+                final String token = "test-reset-token-005";
+                tokenRedisService.savePasswordResetToken(token, TEST_EMAIL);
+
+                mockMvc.perform(post(PW_RESET_CONFIRM_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                new PasswordResetConfirmRequest(token, NEW_PASSWORD))))
+                                .andExpect(status().isOk());
+
+                assertThat(tokenRedisService.getRefreshToken(userId, deviceIdA)).isNull();
+                assertThat(tokenRedisService.getRefreshToken(userId, deviceIdB)).isNull();
+        }
+
+        @Test
+        @DisplayName("12-7. 동일 토큰으로 두 번째 요청 → 400 (토큰 재사용 방지)")
+        void 비밀번호_재설정_토큰_재사용_실패() throws Exception {
+                로컬_회원_생성(TEST_EMAIL, TEST_NICKNAME);
+                final String token = "test-reset-token-006";
+                tokenRedisService.savePasswordResetToken(token, TEST_EMAIL);
+
+                mockMvc.perform(post(PW_RESET_CONFIRM_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                new PasswordResetConfirmRequest(token, NEW_PASSWORD))))
+                                .andExpect(status().isOk());
+
+                mockMvc.perform(post(PW_RESET_CONFIRM_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                new PasswordResetConfirmRequest(token, "anotherPassword456!"))))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.message").value(
+                                                "유효하지 않은 비밀번호 재설정 링크입니다. 다시 요청해 주세요."));
+        }
+
+        @Test
+        @DisplayName("12-8. 새 비밀번호 8자 미만 → 400 Bad Request")
+        void 비밀번호_재설정_확인_비밀번호_길이_미달_실패() throws Exception {
+                mockMvc.perform(post(PW_RESET_CONFIRM_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                new PasswordResetConfirmRequest("any-token", "short"))))
+                                .andExpect(status().isBadRequest());
         }
 }

@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/authStore";
 import { apiClient } from "@/lib/apiClient";
 import { ROUTES } from "@/lib/routes";
 import { API } from "@/lib/apiEndpoints";
+import ThemeSwitcher from "../theme/ThemeSwitcher";
 
 export default function Header() {
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -27,6 +28,8 @@ export default function Header() {
         <Link href="/" className="text-lg font-bold tracking-tight text-gray-900">
           MBTI Board
         </Link>
+
+        <ThemeSwitcher />
 
         <nav className="flex items-center gap-3">
           {accessToken ? (

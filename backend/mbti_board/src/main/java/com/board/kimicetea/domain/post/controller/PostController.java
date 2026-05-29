@@ -49,13 +49,13 @@ public class PostController {
 
         private final PostService postService;
 
-        @Operation(summary = "게시글 목록 조회", description = "게시판 유형·정렬·MBTI 필터로 게시글 목록을 페이지 단위로 조회합니다.")
+        @Operation(summary = "게시글 목록 조회", description = "게시판 유형·정렬·MBTI 필터로 게시글 목록을 페이지 단위로 조회합니다. type 생략 시 FREE·VOTE·DEBATE 전체 유형 혼합 반환.")
         @ApiResponses({
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
         })
         @GetMapping
         public ResponseEntity<ApiResponse<Page<PostSummaryResponse>>> getPosts(
-                        @RequestParam(defaultValue = "FREE") final String type,
+                        @RequestParam(required = false) final String type,
                         @RequestParam(defaultValue = "LATEST") final PostSortType sort,
                         @RequestParam(required = false) final String authorMbti,
                         @RequestParam(defaultValue = "ALL") final String targetMbti,

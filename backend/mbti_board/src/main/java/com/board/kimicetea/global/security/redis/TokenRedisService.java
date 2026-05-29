@@ -22,10 +22,13 @@ public class TokenRedisService {
     private static final String WD_CNT_PREFIX          = "WD:CNT:";
     private static final String EV_TOKEN_PREFIX        = "EV:TOKEN:";
     private static final String EV_DONE_PREFIX         = "EV:DONE:";
+    private static final String PW_RESET_PREFIX        = "PW:RESET:";
+    private static final String PW_RESET_EMAIL_PREFIX  = "PW:RESET:EMAIL:";
     private static final String LOGOUT_VALUE           = "logout";
     private static final long   WITHDRAWAL_OTP_TTL_MS  = 3 * 60 * 1000L;   // 3분
     private static final long   EMAIL_VERIFY_TOKEN_TTL = 10 * 60 * 1000L;  // 10분
     private static final long   EMAIL_VERIFIED_TTL     = 30 * 60 * 1000L;  // 30분
+    private static final long   PW_RESET_TOKEN_TTL     = 30 * 60 * 1000L;  // 30분
     public static final int     WITHDRAWAL_OTP_MAX_ATTEMPTS = 3;
 
     private final StringRedisTemplate redisTemplate;
@@ -134,6 +137,33 @@ public class TokenRedisService {
         redisTemplate.delete(evDoneKey(email));
     }
 
+    // ── 비밀번호 재설정 토큰 ──────────────────────────────────────
+
+    /**
+     * 비밀번호 재설정 토큰 저장 — PW:RESET:{token} + PW:RESET:EMAIL:{email} 쌍으로 저장, TTL: 30분
+     * 주의: 재요청 시 기존 토큰을 먼저 deletePasswordResetToken()으로 무효화 후 호출
+     */
+    public void savePasswordResetToken(final String token, final String email) {
+        redisTemplate.opsForValue().set(pwResetKey(token), email, PW_RESET_TOKEN_TTL, TimeUnit.MILLISECONDS);
+        redisTemplate.opsForValue().set(pwResetEmailKey(email), token, PW_RESET_TOKEN_TTL, TimeUnit.MILLISECONDS);
+    }
+
+    /** 토큰으로 이메일 조회 — 만료 또는 미존재 시 null 반환 */
+    public String getEmailByPasswordResetToken(final String token) {
+        return redisTemplate.opsForValue().get(pwResetKey(token));
+    }
+
+    /** 이메일로 기존 토큰 조회 — 재요청 시 기존 링크 무효화에 사용 */
+    public String getPasswordResetTokenByEmail(final String email) {
+        return redisTemplate.opsForValue().get(pwResetEmailKey(email));
+    }
+
+    /** 토큰·이메일 키 모두 삭제 — 토큰 사용 완료 또는 재요청 시 기존 토큰 무효화 */
+    public void deletePasswordResetToken(final String token, final String email) {
+        redisTemplate.delete(pwResetKey(token));
+        redisTemplate.delete(pwResetEmailKey(email));
+    }
+
     // ── 키 생성 헬퍼 ──────────────────────────────────────────────
 
     private String rtKey(final String userId, final String deviceId) {
@@ -158,5 +188,13 @@ public class TokenRedisService {
 
     private String evDoneKey(final String email) {
         return EV_DONE_PREFIX + email;
+    }
+
+    private String pwResetKey(final String token) {
+        return PW_RESET_PREFIX + token;
+    }
+
+    private String pwResetEmailKey(final String email) {
+        return PW_RESET_EMAIL_PREFIX + email;
     }
 }

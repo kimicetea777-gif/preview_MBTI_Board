@@ -1,5 +1,48 @@
 # Security 테스트 케이스 목록
 
+---
+
+## 이미지 PENDING/취소 — ImageControllerTest (통합), ImageCleanupServiceTest (단위)
+
+### POST /api/images/pending
+
+| ID  | 케이스 | 기대 결과 |
+|---|---|---|
+| IMG-1-1 | X-Internal-Key 헤더 없음 | 403 Forbidden, DB 저장 없음 |
+| IMG-1-2 | 잘못된 X-Internal-Key | 403 Forbidden, DB 저장 없음 |
+| IMG-1-3 | 유효한 키 + 자체 R2 URL | 200 OK, deleted_images에 PENDING 레코드 생성 |
+| IMG-1-4 | 유효한 키 + 외부 URL | 200 OK, DB 저장 없음 (서비스 레이어에서 무시) |
+| IMG-1-5 | url 빈 값 | 400 Bad Request |
+
+### DELETE /api/images
+
+| ID  | 케이스 | 기대 결과 |
+|---|---|---|
+| IMG-2-1 | urls 빈 리스트 | 400 Bad Request |
+| IMG-2-2 | urls 21개 (max=20 초과) | 400 Bad Request |
+| IMG-2-3 | PENDING 레코드 없는 URL | 204 No Content, R2 호출 없음 |
+| IMG-2-4 | PENDING 있는 URL + R2 삭제 성공 | 204 No Content, DB 레코드 제거 |
+| IMG-2-5 | PENDING 있는 URL + R2 삭제 실패 | 204 No Content, 레코드 DELETE_REQUESTED로 전환 |
+
+### ImageCleanupService (단위)
+
+| ID  | 케이스 | 기대 결과 |
+|---|---|---|
+| SVC-1-1 | registerPending — 자체 R2 URL | DB save 호출, status=PENDING |
+| SVC-1-2 | registerPending — 외부 URL | DB save 호출 없음 |
+| SVC-2-1 | commitImages — 빈 집합 | DB 조회·삭제 없음 |
+| SVC-2-2 | commitImages — URL 집합 | deleteByUrlsAndStatus(PENDING) 호출 |
+| SVC-3-1 | cancelImages — 빈 목록 | DB 조회 없음 |
+| SVC-3-2 | cancelImages — PENDING 없는 URL | R2 호출 없음 |
+| SVC-3-3 | cancelImages — R2 삭제 성공 | DB 레코드 deleteAll 호출 |
+| SVC-3-4 | cancelImages — R2 삭제 실패 | status=DELETE_REQUESTED, deleteAll 미호출 |
+| SVC-4-1 | cleanup — 대상 없음 | R2·DB 호출 없음 |
+| SVC-4-2 | cleanup — PENDING 24h 초과 | R2 삭제 후 DB deleteAll |
+| SVC-4-3 | cleanup — DELETE_REQUESTED | R2 재시도 후 DB deleteAll |
+| SVC-4-4 | cleanup — R2 삭제 실패 | DB deleteAll은 반드시 호출 (강제 정리) |
+
+---
+
 ## 9단계 — 이메일 인증 플로우
 
 | ID  | 케이스                           | 엔드포인트                            | 기대 결과                                             |
@@ -67,6 +110,47 @@
 | 6-2 | 콜백 및 토큰 발급     | 로그인 완료 후 콜백 URL 확인                                 | URL 쿼리에 `accessToken` 존재 + DevTools Cookies에 `refreshToken` 존재                                    |
 | 6-3 | 신규 유저 DB 저장     | DB 조회                                                      | `mbti_id = 'NONE'`, `mbti_verified = 'DEFAULT'`, `social_provider = 'kakao'`, 카카오 닉네임 기반 nickname |
 | 6-4 | 이메일 동의 거부      | Kakao 동의 화면에서 이메일 제공 거부                         | 400 Bad Request, "이메일 제공에 동의해야 소셜 로그인이 가능합니다."                                       |
+
+---
+
+## 10단계 — 이메일 찾기 (`AuthControllerTest`)
+
+| ID   | 케이스                                        | 엔드포인트                      | 기대 결과                                                         |
+| ---- | --------------------------------------------- | ------------------------------- | ----------------------------------------------------------------- |
+| 10-1 | 존재하는 닉네임으로 이메일 찾기               | `POST /api/auth/find-email`     | 200 OK, `maskedEmail` 반환 (`au***@example.com`), `isSocialOnly=false` |
+| 10-2 | 존재하지 않는 닉네임                          | `POST /api/auth/find-email`     | 404 Not Found, "존재하지 않는 사용자입니다."                      |
+| 10-3 | WITHDRAWN 상태 계정                           | `POST /api/auth/find-email`     | 404 Not Found, "존재하지 않는 사용자입니다."                      |
+| 10-4 | 소셜 계정 이메일 찾기                         | `POST /api/auth/find-email`     | 200 OK, `isSocialOnly=true`                                       |
+| 10-5 | 마스킹 포맷 검증 (`ab***@gmail.com`)          | `POST /api/auth/find-email`     | 200 OK, `@` 앞 2자 노출·나머지 `***` 처리                         |
+
+---
+
+## 11단계 — 비밀번호 재설정 요청 (`AuthControllerTest`)
+
+| ID   | 케이스                                        | 엔드포인트                              | 기대 결과                                                                    |
+| ---- | --------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------- |
+| 11-1 | 존재하지 않는 이메일로 요청 (이메일 열거 방지) | `POST /api/auth/password-reset/request` | 200 OK, `message="이메일이 발송되었습니다."`, Redis `PW:RESET:*` 키 생성 없음 |
+| 11-2 | NORMAL 계정 정상 요청                         | `POST /api/auth/password-reset/request` | 200 OK, `PW:RESET:{token}` + `PW:RESET:EMAIL:{email}` 키 쌍 생성             |
+| 11-3 | LOCKED 계정 요청 (재설정으로 잠금 해제)       | `POST /api/auth/password-reset/request` | 200 OK, Redis 키 생성                                                         |
+| 11-4 | 소셜 계정 요청                                | `POST /api/auth/password-reset/request` | 200 OK, Redis 키 생성 없음                                                    |
+| 11-5 | PENDING 계정 요청                             | `POST /api/auth/password-reset/request` | 200 OK, Redis 키 생성 없음                                                    |
+| 11-6 | PERMANENT_BAN 계정 요청                       | `POST /api/auth/password-reset/request` | 200 OK, Redis 키 생성 없음                                                    |
+| 11-7 | 재요청 시 기존 토큰 무효화                    | `POST /api/auth/password-reset/request` | 200 OK, 기존 토큰 조회 시 null, 새 토큰만 유효                               |
+
+---
+
+## 12단계 — 비밀번호 재설정 확인 (`AuthControllerTest`)
+
+| ID   | 케이스                                        | 엔드포인트                              | 기대 결과                                                                     |
+| ---- | --------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------- |
+| 12-1 | 유효한 토큰으로 비밀번호 재설정              | `POST /api/auth/password-reset/confirm` | 200 OK, "비밀번호가 변경되었습니다."                                          |
+| 12-2 | 재설정 후 새 비밀번호로 로그인               | `POST /api/auth/login`                  | 200 OK                                                                        |
+| 12-3 | 재설정 후 기존 비밀번호로 로그인             | `POST /api/auth/login`                  | 401 Unauthorized, "이메일 또는 비밀번호가 올바르지 않습니다."                 |
+| 12-4 | 유효하지 않은 토큰                           | `POST /api/auth/password-reset/confirm` | 400 Bad Request, "유효하지 않은 비밀번호 재설정 링크입니다. 다시 요청해 주세요." |
+| 12-5 | 재설정 후 Redis PW:RESET:* 키 쌍 삭제 확인  | `POST /api/auth/password-reset/confirm` | 200 OK, 두 키 모두 null                                                       |
+| 12-6 | 재설정 후 전 기기 RT 삭제 (강제 로그아웃)   | `POST /api/auth/password-reset/confirm` | 200 OK, 모든 기기 RT null                                                     |
+| 12-7 | 동일 토큰으로 두 번째 요청 (토큰 재사용 방지) | `POST /api/auth/password-reset/confirm` | 400 Bad Request, "유효하지 않은 비밀번호 재설정 링크입니다. 다시 요청해 주세요." |
+| 12-8 | 새 비밀번호 8자 미만                         | `POST /api/auth/password-reset/confirm` | 400 Bad Request (Bean Validation)                                             |
 
 ---
 
@@ -340,3 +424,23 @@
 | 5-2 | `NONE` ID 단건 조회                        | 200 OK, `id=NONE` 반환                                     |
 | 5-3 | 존재하지 않는 ID 조회 (`XXXX`)             | 404 Not Found, "존재하지 않는 MBTI입니다."                 |
 | 5-4 | ID 7자 이상 (`TOOLONGID`) — 길이 제한 초과 | 400 Bad Request                                            |
+
+---
+
+## Phase 9 — 내가 작성한 게시글 목록 (`UserControllerTest`)
+
+> 엔드포인트: `GET /api/users/me/posts`
+> 인증: JWT 필수 (회원 전용)
+
+| ID   | 케이스                                           | 기대 결과                                                        |
+| ---- | ------------------------------------------------ | ---------------------------------------------------------------- |
+| 9-1  | 내 게시글 2개 작성 후 전체 조회                  | 200 OK, `totalElements=2`                                        |
+| 9-2  | AT 없이 요청                                     | 401 Unauthorized, "인증이 필요합니다."                           |
+| 9-3  | FREE 1개·VOTE 1개 작성 후 `type=FREE` 필터       | 200 OK, `totalElements=1`, `postType=FREE`                       |
+| 9-4  | FREE 1개·VOTE 1개 작성 후 `type=VOTE` 필터       | 200 OK, `totalElements=1`, `postType=VOTE`                       |
+| 9-5  | 내 게시글 1개 + 타인 게시글 1개 작성 후 조회     | 200 OK, `totalElements=1`, 내 게시글(`title`)만 포함             |
+| 9-6  | 게시글 없는 회원 조회                            | 200 OK, `totalElements=0`, 빈 `content` 배열                     |
+| 9-7  | `type=free` (소문자) 입력                        | 200 OK, 대소문자 정규화 처리 후 정상 반환                        |
+| 9-8  | `type=INVALID` (존재하지 않는 유형)              | 400 Bad Request, "존재하지 않는 게시판 유형입니다."              |
+| 9-9  | `page=-1`                                        | 400 Bad Request                                                  |
+| 9-10 | 내 게시글 2개 중 1개 소프트 삭제 후 조회         | 200 OK, `totalElements=1`, 삭제된 게시글 미포함                  |

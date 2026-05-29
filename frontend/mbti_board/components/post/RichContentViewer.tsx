@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import Image from "@tiptap/extension-image";
 import { useEffect } from "react";
 
 interface Props {
@@ -11,7 +12,7 @@ interface Props {
 
 function RichContentViewerInner({ content }: Props) {
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [StarterKit, Image.configure({ inline: false })],
     editable: false,
     editorProps: {
       attributes: {

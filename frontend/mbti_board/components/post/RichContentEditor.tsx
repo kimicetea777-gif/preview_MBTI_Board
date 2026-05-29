@@ -4,12 +4,15 @@ import dynamic from "next/dynamic";
 import { useEditor, EditorContent, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
+import Image from "@tiptap/extension-image";
 import { useEffect, useRef } from "react";
+import { API } from "@/lib/apiEndpoints";
 
 interface Props {
   initialContent?: string;
   onChange: (json: string) => void;
   placeholder?: string;
+  onUpload?: (url: string) => void;
 }
 
 function parseContent(json?: string) {
@@ -17,14 +20,26 @@ function parseContent(json?: string) {
   try { return JSON.parse(json); } catch { return undefined; }
 }
 
-function RichContentEditorInner({ initialContent, onChange, placeholder }: Props) {
+async function uploadImage(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(API.images.upload, { method: "POST", body: formData, credentials: "include" });
+  if (!res.ok) throw new Error("이미지 업로드에 실패했습니다.");
+  const json = await res.json();
+  return json.data.url as string;
+}
+
+function RichContentEditorInner({ initialContent, onChange, placeholder, onUpload }: Props) {
   const onChangeRef = useRef(onChange);
   useEffect(() => { onChangeRef.current = onChange; });
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
     extensions: [
       StarterKit,
       Placeholder.configure({ placeholder: placeholder ?? "내용을 입력하세요." }),
+      Image.configure({ inline: false, allowBase64: false }),
     ],
     content: parseContent(initialContent),
     onUpdate: ({ editor }) => {
@@ -44,7 +59,6 @@ function RichContentEditorInner({ initialContent, onChange, placeholder }: Props
     if (parsed) editor.commands.setContent(parsed);
   }, [editor, initialContent]);
 
-  // 선택 영역·마크 변경을 구독해 툴바 활성 상태 반영 (Tiptap v3)
   const active = useEditorState({
     editor,
     selector: (ctx) => ({
@@ -56,6 +70,19 @@ function RichContentEditorInner({ initialContent, onChange, placeholder }: Props
       code:       ctx.editor?.isActive("code")               ?? false,
     }),
   });
+
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editor) return;
+    e.target.value = "";
+    try {
+      const url = await uploadImage(file);
+      editor.chain().focus().setImage({ src: url }).run();
+      onUpload?.(url);
+    } catch {
+      alert("이미지 업로드에 실패했습니다.");
+    }
+  };
 
   return (
     <div className="rounded-lg border border-gray-300 overflow-hidden">
@@ -114,6 +141,20 @@ function RichContentEditorInner({ initialContent, onChange, placeholder }: Props
         >
           {"</>"}
         </button>
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="rounded px-2 py-1 text-xs text-gray-600 hover:bg-gray-200 transition-colors"
+        >
+          사진
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/gif,image/webp"
+          className="hidden"
+          onChange={handleImageSelect}
+        />
       </nav>
       <EditorContent editor={editor} />
     </div>

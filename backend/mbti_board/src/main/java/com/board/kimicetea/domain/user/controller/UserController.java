@@ -2,6 +2,9 @@ package com.board.kimicetea.domain.user.controller;
 
 import com.board.kimicetea.domain.mbti.dto.MbtiTestHistoryResponse;
 import com.board.kimicetea.domain.mbti.service.MbtiService;
+import com.board.kimicetea.domain.post.PostSortType;
+import com.board.kimicetea.domain.post.dto.PostSummaryResponse;
+import com.board.kimicetea.domain.post.service.PostService;
 import com.board.kimicetea.domain.user.dto.ChangePasswordRequest;
 import com.board.kimicetea.domain.user.dto.MyProfileResponse;
 import com.board.kimicetea.domain.user.dto.UpdateProfileRequest;
@@ -16,9 +19,14 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -27,6 +35,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -37,6 +46,7 @@ import java.util.UUID;
  * 주의: /me 엔드포인트는 인증 필수, /{id}는 비인증 접근 허용
  */
 @Tag(name = "User", description = "유저 프로필 API")
+@Validated
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
@@ -44,6 +54,7 @@ public class UserController {
 
     private final UserService userService;
     private final MbtiService mbtiService;
+    private final PostService postService;
     private final CookieUtils cookieUtils;
 
     /**
@@ -90,6 +101,27 @@ public class UserController {
             @PathVariable final UUID id) {
 
         return ResponseEntity.ok(ApiResponse.ok(userService.getUserProfile(id)));
+    }
+
+    /**
+     * 내 게시글 목록 조회 — 유형 필터·정렬·페이지네이션 지원
+     */
+    @Operation(summary = "내 게시글 목록 조회", description = "로그인한 회원이 작성한 게시글을 조회합니다. type 생략 시 전체 유형을 반환합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
+    })
+    @GetMapping("/me/posts")
+    public ResponseEntity<ApiResponse<Page<PostSummaryResponse>>> getMyPosts(
+            @AuthenticationPrincipal final CustomUserDetails userDetails,
+            @RequestParam(required = false) final String type,
+            @RequestParam(defaultValue = "LATEST") final PostSortType sort,
+            @RequestParam(defaultValue = "0") @Min(0) final int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) final int size) {
+
+        final Page<PostSummaryResponse> result = postService.getMyPosts(
+                userDetails.userId(), type, sort, PageRequest.of(page, size));
+        return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
     /**

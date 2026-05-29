@@ -40,6 +40,11 @@ spring:
           starttls:
             enable: true
 
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+
   security:
     oauth2:
       client:
@@ -76,3 +81,13 @@ frontend:
 app:
   cookie:
     secure: false # 프로덕션(HTTPS) 환경에서는 반드시 true로 변경
+
+r2:
+  account-id: ${R2_ACCOUNT_ID}
+  access-key: ${R2_ACCESS_KEY}
+  secret-key: ${R2_SECRET_KEY}
+  bucket: ${R2_BUCKET}
+  public-url: ${R2_PUBLIC_URL}
+
+internal:
+  api-key: ${INTERNAL_API_KEY}

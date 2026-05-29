@@ -7,6 +7,10 @@ import type {
   SignupRequest,
   EmailVerifySendRequest,
   EmailVerifyConfirmRequest,
+  FindEmailRequest,
+  FindEmailResponse,
+  PasswordResetRequest,
+  PasswordResetConfirmRequest,
 } from "@/types/auth";
 
 export async function login(data: LoginRequest): Promise<LoginResponse> {
@@ -25,4 +29,17 @@ export async function sendEmailVerification(data: EmailVerifySendRequest): Promi
 export async function confirmEmailVerification(data: EmailVerifyConfirmRequest): Promise<string> {
   const res = await apiClient.post<ApiResponse<string>>(API.auth.emailVerifyConfirm, data);
   return res.data.data;
+}
+
+export async function findEmail(data: FindEmailRequest): Promise<FindEmailResponse> {
+  const res = await apiClient.post<ApiResponse<FindEmailResponse>>(API.auth.findEmail, data);
+  return res.data.data;
+}
+
+export async function requestPasswordReset(data: PasswordResetRequest): Promise<void> {
+  await apiClient.post<ApiResponse<void>>(API.auth.passwordResetRequest, data);
+}
+
+export async function confirmPasswordReset(data: PasswordResetConfirmRequest): Promise<void> {
+  await apiClient.post<ApiResponse<void>>(API.auth.passwordResetConfirm, data);
 }

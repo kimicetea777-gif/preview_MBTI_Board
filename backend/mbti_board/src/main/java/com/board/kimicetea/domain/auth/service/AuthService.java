@@ -2,9 +2,14 @@ package com.board.kimicetea.domain.auth.service;
 
 import com.board.kimicetea.domain.auth.dto.EmailVerifyConfirmRequest;
 import com.board.kimicetea.domain.auth.dto.EmailVerifySendRequest;
+import com.board.kimicetea.domain.auth.dto.FindEmailRequest;
+import com.board.kimicetea.domain.auth.dto.FindEmailResponse;
 import com.board.kimicetea.domain.auth.dto.LoginRequest;
 import com.board.kimicetea.domain.auth.dto.LoginResponse;
+import com.board.kimicetea.domain.auth.dto.PasswordResetConfirmRequest;
+import com.board.kimicetea.domain.auth.dto.PasswordResetRequestBody;
 import com.board.kimicetea.domain.auth.dto.SignupRequest;
+import com.board.kimicetea.domain.user.enums.UserState;
 import com.board.kimicetea.global.mail.EmailService;
 import com.board.kimicetea.domain.user.entity.User;
 import com.board.kimicetea.domain.user.repository.UserRepository;
@@ -26,6 +31,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -47,6 +53,84 @@ public class AuthService {
 
     @Value("${frontend.url}")
     private String frontendUrl;
+
+    /**
+     * 닉네임으로 이메일 찾기 — WITHDRAWN 계정은 존재하지 않는 것으로 처리
+     * 주의: 이메일은 @앞 2자만 노출하고 나머지 *** 처리 (개인정보 보호)
+     */
+    @Transactional(readOnly = true)
+    public FindEmailResponse findEmail(final FindEmailRequest request) {
+        final User user = userRepository.findByNickname(request.nickname())
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        if (user.getState() == UserState.WITHDRAWN) {
+            throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        final String masked = maskEmail(user.getEmail());
+        final boolean isSocialOnly = user.getSocialProvider() != null;
+
+        return new FindEmailResponse(masked, isSocialOnly);
+    }
+
+    /**
+     * 이메일 마스킹 — @앞 2자 노출, 나머지 로컬 파트는 *** 처리
+     * 예) abcdef@gmail.com → ab***@gmail.com
+     */
+    private String maskEmail(final String email) {
+        final int atIndex = email.indexOf('@');
+        final String local = email.substring(0, atIndex);
+        final String domain = email.substring(atIndex);
+        final String visiblePart = local.length() > 2 ? local.substring(0, 2) : local;
+        return visiblePart + "***" + domain;
+    }
+
+    /**
+     * 비밀번호 재설정 이메일 발송 — 항상 동일 응답 반환 (이메일 열거 방지)
+     * 주의: 로컬 계정이고 NORMAL/LOCKED 상태인 경우에만 실제 발송. 기존 토큰 있으면 먼저 무효화
+     */
+    @Transactional(readOnly = true)
+    public void requestPasswordReset(final PasswordResetRequestBody request) {
+        final Optional<User> optionalUser = userRepository.findByEmail(request.email());
+        if (optionalUser.isEmpty()) return;
+
+        final User user = optionalUser.get();
+        if (user.getSocialProvider() != null) return;
+
+        final UserState state = user.getState();
+        if (state != UserState.NORMAL && state != UserState.LOCKED) return;
+
+        final String oldToken = tokenRedisService.getPasswordResetTokenByEmail(request.email());
+        if (oldToken != null) {
+            tokenRedisService.deletePasswordResetToken(oldToken, request.email());
+        }
+
+        final String newToken = UUID.randomUUID().toString();
+        tokenRedisService.savePasswordResetToken(newToken, request.email());
+        emailService.sendPasswordResetEmail(
+                request.email(),
+                frontendUrl + "/account/reset-password?token=" + newToken);
+    }
+
+    /**
+     * 비밀번호 재설정 확인 — 토큰 검증 후 비밀번호 변경 + 전 기기 강제 로그아웃
+     * 주의: 토큰 사용 즉시 두 키 모두 삭제 (재사용 방지). 전 기기 RT도 삭제
+     */
+    @Transactional
+    public void confirmPasswordReset(final PasswordResetConfirmRequest request) {
+        final String email = tokenRedisService.getEmailByPasswordResetToken(request.token());
+        if (email == null) {
+            throw new CustomException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID);
+        }
+
+        final User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        user.changePassword(passwordEncoder.encode(request.newPassword()));
+
+        tokenRedisService.deletePasswordResetToken(request.token(), email);
+        tokenRedisService.deleteAllRefreshTokens(user.getId().toString());
+    }
 
     /**
      * 이메일 인증 링크 발송 — Key: EV:TOKEN:{uuid}=email (10분)

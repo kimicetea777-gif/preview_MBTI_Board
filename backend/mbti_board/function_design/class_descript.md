@@ -25,8 +25,8 @@
 | `JpaConfig` | `global/config` | QueryDSL JPAQueryFactory 빈 등록 |
 | `CacheConfig` | `global/config` | 인메모리 캐시 설정 — 참조 테이블(postTypes 등) 전용 ConcurrentMapCacheManager |
 | `PostTypeRepository` | `domain/post/repository` | 게시판 유형 조회 레포지토리 (code 기준 단건 조회) |
-| `PostRepositoryCustom` | `domain/post/repository` | 게시글 목록 QueryDSL 커스텀 조회 인터페이스 |
-| `PostRepositoryImpl` | `domain/post/repository` | 게시글 목록 QueryDSL 구현체 (유형·정렬·MBTI 필터 조합) |
+| `PostRepositoryCustom` | `domain/post/repository` | 게시글 목록 QueryDSL 커스텀 조회 인터페이스 (findPosts·findAllPostsForAdmin·findMyPosts) |
+| `PostRepositoryImpl` | `domain/post/repository` | 게시글 목록 QueryDSL 구현체 (유형·정렬·MBTI 필터 조합, 내 게시글 userId 필터 포함) |
 | `PostRepository` | `domain/post/repository` | 게시글 기본 CRUD + viewCount 원자적 증가 (@Modifying) |
 | `PostCreateRequest` | `domain/post/dto` | 자유글(FREE) 게시글 작성 요청 DTO (title·content·type·guestPassword·targetMbti — VOTE·DEBATE는 전용 엔드포인트 사용) |
 | `DebatePostCreateRequest` | `domain/post/dto` | 토론(DEBATE) 게시글 작성 요청 DTO (POST /api/posts/debate 전용 — 회원 전용, title·content·targetMbti·endsAt·proLabel·conLabel) |
@@ -81,3 +81,18 @@
 | `AdminCommentController` | `domain/comment/controller` | 어드민 댓글 관리 API 컨트롤러 (GET /api/admin/comments, PATCH /{id}/visibility) |
 | `CommentRepositoryCustom` | `domain/comment/repository` | 댓글 목록 QueryDSL 커스텀 조회 인터페이스 (어드민 전용 postId·visibility 필터) |
 | `CommentRepositoryImpl` | `domain/comment/repository` | 댓글 목록 QueryDSL 구현체 (postId·isVisible BooleanBuilder 필터, authorMbti fetchJoin으로 N+1 방지) |
+| `DeletedImageStatus` | `global/image/entity` | 이미지 삭제 추적 상태 Enum — PENDING(업로드 후 미저장), DELETE_REQUESTED(즉시 삭제 실패, 재시도 대기) |
+| `DeletedImage` | `global/image/entity` | 삭제 예약된 R2 이미지 엔티티 — url·status·marked_at 저장, pending()/markedForCleanup() 팩토리 + markDeleteRequested() 제공 |
+| `DeletedImageRepository` | `global/image/repository` | 삭제 예약 이미지 레포지토리 — status·marked_at 기준 배치 조회, URL 목록 조회·삭제 |
+| `ImageCleanupService` | `global/image/service` | R2 이미지 삭제 예약·배치 정리 서비스 — registerPending/commitImages/cancelImages 제공, 매일 오전 3시 PENDING 24h 초과·DELETE_REQUESTED 재시도 처리 |
+| `ImagePendingRequest` | `global/image/dto` | PENDING 이미지 등록 요청 DTO (POST /api/images/pending, Next.js 서버→백엔드 내부 전용) |
+| `ImageCancelRequest` | `global/image/dto` | 이미지 취소 요청 DTO (DELETE /api/images, 작성 취소 시 업로드된 URL 목록 전달) |
+| `R2Config` | `global/image/config` | Cloudflare R2 S3Client 빈 등록 — S3 호환 API, pathStyle 필수 |
+| `ImageService` | `global/image/service` | R2 이미지 업로드 서비스 — 타입(jpg·png·gif·webp)·크기(5MB) 검증 후 UUID 파일명으로 저장 |
+| `ImageController` | `global/image/controller` | 이미지 API 컨트롤러 (POST /upload 업로드, POST /pending PENDING 등록(내부 키 필수), DELETE / 취소) |
+| `ImageUploadResponse` | `global/image/dto` | 이미지 업로드 응답 DTO — Tiptap Image src로 사용 가능한 공개 URL |
+| `FindEmailRequest` | `domain/auth/dto` | 이메일 찾기 요청 DTO (닉네임) |
+| `FindEmailResponse` | `domain/auth/dto` | 이메일 찾기 응답 DTO (마스킹 이메일·소셜 전용 여부) |
+| `PasswordResetRequestBody` | `domain/auth/dto` | 비밀번호 재설정 이메일 발송 요청 DTO (이메일) |
+| `PasswordResetConfirmRequest` | `domain/auth/dto` | 비밀번호 재설정 확인 요청 DTO (토큰·새 비밀번호, @Size(min=8)) |
+| `TiptapContentParser` | `global/common/util` | Tiptap JSONB content에서 텍스트 미리보기(extractTextPreview)·이미지 key(extractImageKeys) 추출 유틸리티 |

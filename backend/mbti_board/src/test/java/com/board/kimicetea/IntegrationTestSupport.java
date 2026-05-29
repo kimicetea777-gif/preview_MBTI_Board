@@ -29,15 +29,19 @@ public abstract class IntegrationTestSupport {
     }
 
     // Auth
-    protected static final String SIGNUP_URL              = "/api/auth/signup";
-    protected static final String LOGIN_URL               = "/api/auth/login";
-    protected static final String LOGOUT_URL              = "/api/auth/logout";
-    protected static final String REISSUE_URL             = "/api/auth/reissue";
-    protected static final String EMAIL_VERIFY_SEND_URL   = "/api/auth/email-verify/send";
+    protected static final String SIGNUP_URL               = "/api/auth/signup";
+    protected static final String LOGIN_URL                = "/api/auth/login";
+    protected static final String LOGOUT_URL               = "/api/auth/logout";
+    protected static final String REISSUE_URL              = "/api/auth/reissue";
+    protected static final String EMAIL_VERIFY_SEND_URL    = "/api/auth/email-verify/send";
     protected static final String EMAIL_VERIFY_CONFIRM_URL = "/api/auth/email-verify/confirm";
+    protected static final String FIND_EMAIL_URL           = "/api/auth/find-email";
+    protected static final String PW_RESET_REQUEST_URL     = "/api/auth/password-reset/request";
+    protected static final String PW_RESET_CONFIRM_URL     = "/api/auth/password-reset/confirm";
 
     // User
     protected static final String ME_URL               = "/api/users/me";
+    protected static final String MY_POSTS_URL         = "/api/users/me/posts";
     protected static final String WITHDRAWAL_VERIFY_URL = "/api/users/me/withdrawal-verify";
     protected static final String PASSWORD_URL         = "/api/users/me/password";
     protected static final String USER_URL             = "/api/users/";
@@ -62,6 +66,10 @@ public abstract class IntegrationTestSupport {
 
     // Comment reactions — use as: REACTIONS_BASE + commentId + "/reactions"
     protected static final String REACTIONS_BASE = "/api/comments/";
+
+    // Image
+    protected static final String IMAGE_PENDING_URL = "/api/images/pending";
+    protected static final String IMAGE_CANCEL_URL  = "/api/images";
 
     // MBTI 검사 / 메타데이터
     protected static final String MBTI_TEST_QUESTIONS_URL = "/api/mbti/test/questions";

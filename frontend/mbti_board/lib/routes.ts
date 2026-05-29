@@ -2,7 +2,10 @@ export const ROUTES = {
   login: "/login",
   signup: "/signup",
   signupVerify: "/signup/verify",
+  accountFind: "/account/find",
+  accountResetPassword: "/account/reset-password",
   my: "/my",
+  myPosts: "/my/posts",
   admin: "/admin",
   mbti: {
     list: "/mbti",

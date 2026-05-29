@@ -13,6 +13,7 @@ interface Props {
   targetMbti: string;
   onTargetMbtiChange: (value: string) => void;
   onContentChange: (value: string) => void;
+  onUpload?: (url: string) => void;
   mbtiList: MbtiMetadata[];
   contentLabel?: string;
   contentPlaceholder?: string;
@@ -33,6 +34,7 @@ export default function PostWriteForm({
   targetMbti,
   onTargetMbtiChange,
   onContentChange,
+  onUpload,
   mbtiList,
   contentLabel,
   contentPlaceholder = "내용을 입력하세요.",
@@ -81,10 +83,10 @@ export default function PostWriteForm({
             <label className="block text-xs text-gray-400 uppercase tracking-wide mb-1">
               {contentLabel}
             </label>
-            <RichContentEditor onChange={onContentChange} placeholder={contentPlaceholder} />
+            <RichContentEditor onChange={onContentChange} placeholder={contentPlaceholder} onUpload={onUpload} />
           </div>
         ) : (
-          <RichContentEditor onChange={onContentChange} placeholder={contentPlaceholder} />
+          <RichContentEditor onChange={onContentChange} placeholder={contentPlaceholder} onUpload={onUpload} />
         )}
 
         {children}

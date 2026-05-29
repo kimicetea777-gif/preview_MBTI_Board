@@ -369,25 +369,25 @@ Security & JWT 완료 기준으로 작성. 각 Phase는 이전 Phase에 의존�
 
 ### 계정 상태별 처리 정책
 
-| 상태 | 이메일 찾기 | 비밀번호 재설정 |
-|---|---|---|
-| `NORMAL` | 허용 | 허용 |
-| `PENDING` | 허용 | 거부 (이메일 인증 미완료 계정) |
-| `LOCKED` | 허용 | 허용 (재설정으로 잠금 해제 수단 제공) |
-| `SHADOW_BANNED` | 허용 | 허용 |
-| `WITHDRAWN` | 404 | 404 |
-| `PERMANENT_BAN` | 허용 | 거부 |
+| 상태            | 이메일 찾기 | 비밀번호 재설정                       |
+| --------------- | ----------- | ------------------------------------- |
+| `NORMAL`        | 허용        | 허용                                  |
+| `PENDING`       | 허용        | 거부 (이메일 인증 미완료 계정)        |
+| `LOCKED`        | 허용        | 허용 (재설정으로 잠금 해제 수단 제공) |
+| `SHADOW_BANNED` | 허용        | 허용                                  |
+| `WITHDRAWN`     | 404         | 404                                   |
+| `PERMANENT_BAN` | 허용        | 거부                                  |
 
 ### [Backend]
 
-#### 8-0. Security Config 수정
+#### 8-0. Security Config 수정 <완료>
 
 - 다음 3개 경로 퍼블릭 허용 추가:
   - `/api/auth/find-email`
   - `/api/auth/password-reset/request`
   - `/api/auth/password-reset/confirm`
 
-#### 8-1. 이메일 찾기
+#### 8-1. 이메일 찾기 <완료>
 
 - `POST /api/auth/find-email`
 - 요청: `{ "nickname": "홍길동" }`
@@ -400,7 +400,7 @@ Security & JWT 완료 기준으로 작성. 각 Phase는 이전 Phase에 의존�
 - 신규 파일: `FindEmailRequest.java`, `FindEmailResponse.java`
 - `UserRepository`: `findByNickname()` 메서드 추가
 
-#### 8-2. 비밀번호 재설정 요청
+#### 8-2. 비밀번호 재설정 요청 <완료>
 
 - `POST /api/auth/password-reset/request`
 - 요청: `{ "email": "user@example.com" }`
@@ -424,12 +424,12 @@ Security & JWT 완료 기준으로 작성. 각 Phase는 이전 Phase에 의존�
 
 #### Redis Key 설계 (신규)
 
-| Key | Value | TTL |
-|---|---|---|
-| `PW:RESET:{token}` | email | 30분 |
+| Key                      | Value | TTL  |
+| ------------------------ | ----- | ---- |
+| `PW:RESET:{token}`       | email | 30분 |
 | `PW:RESET:EMAIL:{email}` | token | 30분 |
 
-#### 8-3. 비밀번호 재설정 확인
+#### 8-3. 비밀번호 재설정 확인 <완료>
 
 - `POST /api/auth/password-reset/confirm`
 - 요청: `{ "token": "uuid", "newPassword": "새비밀번호" }`
@@ -445,11 +445,11 @@ Security & JWT 완료 기준으로 작성. 각 Phase는 이전 Phase에 의존�
 
 ### [Frontend]
 
-#### 8-4. 로그인 페이지 진입점 추가 (`/login`)
+#### 8-4. 로그인 페이지 진입점 추가 (`/login`) <완료>
 
 - 로그인 폼 하단에 "이메일 찾기 | 비밀번호 찾기" 링크 추가 → `/account/find`
 
-#### 8-5. 회원 정보 찾기 페이지 (`/account/find`)
+#### 8-5. 회원 정보 찾기 페이지 (`/account/find`) <완료>
 
 - 탭 UI: **이메일 찾기** | **비밀번호 찾기**
 - **이메일 찾기 탭**:
@@ -461,7 +461,7 @@ Security & JWT 완료 기준으로 작성. 각 Phase는 이전 Phase에 의존�
   - Step 1: 이메일 입력 → "재설정 링크 발송" 버튼
   - Step 2: "이메일이 발송되었습니다. 메일함을 확인해 주세요." 안내 화면 + "다시 받기" 버튼(Step 1으로 복귀)
 
-#### 8-6. 비밀번호 재설정 페이지 (`/account/reset-password`)
+#### 8-6. 비밀번호 재설정 페이지 (`/account/reset-password`) v
 
 - 마운트 시 URL 파라미터 `?token` 없으면 즉시 `/account/find`로 리다이렉트
 - 새 비밀번호 / 비밀번호 확인 입력 폼

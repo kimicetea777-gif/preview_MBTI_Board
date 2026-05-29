@@ -55,13 +55,16 @@ public class SecurityConfig {
                                 "/api/auth/reissue", // RT Cookie 기반 — 인증 없이 접근해야 함
                                 "/api/auth/email-verify/send",
                                 "/api/auth/email-verify/confirm",
+                                "/api/auth/find-email",
+                                "/api/auth/password-reset/request",
+                                "/api/auth/password-reset/confirm",
                                 "/oauth2/**",
                                 "/login/oauth2/**",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**")
                         .permitAll()
                         // /me보다 먼저 선언해야 아래 /api/users/* 패턴이 /me를 가로채지 않음
-                        .requestMatchers(HttpMethod.GET, "/api/users/me", "/api/users/me/mbti/history").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/users/me", "/api/users/me/mbti/history", "/api/users/me/posts").authenticated()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/posts/**",
                                 "/api/comments/**",
@@ -71,6 +74,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/mbti/test/submit").authenticated()
                         // MBTI 메타데이터·문항 조회는 완전 공개 (GET 전용)
                         .requestMatchers(HttpMethod.GET, "/api/mbti", "/api/mbti/**").permitAll()
+                        // 이미지 업로드는 게시글 작성과 같이 비회원도 허용
+                        .requestMatchers(HttpMethod.POST,   "/api/images/upload").permitAll()
+                        // /pending은 컨트롤러에서 X-Internal-Key 헤더로 2차 검증
+                        .requestMatchers(HttpMethod.POST,   "/api/images/pending").permitAll()
+                        .requestMatchers(HttpMethod.DELETE, "/api/images").permitAll()
                         // 게시글·댓글 작성·수정·삭제는 비회원도 허용 (서비스 레이어에서 회원/비회원 분기)
                         // 투표·토론 게시글 작성은 회원 전용 — anyRequest().authenticated()에 위임
                         .requestMatchers(HttpMethod.POST,   "/api/posts", "/api/posts/*/comments").permitAll()

@@ -5,6 +5,8 @@ import com.board.kimicetea.domain.mbti.repository.MbtiMetadataRepository;
 import com.board.kimicetea.domain.mbti.MbtiConstants;
 import com.board.kimicetea.domain.post.PostConstants;
 import com.board.kimicetea.global.common.util.GuestPasswordHelper;
+import com.board.kimicetea.global.common.util.TiptapContentParser;
+import com.board.kimicetea.global.image.service.ImageCleanupService;
 import com.board.kimicetea.domain.post.PostSortType;
 import com.board.kimicetea.domain.post.dto.DebatePostCreateRequest;
 import com.board.kimicetea.domain.post.dto.PostCreateRequest;
@@ -34,6 +36,7 @@ import com.board.kimicetea.global.common.exception.ErrorCode;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -63,16 +66,47 @@ public class PostService {
     private final VotePostOptionRepository votePostOptionRepository;
     private final VotePostHistoryRepository votePostHistoryRepository;
     private final DebatePostRepository debatePostRepository;
+    private final ImageCleanupService imageCleanupService;
 
     @PersistenceContext
     private EntityManager entityManager;
+
+    @Value("${r2.public-url}")
+    private String r2PublicUrl;
 
     @Transactional(readOnly = true)
     public Page<PostSummaryResponse> getPosts(final String type, final PostSortType sort,
             final String authorMbti, final String targetMbti,
             final Pageable pageable) {
-        return postRepository.findPosts(type, sort, authorMbti, targetMbti, pageable)
-                .map(PostSummaryResponse::from);
+        final String normalizedType = resolveTypeCode(type);
+        return postRepository.findPosts(normalizedType, sort, authorMbti, targetMbti, pageable)
+                .map(post -> PostSummaryResponse.from(post, r2PublicUrl));
+    }
+
+    /** 내 게시글 목록 — typeCode null 이면 전체 유형 반환 */
+    @Transactional(readOnly = true)
+    public Page<PostSummaryResponse> getMyPosts(final UUID userId, final String typeCode,
+            final PostSortType sort, final Pageable pageable) {
+        final String normalizedType = resolveTypeCode(typeCode);
+        return postRepository.findMyPosts(userId, normalizedType, sort, pageable)
+                .map(post -> PostSummaryResponse.from(post, r2PublicUrl));
+    }
+
+    /**
+     * type 파라미터를 대문자로 정규화하고 유효성 검증
+     * null·공백이면 null 반환(전체 조회), 유효하지 않은 값이면 400
+     */
+    private String resolveTypeCode(final String typeCode) {
+        if (typeCode == null || typeCode.isBlank()) {
+            return null;
+        }
+        final String upper = typeCode.toUpperCase();
+        if (!PostConstants.TYPE_FREE.equals(upper)
+                && !PostConstants.TYPE_VOTE.equals(upper)
+                && !PostConstants.TYPE_DEBATE.equals(upper)) {
+            throw new CustomException(ErrorCode.POST_TYPE_NOT_FOUND);
+        }
+        return upper;
     }
 
     /**
@@ -127,6 +161,8 @@ public class PostService {
         }
 
         final MbtiMetadata targetMbti = resolveTargetMbti(request.targetMbti());
+        final String preview = TiptapContentParser.extractTextPreview(request.content(), 300);
+        final String[] imageKeys = TiptapContentParser.extractImageKeys(request.content(), 3);
 
         final Post post = Post.builder()
                 .title(request.title().strip())
@@ -136,9 +172,12 @@ public class PostService {
                 .authorMbti(authorMbti)
                 .targetMbti(targetMbti)
                 .postType(postType)
+                .contentPreview(preview)
+                .imageUrls(imageKeys)
                 .build();
 
         final Post saved = postRepository.save(post);
+        imageCleanupService.commitImages(imageCleanupService.extractImageUrls(request.content()));
         return PostDetailResponse.from(saved, (userDetails != null) ? userDetails.userId() : null);
     }
 
@@ -153,6 +192,8 @@ public class PostService {
         final User user = findUserOrThrow(userDetails.userId());
         final MbtiMetadata authorMbti = user.getMbti();
         final MbtiMetadata targetMbti = resolveTargetMbti(request.targetMbti());
+        final String preview = TiptapContentParser.extractTextPreview(request.content(), 300);
+        final String[] imageKeys = TiptapContentParser.extractImageKeys(request.content(), 3);
 
         final Post post = Post.builder()
                 .title(request.title().strip())
@@ -161,9 +202,12 @@ public class PostService {
                 .authorMbti(authorMbti)
                 .targetMbti(targetMbti)
                 .postType(postType)
+                .contentPreview(preview)
+                .imageUrls(imageKeys)
                 .build();
 
         final Post saved = postRepository.save(post);
+        imageCleanupService.commitImages(imageCleanupService.extractImageUrls(request.content()));
         final DebatePost debatePost = createDebatePostMeta(saved, request);
         return PostDetailResponse.from(saved, userDetails.userId(), debatePost);
     }
@@ -178,6 +222,8 @@ public class PostService {
         final PostType postType = findPostTypeOrThrow(PostConstants.TYPE_VOTE);
         final User user = findUserOrThrow(userDetails.userId());
         final MbtiMetadata targetMbti = resolveTargetMbti(request.targetMbti());
+        final String preview = TiptapContentParser.extractTextPreview(request.content(), 300);
+        final String[] imageKeys = TiptapContentParser.extractImageKeys(request.content(), 3);
 
         final Post post = Post.builder()
                 .title(request.title().strip())
@@ -186,9 +232,12 @@ public class PostService {
                 .authorMbti(user.getMbti())
                 .targetMbti(targetMbti)
                 .postType(postType)
+                .contentPreview(preview)
+                .imageUrls(imageKeys)
                 .build();
 
         final Post saved = postRepository.save(post);
+        imageCleanupService.commitImages(imageCleanupService.extractImageUrls(request.content()));
         final VotePost votePost = createVotePostMeta(saved, request);
         return PostDetailResponse.from(saved, userDetails.userId(), votePost, null);
     }
@@ -286,7 +335,10 @@ public class PostService {
             final CustomUserDetails userDetails) {
         final Post post = findPostOrThrow(id);
         verifyOwnership(post, userDetails, request.guestPassword());
-        post.update(request.title().strip(), request.content());
+        imageCleanupService.markRemovedImages(post.getContent(), request.content());
+        final String preview = TiptapContentParser.extractTextPreview(request.content(), 300);
+        final String[] imageKeys = TiptapContentParser.extractImageKeys(request.content(), 3);
+        post.update(request.title().strip(), request.content(), preview, imageKeys);
 
         final UUID currentUserId = userDetails != null ? userDetails.userId() : null;
         final String typeCode = post.getPostType().getCode();
@@ -314,6 +366,7 @@ public class PostService {
             final CustomUserDetails userDetails) {
         final Post post = findPostOrThrow(id);
         verifyOwnership(post, userDetails, request.guestPassword());
+        imageCleanupService.markRemovedImages(post.getContent(), "");
         post.hide();
     }
 

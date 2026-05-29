@@ -13,6 +13,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 게시글 목록 QueryDSL 구현체 — 유형·정렬·MBTI 필터 조합
@@ -29,8 +30,11 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
         final QPost post = QPost.post;
         final BooleanBuilder builder = new BooleanBuilder();
 
-        builder.and(post.postType.code.eq(typeCode));
         builder.and(post.isVisible.isTrue());
+
+        if (typeCode != null && !typeCode.isBlank()) {
+            builder.and(post.postType.code.eq(typeCode));
+        }
 
         if (authorMbti != null && !authorMbti.isBlank()) {
             builder.and(post.authorMbti.id.eq(authorMbti));
@@ -89,6 +93,46 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
                 .leftJoin(post.targetMbti).fetchJoin()
                 .where(builder)
                 .orderBy(post.createdAt.desc())
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .fetch();
+
+        final Long total = queryFactory
+                .select(post.count())
+                .from(post)
+                .where(builder)
+                .fetchOne();
+
+        return new PageImpl<>(content, pageable, total != null ? total : 0L);
+    }
+
+    @Override
+    public Page<Post> findMyPosts(final UUID userId, final String typeCode,
+            final PostSortType sort, final Pageable pageable) {
+        final QPost post = QPost.post;
+        final BooleanBuilder builder = new BooleanBuilder();
+
+        builder.and(post.user.id.eq(userId));
+        builder.and(post.isVisible.isTrue());
+
+        if (typeCode != null && !typeCode.isBlank()) {
+            builder.and(post.postType.code.eq(typeCode));
+        }
+
+        final OrderSpecifier<?> order = switch (sort) {
+            case VIEWS    -> post.viewCount.desc();
+            case COMMENTS -> post.commentCount.desc();
+            case LATEST   -> post.createdAt.desc();
+        };
+
+        final List<Post> content = queryFactory
+                .selectFrom(post)
+                .join(post.postType).fetchJoin()
+                .join(post.authorMbti).fetchJoin()
+                .leftJoin(post.user).fetchJoin()
+                .leftJoin(post.targetMbti).fetchJoin()
+                .where(builder)
+                .orderBy(order)
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
                 .fetch();

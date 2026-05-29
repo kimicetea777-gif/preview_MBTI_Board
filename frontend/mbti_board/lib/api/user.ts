@@ -12,3 +12,13 @@ export async function updateMyProfile(data: UpdateUserRequest): Promise<MyProfil
   const res = await apiClient.patch<ApiResponse<MyProfileResponse>>(API.users.me, data);
   return res.data.data;
 }
+
+export async function sendWithdrawalOtp(): Promise<void> {
+  await apiClient.post<ApiResponse<void>>(API.users.meWithdrawalVerify);
+}
+
+export async function withdraw(code: string): Promise<void> {
+  await apiClient.delete<ApiResponse<void>>(API.users.meWithdrawal, {
+    data: { code },
+  });
+}

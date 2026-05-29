@@ -11,7 +11,8 @@ const BOARD_TABS = [
 ] as const;
 
 const MY_TABS = [
-  { label: "프로필", href: ROUTES.my },
+  { label: "프로필",     href: ROUTES.my },
+  { label: "내 게시글", href: ROUTES.myPosts },
 ] as const;
 
 const MBTI_TABS = [
@@ -34,7 +35,7 @@ export default function Sidebar() {
         </p>
         <ul className="space-y-1">
           {tabs.map(({ label, href }) => {
-            const isActive = pathname === href || (href !== ROUTES.my && href !== ROUTES.mbti.list && pathname.startsWith(href));
+            const isActive = pathname === href || (href !== ROUTES.my && href !== ROUTES.myPosts && href !== ROUTES.mbti.list && pathname.startsWith(href));
             return (
               <li key={href}>
                 <Link

@@ -8,13 +8,9 @@ import { sendEmailVerification, signup } from "@/lib/api/auth";
 import { ROUTES } from "@/lib/routes";
 
 import { STEP, type Step } from "@/app/(auth)/signup/steps";
-
+import type { ApiError } from "@/types/api";
 
 const EV_EMAIL_KEY = "ev_email";
-
-interface ApiError {
-  response?: { data?: { message?: string } };
-}
 
 const getErrorMsg = (error: unknown, fallback: string) =>
   (error as ApiError)?.response?.data?.message ?? fallback;

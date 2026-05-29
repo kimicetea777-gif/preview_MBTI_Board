@@ -19,10 +19,8 @@ repositories {
 }
 
 dependencies {
-	// testImplementation enforcedPlatform('org.testcontainers:testcontainers-bom:1.21.4')
 	
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	// testImplementation 'org.springframework.boot:spring-boot-testcontainers'
 	testImplementation 'org.testcontainers:junit-jupiter'
 	testImplementation 'org.testcontainers:postgresql'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
@@ -62,7 +60,11 @@ dependencies {
 	implementation 'org.mapstruct:mapstruct:1.5.5.Final'
 	annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
 
-	// 7. Flyway
+	// 7. AWS SDK v2 (Cloudflare R2 — S3 호환)
+	implementation platform('software.amazon.awssdk:bom:2.26.0')
+	implementation 'software.amazon.awssdk:s3'
+
+	// 8. Flyway
 	implementation 'org.flywaydb:flyway-core'
 	implementation 'org.flywaydb:flyway-database-postgresql'
 

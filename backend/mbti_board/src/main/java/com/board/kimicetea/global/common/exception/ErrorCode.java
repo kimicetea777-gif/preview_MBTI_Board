@@ -32,6 +32,7 @@ public enum ErrorCode {
     WITHDRAWAL_OTP_INVALID(HttpStatus.BAD_REQUEST, "인증 코드가 올바르지 않습니다."),
     WITHDRAWAL_OTP_EXPIRED(HttpStatus.BAD_REQUEST, "인증 코드가 만료되었습니다. 다시 요청해 주세요."),
     WITHDRAWAL_OTP_MAX_ATTEMPTS(HttpStatus.BAD_REQUEST, "인증 코드가 만료되었습니다. 새로운 인증 코드를 요청해 주세요."),
+    PASSWORD_RESET_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "유효하지 않은 비밀번호 재설정 링크입니다. 다시 요청해 주세요."),
     ACCOUNT_LOCKED(HttpStatus.FORBIDDEN, "계정이 잠겨 있습니다."),
     ACCOUNT_BANNED(HttpStatus.FORBIDDEN, "정지된 계정입니다."),
     ACCOUNT_INACTIVE(HttpStatus.FORBIDDEN, "휴면 계정입니다. 고객센터에 문의해 주세요."),
@@ -69,6 +70,11 @@ public enum ErrorCode {
 
     // Admin
     ADMIN_CANNOT_MODIFY_SELF(HttpStatus.BAD_REQUEST, "자기 자신의 상태/역할은 변경할 수 없습니다."),
+
+    // Image
+    INVALID_IMAGE_TYPE(HttpStatus.BAD_REQUEST, "지원하지 않는 이미지 형식입니다. (jpg·png·gif·webp만 허용)"),
+    IMAGE_TOO_LARGE(HttpStatus.BAD_REQUEST, "이미지 크기는 5MB를 초과할 수 없습니다."),
+    IMAGE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "이미지 업로드에 실패했습니다."),
 
     // Common
     AUTHENTICATION_REQUIRED(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."),

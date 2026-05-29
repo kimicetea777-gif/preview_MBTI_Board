@@ -24,10 +24,12 @@ export type PostSortType = (typeof POST_SORT)[keyof typeof POST_SORT];
 export const VOTE_OPTION_MIN = 2;
 export const VOTE_OPTION_MAX = 10;
 
-// GET /api/posts 목록 응답
+// GET /api/posts, GET /api/users/me/posts 목록 응답
 export interface PostSummaryResponse {
   id: number;
+  typeCode: PostType;
   title: string;
+  contentPreview: string;          // Tiptap 본문에서 추출한 순수 텍스트 100자
   authorNickname: string;          // user_id 없으면 백엔드가 "(비회원)"으로 치환 — null 불가
   authorMbtiId: string;
   authorMbtiColor: string;
@@ -37,6 +39,14 @@ export interface PostSummaryResponse {
   viewCount: number;
   commentCount: number;
   createdAt: string;               // ISO 8601
+}
+
+// GET /api/users/me/posts 쿼리 파라미터
+export interface MyPostListParams {
+  type?: PostType;       // 생략 시 전체 유형 조회
+  sort?: PostSortType;
+  page?: number;
+  size?: number;
 }
 
 // 투표 선택지 응답
@@ -76,7 +86,7 @@ export interface PostDetailResponse extends PostSummaryResponse {
 }
 
 export interface PostListParams {
-  type: PostType;
+  type?: PostType;
   sort?: PostSortType;
   authorMbti?: string;
   targetMbti?: string;             // 생략 또는 "ALL" = 전체
