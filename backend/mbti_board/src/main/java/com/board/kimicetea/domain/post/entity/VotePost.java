@@ -15,6 +15,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
@@ -51,6 +52,7 @@ public class VotePost {
     // DB 트리거가 vote_count 관리 — voteCount 직접 수정 금지
     // 항상 2개 이상 존재 (생성 시 서비스에서 보장) — 빈 리스트는 정상 상태가 아님
     @Builder.Default
+    @BatchSize(size = 30)
     @OrderBy("displayOrder ASC")
     @OneToMany(mappedBy = "votePost", fetch = FetchType.LAZY)
     private List<VotePostOption> options = new ArrayList<>();

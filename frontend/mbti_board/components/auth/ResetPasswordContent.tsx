@@ -4,25 +4,25 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/components/common/Toast";
 import { confirmPasswordReset } from "@/lib/api/auth";
 import { ROUTES } from "@/lib/routes";
 import type { ApiError } from "@/types/api";
+import { PASSWORD_REGEX, PASSWORD_MESSAGE } from "@/lib/validationConstants";
 
 interface Props {
   token: string | null;
 }
-
-const MIN_PASSWORD_LENGTH = 8;
 
 export default function ResetPasswordContent({ token }: Props) {
   const router = useRouter();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
-  // 토큰 무효(400) vs 일시적 오류를 분리해야 한다:
-  // - tokenInvalid=true → 폼 전체 교체 (토큰 재사용 불가)
-  // - retryError → 폼 유지, 인라인 표시 (토큰은 아직 유효할 수 있음)
+  
+  // 검증 실패(400) vs 서버 오류를 구분하기 위함:
+  // - tokenInvalid=true 이면 전체 폼 숨김 (검증 링크가 만료)
+  // - retryError 이면 메시지만, 재시도 가능 (검증은 아직 유효할 수 있음)
   const [tokenInvalid, setTokenInvalid] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
 
@@ -56,8 +56,8 @@ export default function ResetPasswordContent({ token }: Props) {
     setValidationError(null);
     setRetryError(null);
 
-    if (newPassword.length < MIN_PASSWORD_LENGTH) {
-      setValidationError("비밀번호는 8자 이상이어야 합니다.");
+    if (!PASSWORD_REGEX.test(newPassword)) {
+      setValidationError(PASSWORD_MESSAGE);
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -99,7 +99,7 @@ export default function ResetPasswordContent({ token }: Props) {
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
                 autoComplete="new-password"
-                placeholder="8자 이상 입력"
+                placeholder="영문+숫자 10자 이상 입력"
                 disabled={confirmMutation.isPending}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none disabled:opacity-50"
               />

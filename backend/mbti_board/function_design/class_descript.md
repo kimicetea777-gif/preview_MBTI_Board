@@ -1,5 +1,6 @@
 | 클래스 | 경로 | 설명 |
 |---|---|---|
+| `ValidationConstants` | `global/common` | 비밀번호 정책 등 공통 검증 상수 모음 (PASSWORD_REGEXP, PASSWORD_MESSAGE) |
 | `OAuth2AuthenticationFailureHandler` | `global/security/oauth2` | OAuth2 인증 실패 시 에러 코드를 쿼리 파라미터로 담아 프론트 콜백 페이지로 리다이렉트 |
 | `EmailVerifySendRequest` | `domain/auth/dto` | 이메일 인증 발송 요청 DTO (이메일 주소) |
 | `EmailVerifyConfirmRequest` | `domain/auth/dto` | 이메일 인증 토큰 확인 요청 DTO (UUID 토큰) |

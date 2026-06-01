@@ -12,9 +12,10 @@ export const ROUTES = {
     test: "/mbti/test",
   },
   board: {
-    free: "/board/free",
-    vote: "/board/vote",
-    debate: "/board/debate",
+    all: "/board",
+    free: "/board?type=FREE",
+    vote: "/board?type=VOTE",
+    debate: "/board?type=DEBATE",
     freeWrite: "/board/write",
     voteWrite: "/board/write?type=VOTE",
     debateWrite: "/board/write?type=DEBATE",

@@ -9,6 +9,7 @@ import java.util.List;
 
 /**
  * 게시글 목록 응답 DTO — contentPreview·imageUrls는 DB 저장값 사용 (JSONB 런타임 파싱 없음)
+ * debateSummary/voteOptions는 각 게시글 유형일 때만 non-null
  */
 public record PostSummaryResponse(
         Long id,
@@ -24,7 +25,9 @@ public record PostSummaryResponse(
         String targetMbtiId,
         int viewCount,
         int commentCount,
-        Instant createdAt
+        Instant createdAt,
+        DebateSummaryResponse debateSummary,
+        List<VoteOptionResponse> voteOptions
 ) {
     public static PostSummaryResponse from(final Post post, final String r2PublicUrl) {
         final boolean hasUser = post.getUser() != null;
@@ -32,6 +35,18 @@ public record PostSummaryResponse(
         final List<String> imageUrls = (imageKeys != null && imageKeys.length > 0)
                 ? Arrays.stream(imageKeys).map(key -> r2PublicUrl + "/" + key).toList()
                 : null;
+
+        final DebateSummaryResponse debateSummary = post.getDebatePost() != null
+                ? DebateSummaryResponse.from(post.getDebatePost())
+                : null;
+
+        final List<VoteOptionResponse> voteOptions = post.getVotePost() != null
+                ? post.getVotePost().getOptions().stream()
+                        .limit(3)
+                        .map(VoteOptionResponse::from)
+                        .toList()
+                : null;
+
         return new PostSummaryResponse(
                 post.getId(),
                 post.getPostType().getCode(),
@@ -46,7 +61,9 @@ public record PostSummaryResponse(
                 post.getTargetMbti() != null ? post.getTargetMbti().getId() : null,
                 post.getViewCount(),
                 post.getCommentCount(),
-                post.getCreatedAt()
+                post.getCreatedAt(),
+                debateSummary,
+                voteOptions
         );
     }
 }

@@ -21,8 +21,15 @@ export const POST_SORT = {
 
 export type PostSortType = (typeof POST_SORT)[keyof typeof POST_SORT];
 
+export const SORT_OPTIONS: { label: string; value: PostSortType }[] = [
+  { label: "최신순", value: POST_SORT.LATEST },
+  { label: "인기순", value: POST_SORT.VIEWS },
+  { label: "댓글순", value: POST_SORT.COMMENTS },
+];
+
 export const VOTE_OPTION_MIN = 2;
 export const VOTE_OPTION_MAX = 10;
+
 
 // GET /api/posts, GET /api/users/me/posts 목록 응답
 export interface PostSummaryResponse {
@@ -30,6 +37,7 @@ export interface PostSummaryResponse {
   typeCode: PostType;
   title: string;
   contentPreview: string;          // Tiptap 본문에서 추출한 순수 텍스트 100자
+  imageUrls: string[] | null;      // 첫 번째 요소가 썸네일
   authorNickname: string;          // user_id 없으면 백엔드가 "(비회원)"으로 치환 — null 불가
   authorMbtiId: string;
   authorMbtiColor: string;
@@ -39,6 +47,8 @@ export interface PostSummaryResponse {
   viewCount: number;
   commentCount: number;
   createdAt: string;               // ISO 8601
+  debateSummary?: DebateResult;              // DEBATE 타입일 때만 non-null
+  voteOptions?: Pick<VoteOptionResponse, "id" | "optionText">[]; // VOTE 타입일 때만 non-null, 최대 3개
 }
 
 // GET /api/users/me/posts 쿼리 파라미터

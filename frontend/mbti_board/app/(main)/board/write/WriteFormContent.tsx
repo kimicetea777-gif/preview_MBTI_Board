@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -9,7 +9,7 @@ import { postKeys } from "@/hooks/usePosts";
 import { useMbtiList } from "@/hooks/useMbti";
 import { ROUTES } from "@/lib/routes";
 import PostWriteForm from "@/components/post/PostWriteForm";
-import { toast } from "sonner";
+import { toast } from "@/components/common/Toast";
 import { isTiptapEmpty, EMPTY_TIPTAP } from "@/lib/editor";
 import { MBTI_ALL, NONE_MBTI_ID } from "@/types/mbti";
 import { VOTE_OPTION_MIN, VOTE_OPTION_MAX, POST_TYPE, POST_TYPE_LABELS } from "@/types/post";
@@ -31,24 +31,24 @@ export default function WriteFormContent({ initialType }: Props) {
   const queryClient = useQueryClient();
   const isLoggedIn = useAuthStore((s) => s.accessToken) !== null;
 
-  // 업로드된 이미지 URL 추적 — 게시글 저장 없이 이탈 시 PENDING 취소 요청에 사용
+  // ?낅줈?쒕맂 ?대?吏 URL 異붿쟻 ??寃뚯떆湲 ????놁씠 ?댄깉 ??PENDING 痍⑥냼 ?붿껌???ъ슜
   const uploadedUrlsRef = useRef<Set<string>>(new Set());
-  // 저장 성공 시 true로 설정해 unmount cleanup이 취소 요청을 보내지 않도록 방어
+  // ????깃났 ??true濡??ㅼ젙??unmount cleanup??痍⑥냼 ?붿껌??蹂대궡吏 ?딅룄濡?諛⑹뼱
   const savedRef = useRef(false);
 
   const handleUpload = useCallback((url: string) => {
     uploadedUrlsRef.current.add(url);
   }, []);
 
-  // 컴포넌트 언마운트(취소·뒤로가기·탭 이탈) 시 PENDING 이미지 취소 요청
+  // 而댄룷?뚰듃 ?몃쭏?댄듃(痍⑥냼쨌?ㅻ줈媛湲걔룻꺆 ?댄깉) ??PENDING ?대?吏 痍⑥냼 ?붿껌
   useEffect(() => {
-    // ref 객체 자체를 캡처 (cleanup 시점에 .current 최신값을 읽기 위함)
+    // ref 媛앹껜 ?먯껜瑜?罹≪쿂 (cleanup ?쒖젏??.current 理쒖떊媛믪쓣 ?쎄린 ?꾪븿)
     const urlsRef = uploadedUrlsRef;
     const isSavedRef = savedRef;
     return () => {
       if (isSavedRef.current || urlsRef.current.size === 0) return;
       const urls = [...urlsRef.current];
-      // keepalive: 페이지 언로드 중에도 요청이 완료될 수 있도록 보장
+      // keepalive: ?섏씠吏 ?몃줈??以묒뿉???붿껌???꾨즺?????덈룄濡?蹂댁옣
       fetch(API.images.cancel, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
@@ -61,26 +61,26 @@ export default function WriteFormContent({ initialType }: Props) {
 
   const [postType, setPostType] = useState<PostType>(initialType);
 
-  // 공통
+  // 怨듯넻
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [targetMbti, setTargetMbti] = useState(MBTI_ALL);
 
-  // FREE 전용
+  // FREE ?꾩슜
   const [guestPassword, setGuestPassword] = useState("");
 
-  // VOTE 전용
+  // VOTE ?꾩슜
   const [isMbtiMode, setIsMbtiMode] = useState(false);
   const [options, setOptions] = useState<OptionRow[]>([
     { optionText: "", mbtiTarget: "" },
     { optionText: "", mbtiTarget: "" },
   ]);
 
-  // VOTE + DEBATE 공통
+  // VOTE + DEBATE 怨듯넻
   const [endsAt, setEndsAt] = useState("");
   const [isNoDeadline, setIsNoDeadline] = useState(false);
 
-  // DEBATE 전용
+  // DEBATE ?꾩슜
   const [proLabel, setProLabel] = useState("");
   const [conLabel, setConLabel] = useState("");
 
@@ -89,7 +89,7 @@ export default function WriteFormContent({ initialType }: Props) {
 
   /* -------------------------------------API---------------------------------------- */
   const onError = (err: { response?: { data?: { message?: string } } }) =>
-  toast.error(err?.response?.data?.message ?? "오류가 발생했습니다.");
+  toast.error(err?.response?.data?.message ?? "?ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.");
 
   const freeMutation = useMutation({
     mutationFn: createPost,
@@ -125,14 +125,14 @@ export default function WriteFormContent({ initialType }: Props) {
 
   const handleTypeChange = (type: PostType) => {
     if (type !== POST_TYPE.FREE && !isLoggedIn) {
-      toast.error("로그인 후 이용할 수 있습니다.");
+      toast.error("濡쒓렇?????댁슜?????덉뒿?덈떎.");
       return;
     }
     setPostType(type);
   };
 
   
-  /* ------------------------------------- VOTE 선택지 핸들러 ---------------------------------------- */
+  /* ------------------------------------- VOTE ?좏깮吏 ?몃뱾??---------------------------------------- */
   const toggleMbtiMode = () => {
     if (!isMbtiMode) {
       const mbtiOptions = mbtiList
@@ -168,7 +168,7 @@ export default function WriteFormContent({ initialType }: Props) {
 
   const validateDeadline = (): boolean => {
     if (!isNoDeadline && !!endsAt && new Date(endsAt) <= new Date()) {
-      toast.error("마감일은 현재 시각 이후여야 합니다.");
+      toast.error("留덇컧?쇱? ?꾩옱 ?쒓컖 ?댄썑?ъ빞 ?⑸땲??");
       return false;
     }
     return true;
@@ -177,13 +177,13 @@ export default function WriteFormContent({ initialType }: Props) {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!title.trim()) { toast.error("제목을 입력해 주세요."); return; }
-    if (title.trim().length > 150) { toast.error("제목은 150자 이내로 입력해 주세요."); return; }
+    if (!title.trim()) { toast.error("?쒕ぉ???낅젰??二쇱꽭??"); return; }
+    if (title.trim().length > 150) { toast.error("?쒕ぉ? 150???대궡濡??낅젰??二쇱꽭??"); return; }
 
     if (postType === POST_TYPE.FREE) {
-      if (isTiptapEmpty(content)) { toast.error("내용을 입력해 주세요."); return; }
+      if (isTiptapEmpty(content)) { toast.error("?댁슜???낅젰??二쇱꽭??"); return; }
       if (!isLoggedIn && (guestPassword.length < 4 || guestPassword.length > 72)) {
-        toast.error("비밀번호는 4~72자로 입력해 주세요."); return;
+        toast.error("鍮꾨?踰덊샇??4~72?먮줈 ?낅젰??二쇱꽭??"); return;
       }
       freeMutation.mutate({
         type: POST_TYPE.FREE,
@@ -202,7 +202,7 @@ export default function WriteFormContent({ initialType }: Props) {
         ? options
         : options.filter((o) => o.optionText.trim());
       if (filled.length < VOTE_OPTION_MIN) {
-        toast.error(`선택지를 최소 ${VOTE_OPTION_MIN}개 이상 입력해 주세요.`); return;
+        toast.error(`?좏깮吏瑜?理쒖냼 ${VOTE_OPTION_MIN}媛??댁긽 ?낅젰??二쇱꽭??`); return;
       }
       if (!validateDeadline()) return;
       const voteOptions: VoteOptionRequest[] = filled.map((o) => ({
@@ -254,8 +254,7 @@ export default function WriteFormContent({ initialType }: Props) {
   const deadlineField = (
     <div>
       <label className="block text-xs text-gray-400 uppercase tracking-wide mb-1">
-        마감일
-      </label>
+        留덇컧??      </label>
       <div className="flex items-center gap-2">
         <input
           type="datetime-local"
@@ -275,7 +274,7 @@ export default function WriteFormContent({ initialType }: Props) {
               : "bg-white text-gray-600 border-gray-300 hover:border-gray-500"
           }`}
         >
-          기한 없음
+          湲고븳 ?놁쓬
         </button>
       </div>
     </div>
@@ -283,7 +282,7 @@ export default function WriteFormContent({ initialType }: Props) {
 
   return (
     <PostWriteForm
-      heading="글쓰기"
+      heading="湲?곌린"
       isPending={isPending}
       onSubmit={handleSubmit}
       title={title}
@@ -294,24 +293,24 @@ export default function WriteFormContent({ initialType }: Props) {
       onUpload={handleUpload}
       mbtiList={mbtiList}
       beforeTitle={typeToggle}
-      contentLabel={postType !== POST_TYPE.FREE ? "내용 (선택)" : undefined}
+      contentLabel={postType !== POST_TYPE.FREE ? "?댁슜 (?좏깮)" : undefined}
       contentPlaceholder={
-        postType === POST_TYPE.VOTE ? "투표에 대한 설명을 입력하세요."
-          : postType === POST_TYPE.DEBATE ? "토론 주제에 대한 설명을 입력하세요."
-          : "내용을 입력하세요."
+        postType === POST_TYPE.VOTE ? "?ы몴??????ㅻ챸???낅젰?섏꽭??"
+          : postType === POST_TYPE.DEBATE ? "?좊줎 二쇱젣??????ㅻ챸???낅젰?섏꽭??"
+          : "?댁슜???낅젰?섏꽭??"
       }
     >
-      {/* FREE: 비회원 비밀번호 */}
+      {/* FREE: 鍮꾪쉶??鍮꾨?踰덊샇 */}
       {postType === POST_TYPE.FREE && !isLoggedIn && (
         <div>
           <label className="block text-xs text-gray-400 uppercase tracking-wide mb-1">
-            비회원 비밀번호
+            鍮꾪쉶??鍮꾨?踰덊샇
           </label>
           <input
             type="password"
             value={guestPassword}
             onChange={(e) => setGuestPassword(e.target.value)}
-            placeholder="비회원 비밀번호 (4~72자)"
+            placeholder="鍮꾪쉶??鍮꾨?踰덊샇 (4~72??"
             minLength={4}
             maxLength={72}
             autoComplete="off"
@@ -321,11 +320,11 @@ export default function WriteFormContent({ initialType }: Props) {
         </div>
       )}
 
-      {/* VOTE: 선택지 + 마감일 */}
+      {/* VOTE: ?좏깮吏 + 留덇컧??*/}
       {postType === POST_TYPE.VOTE && (
         <>
           <fieldset className="border border-gray-200 rounded-lg p-4 space-y-3">
-            <legend className="px-1 text-sm font-medium text-gray-700">투표 선택지</legend>
+            <legend className="px-1 text-sm font-medium text-gray-700">?ы몴 ?좏깮吏</legend>
 
             <div className="flex items-center gap-2">
               <button
@@ -341,11 +340,11 @@ export default function WriteFormContent({ initialType }: Props) {
                     : "bg-white text-gray-600 border-gray-300 hover:border-gray-500"
                 }`}
               >
-                MBTI 투표 모드 {isMbtiMode ? "ON" : "OFF"}
+                MBTI ?ы몴 紐⑤뱶 {isMbtiMode ? "ON" : "OFF"}
               </button>
               {isMbtiMode && (
                 <span className="text-xs text-gray-400">
-                  MBTI 유형별 선택지가 자동 생성됩니다.
+                  MBTI ?좏삎蹂??좏깮吏媛 ?먮룞 ?앹꽦?⑸땲??
                 </span>
               )}
             </div>
@@ -364,7 +363,7 @@ export default function WriteFormContent({ initialType }: Props) {
                       value={option.optionText}
                       onChange={(e) => updateOptionText(index, e.target.value)}
                       maxLength={100}
-                      placeholder={`선택지 ${index + 1}`}
+                      placeholder={`?좏깮吏 ${index + 1}`}
                       disabled={isPending}
                       className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none disabled:opacity-50"
                     />
@@ -374,9 +373,9 @@ export default function WriteFormContent({ initialType }: Props) {
                     onClick={() => removeOption(index)}
                     disabled={isPending || options.length <= VOTE_OPTION_MIN}
                     className="text-gray-400 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-lg leading-none"
-                    aria-label="선택지 삭제"
+                    aria-label="?좏깮吏 ??젣"
                   >
-                    ×
+                    횞
                   </button>
                 </li>
               ))}
@@ -389,7 +388,7 @@ export default function WriteFormContent({ initialType }: Props) {
                 disabled={isPending || options.length >= VOTE_OPTION_MAX}
                 className="text-sm text-gray-500 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                + 선택지 추가 ({options.length}/{VOTE_OPTION_MAX})
+                + ?좏깮吏 異붽? ({options.length}/{VOTE_OPTION_MAX})
               </button>
             )}
           </fieldset>
@@ -398,19 +397,19 @@ export default function WriteFormContent({ initialType }: Props) {
         </>
       )}
 
-      {/* DEBATE: 찬반 레이블 + 마감일 */}
+      {/* DEBATE: 李щ컲 ?덉씠釉?+ 留덇컧??*/}
       {postType === POST_TYPE.DEBATE && (
         <>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-400 uppercase tracking-wide mb-1">
-                찬성 레이블 (선택)
+                李ъ꽦 ?덉씠釉?(?좏깮)
               </label>
               <input
                 type="text"
                 value={proLabel}
                 onChange={(e) => setProLabel(e.target.value)}
-                placeholder="찬성"
+                placeholder="李ъ꽦"
                 maxLength={50}
                 disabled={isPending}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none disabled:opacity-50"
@@ -418,13 +417,13 @@ export default function WriteFormContent({ initialType }: Props) {
             </div>
             <div>
               <label className="block text-xs text-gray-400 uppercase tracking-wide mb-1">
-                반대 레이블 (선택)
+                諛섎? ?덉씠釉?(?좏깮)
               </label>
               <input
                 type="text"
                 value={conLabel}
                 onChange={(e) => setConLabel(e.target.value)}
-                placeholder="반대"
+                placeholder="諛섎?"
                 maxLength={50}
                 disabled={isPending}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none disabled:opacity-50"
@@ -438,3 +437,4 @@ export default function WriteFormContent({ initialType }: Props) {
     </PostWriteForm>
   );
 }
+

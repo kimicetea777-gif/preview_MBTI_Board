@@ -6,13 +6,14 @@ import Link from "next/link";
 import { useAuthStore } from "@/store/authStore";
 import { ROUTES } from "@/lib/routes";
 import { toSafeRedirect } from "@/lib/safeRedirect";
+import { setLastLoginMethod, PENDING_SOCIAL_PROVIDER_KEY, type LoginMethod } from "@/lib/lastLoginMethod";
 
 export const OAUTH2_REDIRECT_KEY = "oauth2_redirect";
 
 const ERROR_MESSAGES: Record<string, string> = {
   DUPLICATE_EMAIL: "이미 이메일/비밀번호로 가입된 계정이 있습니다.\n해당 이메일로 로그인해 주세요.",
   OAUTH2_EMAIL_REQUIRED: "이메일 제공에 동의해야 소셜 로그인이 가능합니다.",
-  OAUTH2_ERROR: "소셜 로그인 중 오류가 발생했습니다.",
+  OAUTH2_ERROR: "로그인 중 오류가 발생했습니다.",
 };
 
 interface Props {
@@ -29,6 +30,11 @@ export default function OAuth2CallbackContent({ accessToken, error }: Props) {
     setAccessToken(accessToken);
     const raw = sessionStorage.getItem(OAUTH2_REDIRECT_KEY) ?? "/";
     sessionStorage.removeItem(OAUTH2_REDIRECT_KEY);
+    const provider = sessionStorage.getItem(PENDING_SOCIAL_PROVIDER_KEY) as LoginMethod | null;
+    if (provider) {
+      setLastLoginMethod(provider);
+      sessionStorage.removeItem(PENDING_SOCIAL_PROVIDER_KEY);
+    }
     router.replace(toSafeRedirect(raw));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

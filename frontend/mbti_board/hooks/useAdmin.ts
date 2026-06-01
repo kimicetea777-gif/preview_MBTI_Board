@@ -1,5 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+﻿import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "@/components/common/Toast";
 import {
   fetchAdminUsers,
   changeUserState,
@@ -45,10 +45,10 @@ export function useChangeUserState() {
       changeUserState(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
-      toast.success("상태가 변경되었습니다.");
+      toast.success("?곹깭媛 蹂寃쎈릺?덉뒿?덈떎.");
     },
     onError: (error) => {
-      toast.error(getErrorMessage(error, "상태 변경에 실패했습니다."));
+      toast.error(getErrorMessage(error, "?곹깭 蹂寃쎌뿉 ?ㅽ뙣?덉뒿?덈떎."));
     },
   });
 }
@@ -60,10 +60,10 @@ export function useChangeUserRole() {
       changeUserRole(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
-      toast.success("역할이 변경되었습니다.");
+      toast.success("??븷??蹂寃쎈릺?덉뒿?덈떎.");
     },
     onError: (error) => {
-      toast.error(getErrorMessage(error, "역할 변경에 실패했습니다."));
+      toast.error(getErrorMessage(error, "??븷 蹂寃쎌뿉 ?ㅽ뙣?덉뒿?덈떎."));
     },
   });
 }
@@ -84,7 +84,7 @@ export function useChangePostVisibility() {
       queryClient.invalidateQueries({ queryKey: ["admin", "posts"] });
     },
     onError: (error) => {
-      toast.error(getErrorMessage(error, "게시글 가시성 변경에 실패했습니다."));
+      toast.error(getErrorMessage(error, "寃뚯떆湲 媛?쒖꽦 蹂寃쎌뿉 ?ㅽ뙣?덉뒿?덈떎."));
     },
   });
 }
@@ -105,7 +105,8 @@ export function useChangeCommentVisibility() {
       queryClient.invalidateQueries({ queryKey: ["admin", "comments"] });
     },
     onError: (error) => {
-      toast.error(getErrorMessage(error, "댓글 가시성 변경에 실패했습니다."));
+      toast.error(getErrorMessage(error, "?볤? 媛?쒖꽦 蹂寃쎌뿉 ?ㅽ뙣?덉뒿?덈떎."));
     },
   });
 }
+

@@ -1,10 +1,10 @@
 export const NONE_MBTI_ID = "NONE";
 
 export const MBTI_GROUPS = [
-  { label: "분석가 (Analysts)", ids: ["INTJ", "INTP", "ENTJ", "ENTP"] },
-  { label: "외교관 (Diplomats)", ids: ["INFJ", "INFP", "ENFJ", "ENFP"] },
-  { label: "관리자 (Sentinels)", ids: ["ISTJ", "ISFJ", "ESTJ", "ESFJ"] },
-  { label: "탐험가 (Explorers)", ids: ["ISTP", "ISFP", "ESTP", "ESFP"] },
+  { label: "분석가 (Analysts)", ids: ["INTJ", "ENTJ", "INTP", "ENTP"] },
+  { label: "외교관 (Diplomats)", ids: ["INFJ", "ENFJ", "INFP", "ENFP"] },
+  { label: "관리자 (Sentinels)", ids: ["ISTJ", "ESTJ", "ISFJ", "ESFJ"] },
+  { label: "탐험가 (Explorers)", ids: ["ISTP", "ESTP", "ISFP", "ESFP"] },
 ] as const;
 
 export const MBTI_ALL = "ALL";

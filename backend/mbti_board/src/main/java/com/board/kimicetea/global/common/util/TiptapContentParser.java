@@ -29,7 +29,7 @@ public final class TiptapContentParser {
             final StringBuilder sb = new StringBuilder();
             collectText(MAPPER.readTree(jsonContent), sb, 0, maxLength);
             final String text = sb.toString().trim();
-            return text.length() > maxLength ? text.substring(0, maxLength) + "…" : text;
+            return text.length() > maxLength ? text.substring(0, maxLength - 1) + "…" : text;
         } catch (Exception e) {
             return "";
         }

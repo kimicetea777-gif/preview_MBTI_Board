@@ -328,3 +328,17 @@
 ## Components
 
 - `components/post/PostCard.tsx` — `showType` prop 추가: 게시판 유형 뱃지(자유=파랑/투표=보라/토론=주황) 조건부 표시
+
+---
+
+## Components (공통)
+
+- `components/common/Logo.tsx` — MBTI 4개 차원을 4색 정사각형 아이콘으로 표현한 로고 컴포넌트; `size`(sm/md/lg)·`asLink`(홈 링크 여부) prop 지원
+- `components/auth/SocialLoginButton.tsx` — 소셜 로그인 버튼 공용 컴포넌트; `provider`(google/kakao)·`redirectTo` prop으로 OAuth2 리다이렉트 처리, 스타일·경로는 PROVIDER_CONFIG 상수로 관리
+- `components/common/Toast.tsx` — 완전 커스텀 토스트 시스템; `ToastProvider`(루트 마운트), `toast.success/error/info/warning()` 모듈 레벨 싱글턴으로 훅 없이 어디서든 호출 가능, 슬라이드인 애니메이션·자동 닫힘·수동 닫기 지원
+- `components/common/FloatingLabelInput.tsx` — 플로팅 라벨 input 베이스 컴포넌트; `rightSlot` prop으로 우측 버튼 주입, `hint` prop으로 포커스 시 힌트 텍스트 표시 지원
+- `components/common/EmailInput.tsx` — FloatingLabelInput 기반 이메일 전용 래퍼; 메일 아이콘·type email·autoComplete email 고정, 자동완성 기능 확장 예정
+- `components/common/PasswordInput.tsx` — FloatingLabelInput 기반 비밀번호 전용 래퍼; show/hide 토글 상태 내장
+- `components/common/MbtiSelect.tsx` — `@radix-ui/react-select` 기반 MBTI 선택 드롭다운; MBTI_GROUPS 그룹화·UNKNOWN→"미설정" 변환·체크 아이콘 표시 지원; `value·onChange·mbtiList·disabled` prop
+- `components/common/LabeledFilterBox.tsx` — 좌측 라벨 + 우측 children을 테두리로 감싸는 필터 래퍼 컴포넌트; `label·children` prop
+- `components/post/BoardTypeNav.tsx` — 전체·자유글·투표글·토론글 탭 링크; usePathname으로 현재 경로에 따라 활성 탭 강조

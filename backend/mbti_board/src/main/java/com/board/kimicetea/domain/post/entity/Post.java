@@ -10,6 +10,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -92,6 +93,12 @@ public class Post {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "type_id", nullable = false)
     private PostType postType;
+
+    @OneToOne(mappedBy = "post", fetch = FetchType.LAZY)
+    private DebatePost debatePost;
+
+    @OneToOne(mappedBy = "post", fetch = FetchType.LAZY)
+    private VotePost votePost;
 
     /*-----------------------------------편의 메소드----------------------------------------*/
 

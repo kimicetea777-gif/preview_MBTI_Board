@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useRouter, notFound } from "next/navigation";
@@ -14,7 +14,7 @@ import CommentSection from "@/components/post/CommentSection";
 import { formatDate, getDeadlineLabel } from "@/lib/dateUtils";
 import { isTiptapEmpty } from "@/lib/editor";
 import { ROUTES } from "@/lib/routes";
-import { toast } from "sonner";
+import { toast } from "@/components/common/Toast";
 
 interface Props {
   id: number;

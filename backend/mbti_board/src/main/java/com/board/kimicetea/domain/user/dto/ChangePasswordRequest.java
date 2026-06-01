@@ -1,6 +1,8 @@
 package com.board.kimicetea.domain.user.dto;
 
+import com.board.kimicetea.global.common.ValidationConstants;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -12,6 +14,7 @@ public record ChangePasswordRequest(
         String currentPassword,
 
         @NotBlank(message = "새 비밀번호를 입력해 주세요.")
-        @Size(min = 8, message = "비밀번호는 8자 이상이어야 합니다.")
+        @Size(min = 10, message = "비밀번호는 영문+숫자 포함 10자 이상이어야 합니다.")
+        @Pattern(regexp = ValidationConstants.PASSWORD_REGEXP, message = ValidationConstants.PASSWORD_MESSAGE)
         String newPassword
 ) {}

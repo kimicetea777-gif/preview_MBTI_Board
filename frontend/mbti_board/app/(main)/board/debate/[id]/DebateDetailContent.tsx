@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter, notFound } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
+import { getApiErrorMessage } from "@/lib/apiError";
 import { usePostDetail, postKeys } from "@/hooks/usePosts";
 import { updatePost, deletePost } from "@/lib/api/post";
 import { useAuthStore } from "@/store/authStore";
@@ -18,10 +19,6 @@ import { ROUTES } from "@/lib/routes";
 import { STANCE, type DebateStance } from "@/types/comment";
 import type { PostUpdateRequest } from "@/types/post";
 
-function getApiErrorMessage(err: unknown, fallback = "오류가 발생했습니다."): string {
-  if (isAxiosError(err)) return err.response?.data?.message ?? fallback;
-  return fallback;
-}
 
 interface Props {
   id: number;

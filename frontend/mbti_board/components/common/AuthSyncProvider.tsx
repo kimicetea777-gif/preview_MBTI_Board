@@ -24,11 +24,12 @@ export default function AuthSyncProvider({ children }: { children: React.ReactNo
       },
     );
 
-    // 새 탭 or 새로고침: AT가 없으면 silent refresh 시도
+    // 새 탭 or 새로고침: AT가 없고 session=1 쿠키가 있으면 silent refresh 시도
     // apiClient 대신 axios 직접 사용 — 401 인터셉터 개입 방지
     const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
     const hasToken = useAuthStore.getState().getAccessToken();
-    if (!hasToken) {
+    const hasSession = typeof document !== "undefined" && document.cookie.split(";").some((c) => c.trim() === "session=1");
+    if (!hasToken && hasSession) {
       axios
         .post<{ data: { accessToken: string } }>(`${BASE_URL}${API.auth.reissue}`, null, { withCredentials: true })
         .then(({ data }) => setAccessToken(data.data.accessToken))
