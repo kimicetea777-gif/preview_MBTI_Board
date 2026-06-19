@@ -1,4 +1,5 @@
 import FindAccountContent from "@/components/auth/FindAccountContent";
+import { FIND_ACCOUNT_TAB } from "@/types/auth";
 
 export default async function FindAccountPage({
   searchParams,
@@ -6,6 +7,8 @@ export default async function FindAccountPage({
   searchParams: Promise<{ tab?: string }>;
 }) {
   const { tab } = await searchParams;
-  const initialTab = tab === "password" ? "password" : "email";
+  const initialTab = tab === FIND_ACCOUNT_TAB.PASSWORD
+    ? FIND_ACCOUNT_TAB.PASSWORD
+    : FIND_ACCOUNT_TAB.EMAIL;
   return <FindAccountContent initialTab={initialTab} />;
 }

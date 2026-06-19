@@ -9,8 +9,10 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { GUEST_PASSWORD_MIN_LENGTH, GUEST_PASSWORD_MAX_LENGTH } from "@/types/post";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import ErrorMessage from "@/components/common/ErrorMessage";
 
 export const MODAL_ACTION = { CREATE: "create", UPDATE: "update", DELETE: "delete" } as const;
 export type ModalAction = (typeof MODAL_ACTION)[keyof typeof MODAL_ACTION];
@@ -48,7 +50,7 @@ export default function GuestPasswordModal({
 }: Props) {
   const [password, setPassword] = useState("");
 
-  const isPasswordValid = password.length >= 4;
+  const isPasswordValid = password.length >= GUEST_PASSWORD_MIN_LENGTH;
 
   const handleOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
@@ -81,11 +83,11 @@ export default function GuestPasswordModal({
             onChange={(e) => setPassword(e.target.value)}
             placeholder="비밀번호 (4자 이상)"
             autoComplete="off"
-            minLength={4}
-            maxLength={72}
+            minLength={GUEST_PASSWORD_MIN_LENGTH}
+            maxLength={GUEST_PASSWORD_MAX_LENGTH}
             disabled={isPending}
           />
-          {error && <p className="text-xs text-destructive">{error}</p>}
+          <ErrorMessage message={error} />
 
           <DialogFooter>
             <Button

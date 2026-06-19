@@ -10,6 +10,7 @@ import com.board.kimicetea.domain.auth.dto.PasswordResetConfirmRequest;
 import com.board.kimicetea.domain.auth.dto.PasswordResetRequestBody;
 import com.board.kimicetea.domain.auth.dto.SignupRequest;
 import com.board.kimicetea.domain.user.enums.UserState;
+import com.board.kimicetea.global.crypto.PhoneHashService;
 import com.board.kimicetea.global.mail.EmailService;
 import com.board.kimicetea.domain.user.entity.User;
 import com.board.kimicetea.domain.user.repository.UserRepository;
@@ -44,6 +45,7 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final UserService userService;
+    private final PhoneHashService phoneHashService;
     private final JwtProvider jwtProvider;
     private final TokenRedisService tokenRedisService;
     private final PasswordEncoder passwordEncoder;
@@ -55,22 +57,20 @@ public class AuthService {
     private String frontendUrl;
 
     /**
-     * 닉네임으로 이메일 찾기 — WITHDRAWN 계정은 존재하지 않는 것으로 처리
+     * 전화번호로 이메일 찾기 — WITHDRAWN 계정은 존재하지 않는 것으로 처리
      * 주의: 이메일은 @앞 2자만 노출하고 나머지 *** 처리 (개인정보 보호)
      */
     @Transactional(readOnly = true)
     public FindEmailResponse findEmail(final FindEmailRequest request) {
-        final User user = userRepository.findByNickname(request.nickname())
+        final String phoneHash = phoneHashService.hash(request.phone());
+        final User user = userRepository.findByPhoneHash(phoneHash)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         if (user.getState() == UserState.WITHDRAWN) {
             throw new CustomException(ErrorCode.USER_NOT_FOUND);
         }
 
-        final String masked = maskEmail(user.getEmail());
-        final boolean isSocialOnly = user.getSocialProvider() != null;
-
-        return new FindEmailResponse(masked, isSocialOnly);
+        return new FindEmailResponse(maskEmail(user.getEmail()), user.getSocialProvider() != null);
     }
 
     /**
@@ -171,7 +171,7 @@ public class AuthService {
         if (!tokenRedisService.isEmailVerified(request.email())) {
             throw new CustomException(ErrorCode.EMAIL_NOT_VERIFIED);
         }
-        userService.registerUser(request.email(), request.password(), request.nickname(), request.mbtiId());
+        userService.registerUser(request.email(), request.password(), request.nickname(), request.mbtiId(), request.phone());
         tokenRedisService.clearEmailVerified(request.email());
     }
 

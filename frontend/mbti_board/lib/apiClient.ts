@@ -3,8 +3,8 @@
 import axios from "axios";
 import { useAuthStore } from "@/store/authStore";
 import { broadcastLogout, broadcastTokenRefreshed } from "@/lib/authChannel";
-import { ROUTES } from "@/lib/routes";
-import { API } from "@/lib/apiEndpoints";
+import { ROUTES } from "@/constants/routes";
+import { API } from "@/constants/apiEndpoints";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 const REFRESH_URL = `${BASE_URL}${API.auth.reissue}`;
@@ -29,7 +29,11 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    const hasSession =
+      typeof document !== "undefined" &&
+      document.cookie.split(";").some((c) => c.trim() === "session=1");
+
+    if (error.response?.status === 401 && !originalRequest._retry && hasSession) {
       originalRequest._retry = true;
 
       if (!refreshPromise) {

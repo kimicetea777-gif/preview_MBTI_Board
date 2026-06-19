@@ -1,5 +1,8 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import VoteDetailContent from "./VoteDetailContent";
+import QueryResetErrorBoundary from "@/components/common/QueryResetErrorBoundary";
+import PostDetailSkeleton from "@/components/post/PostDetailSkeleton";
 
 export default async function VotePostDetailPage({
   params,
@@ -10,5 +13,11 @@ export default async function VotePostDetailPage({
   const id = Number(idParam);
   if (!Number.isInteger(id) || id <= 0) notFound();
 
-  return <VoteDetailContent id={id} />;
+  return (
+    <QueryResetErrorBoundary>
+      <Suspense fallback={<PostDetailSkeleton />}>
+        <VoteDetailContent id={id} />
+      </Suspense>
+    </QueryResetErrorBoundary>
+  );
 }

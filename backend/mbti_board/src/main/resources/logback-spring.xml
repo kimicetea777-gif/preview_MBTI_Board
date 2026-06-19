@@ -1,0 +1,40 @@
+<configuration>
+
+  <!-- 콘솔 appender (공통) -->
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{HH:mm:ss} %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <!-- 파일 appender (prod 전용) -->
+  <springProfile name="prod">
+    <springProperty name="LOG_PATH" source="logging.file.path"/>
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+      <file>${LOG_PATH}/app.log</file>
+      <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+        <!-- 매일 자정 롤링, 파일당 최대 50MB, gz 압축 -->
+        <fileNamePattern>${LOG_PATH}/app.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+        <maxFileSize>50MB</maxFileSize>
+        <maxHistory>30</maxHistory>      <!-- 30일치 보관 -->
+        <totalSizeCap>2GB</totalSizeCap> <!-- 전체 상한 초과 시 오래된 것부터 삭제 -->
+      </rollingPolicy>
+      <encoder>
+        <pattern>%d{yyyy-MM-dd HH:mm:ss} %-5level [%thread] %logger{36} - %msg%n</pattern>
+      </encoder>
+    </appender>
+
+    <root level="INFO">
+      <appender-ref ref="FILE"/>
+    </root>
+  </springProfile>
+
+  <!-- 개발 환경: 콘솔만 출력 -->
+  <springProfile name="!prod">
+    <root level="DEBUG">
+      <appender-ref ref="CONSOLE"/>
+    </root>
+  </springProfile>
+
+</configuration>
+

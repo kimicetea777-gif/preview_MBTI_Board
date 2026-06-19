@@ -14,6 +14,7 @@ import com.board.kimicetea.domain.user.enums.MbtiVerified;
 import com.board.kimicetea.domain.user.enums.UserRole;
 import com.board.kimicetea.domain.user.enums.UserState;
 import com.board.kimicetea.domain.user.repository.UserRepository;
+import com.board.kimicetea.global.crypto.PhoneHashService;
 import com.board.kimicetea.global.mail.EmailService;
 import com.board.kimicetea.global.security.jwt.JwtProvider;
 import com.board.kimicetea.global.security.redis.TokenRedisService;
@@ -60,6 +61,7 @@ class AuthControllerTest extends IntegrationTestSupport {
         @Autowired TokenRedisService tokenRedisService;
         @Autowired JwtProvider jwtProvider;
         @Autowired StringRedisTemplate redisTemplate;
+        @Autowired PhoneHashService phoneHashService;
         @MockBean  EmailService emailService;
 
         private static final String SOCIAL_EMAIL  = "social-auth-test@example.com";
@@ -67,6 +69,8 @@ class AuthControllerTest extends IntegrationTestSupport {
         private static final String TEST_PASSWORD = "password123!";
         private static final String TEST_NICKNAME = "테스트유저";
         private static final String TEST_MBTI     = "INTJ";
+        private static final String TEST_PHONE    = "010-1234-5678";
+        private static final String SOCIAL_PHONE  = "010-9999-8888";
 
         @AfterEach
         void tearDown() {
@@ -587,24 +591,24 @@ class AuthControllerTest extends IntegrationTestSupport {
         // 10단계 — 이메일 찾기
         // ─────────────────────────────────────────────────────────────
 
-        /** 이메일 인증 → 회원가입만 수행하는 헬퍼 (로그인 불필요 시 사용) */
-        private void 로컬_회원_생성(final String email, final String nickname) throws Exception {
+        /** 이메일 인증 → 전화번호로 회원가입하는 헬퍼 */
+        private void 로컬_회원_생성(final String email, final String nickname, final String phone) throws Exception {
                 tokenRedisService.markEmailVerified(email);
                 mockMvc.perform(post(SIGNUP_URL)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
-                                                new SignupRequest(email, TEST_PASSWORD, nickname, TEST_MBTI))))
+                                                new SignupRequest(email, TEST_PASSWORD, nickname, TEST_MBTI, phone))))
                                 .andExpect(status().isCreated());
         }
 
         @Test
-        @DisplayName("10-1. 존재하는 닉네임으로 이메일 찾기 → 200 OK, 마스킹 이메일 반환, isSocialOnly=false")
+        @DisplayName("10-1. 등록된 전화번호로 이메일 찾기 → 200 OK, 마스킹 이메일 반환, isSocialOnly=false")
         void 이메일_찾기_성공() throws Exception {
-                로컬_회원_생성(TEST_EMAIL, TEST_NICKNAME);
+                로컬_회원_생성(TEST_EMAIL, TEST_NICKNAME, TEST_PHONE);
 
                 mockMvc.perform(post(FIND_EMAIL_URL)
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(new FindEmailRequest(TEST_NICKNAME))))
+                                .content(objectMapper.writeValueAsString(new FindEmailRequest(TEST_PHONE))))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.success").value(true))
                                 .andExpect(jsonPath("$.data.maskedEmail").value("au***@example.com"))
@@ -612,11 +616,11 @@ class AuthControllerTest extends IntegrationTestSupport {
         }
 
         @Test
-        @DisplayName("10-2. 존재하지 않는 닉네임으로 이메일 찾기 → 404, '존재하지 않는 사용자입니다.'")
-        void 이메일_찾기_닉네임_없음_실패() throws Exception {
+        @DisplayName("10-2. 등록되지 않은 전화번호로 이메일 찾기 → 404, '존재하지 않는 사용자입니다.'")
+        void 이메일_찾기_전화번호_없음_실패() throws Exception {
                 mockMvc.perform(post(FIND_EMAIL_URL)
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(new FindEmailRequest("없는닉네임"))))
+                                .content(objectMapper.writeValueAsString(new FindEmailRequest("010-0000-0000"))))
                                 .andExpect(status().isNotFound())
                                 .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
         }
@@ -624,24 +628,25 @@ class AuthControllerTest extends IntegrationTestSupport {
         @Test
         @DisplayName("10-3. WITHDRAWN 상태 계정 이메일 찾기 → 404, '존재하지 않는 사용자입니다.'")
         void 이메일_찾기_탈퇴_계정_실패() throws Exception {
-                로컬_회원_생성(TEST_EMAIL, TEST_NICKNAME);
+                로컬_회원_생성(TEST_EMAIL, TEST_NICKNAME, TEST_PHONE);
                 final User user = userRepository.findByEmail(TEST_EMAIL).orElseThrow();
                 user.changeState(UserState.WITHDRAWN);
                 userRepository.save(user);
 
                 mockMvc.perform(post(FIND_EMAIL_URL)
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(new FindEmailRequest(TEST_NICKNAME))))
+                                .content(objectMapper.writeValueAsString(new FindEmailRequest(TEST_PHONE))))
                                 .andExpect(status().isNotFound())
                                 .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
         }
 
         @Test
-        @DisplayName("10-4. 소셜 계정 이메일 찾기 → 200 OK, isSocialOnly=true")
+        @DisplayName("10-4. 소셜 계정 전화번호로 이메일 찾기 → 200 OK, isSocialOnly=true")
         void 이메일_찾기_소셜_계정_성공() throws Exception {
                 final User socialUser = User.builder()
                                 .email(SOCIAL_EMAIL)
                                 .nickname("소셜찾기유저")
+                                .phoneHash(phoneHashService.hash(SOCIAL_PHONE))
                                 .socialProvider("google")
                                 .providerId("test-provider-id-002")
                                 .mbti(mbtiMetadataRepository.findById("NONE").orElseThrow())
@@ -653,7 +658,7 @@ class AuthControllerTest extends IntegrationTestSupport {
 
                 mockMvc.perform(post(FIND_EMAIL_URL)
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(new FindEmailRequest("소셜찾기유저"))))
+                                .content(objectMapper.writeValueAsString(new FindEmailRequest(SOCIAL_PHONE))))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.data.isSocialOnly").value(true));
         }
@@ -661,11 +666,11 @@ class AuthControllerTest extends IntegrationTestSupport {
         @Test
         @DisplayName("10-5. 마스킹 포맷 검증 — '@' 앞 2자만 노출, 나머지 '***' 처리")
         void 이메일_찾기_마스킹_포맷_검증() throws Exception {
-                로컬_회원_생성("abcdef@gmail.com", "마스킹테스트유저");
+                로컬_회원_생성("abcdef@gmail.com", "마스킹테스트유저", "010-5555-6666");
 
                 mockMvc.perform(post(FIND_EMAIL_URL)
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(new FindEmailRequest("마스킹테스트유저"))))
+                                .content(objectMapper.writeValueAsString(new FindEmailRequest("010-5555-6666"))))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.data.maskedEmail").value("ab***@gmail.com"));
         }

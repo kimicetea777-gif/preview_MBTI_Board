@@ -1,5 +1,5 @@
 import { apiClient } from "@/lib/apiClient";
-import { API } from "@/lib/apiEndpoints";
+import { API } from "@/constants/apiEndpoints";
 import type { ApiResponse } from "@/types/api";
 import type { VoteResult } from "@/types/post";
 

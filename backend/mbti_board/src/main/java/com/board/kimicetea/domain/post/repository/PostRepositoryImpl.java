@@ -46,9 +46,9 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
         }
 
         final OrderSpecifier<?> order = switch (sort) {
-            case VIEWS    -> post.viewCount.desc();
+            case VIEWS -> post.viewCount.desc();
             case COMMENTS -> post.commentCount.desc();
-            case LATEST   -> post.createdAt.desc();
+            case LATEST -> post.createdAt.desc();
         };
 
         final List<Post> content = queryFactory
@@ -76,7 +76,7 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
 
     @Override
     public Page<Post> findAllPostsForAdmin(final String typeCode, final Boolean isVisible,
-            final Pageable pageable) {
+            final String authorNickname, final String sortDir, final Pageable pageable) {
         final QPost post = QPost.post;
         final BooleanBuilder builder = new BooleanBuilder();
 
@@ -86,6 +86,13 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
         if (isVisible != null) {
             builder.and(post.isVisible.eq(isVisible));
         }
+        if (authorNickname != null && !authorNickname.isBlank()) {
+            builder.and(post.user.nickname.containsIgnoreCase(authorNickname));
+        }
+
+        final OrderSpecifier<?> order = "ASC".equalsIgnoreCase(sortDir)
+                ? post.createdAt.asc()
+                : post.createdAt.desc();
 
         final List<Post> content = queryFactory
                 .selectFrom(post)
@@ -96,16 +103,20 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
                 .leftJoin(post.debatePost).fetchJoin()
                 .leftJoin(post.votePost).fetchJoin()
                 .where(builder)
-                .orderBy(post.createdAt.desc())
+                .orderBy(order)
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
                 .fetch();
 
-        final Long total = queryFactory
+        final var countQuery = queryFactory
                 .select(post.count())
-                .from(post)
-                .where(builder)
-                .fetchOne();
+                .from(post);
+
+        if (authorNickname != null && !authorNickname.isBlank()) {
+            countQuery.leftJoin(post.user);
+        }
+
+        final Long total = countQuery.where(builder).fetchOne();
 
         return new PageImpl<>(content, pageable, total != null ? total : 0L);
     }
@@ -124,9 +135,9 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
         }
 
         final OrderSpecifier<?> order = switch (sort) {
-            case VIEWS    -> post.viewCount.desc();
+            case VIEWS -> post.viewCount.desc();
             case COMMENTS -> post.commentCount.desc();
-            case LATEST   -> post.createdAt.desc();
+            case LATEST -> post.createdAt.desc();
         };
 
         final List<Post> content = queryFactory
@@ -150,5 +161,18 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
                 .fetchOne();
 
         return new PageImpl<>(content, pageable, total != null ? total : 0L);
+    }
+
+    @Override
+    public List<Post> findMyPostsPreview(final UUID userId) {
+        final QPost post = QPost.post;
+
+        return queryFactory
+                .selectFrom(post)
+                .join(post.postType).fetchJoin()
+                .where(post.user.id.eq(userId).and(post.isVisible.isTrue()))
+                .orderBy(post.createdAt.desc())
+                .limit(4)
+                .fetch();
     }
 }

@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -14,6 +15,10 @@ import java.util.UUID;
  */
 public interface VotePostHistoryRepository extends JpaRepository<VotePostHistory, Long> {
 
-    @Query("SELECT h FROM VotePostHistory h JOIN FETCH h.votePostOption WHERE h.votePost.id = :postId AND h.user.id = :userId")
+    @Query("SELECT h FROM VotePostHistory h JOIN FETCH h.votePostOption JOIN FETCH h.user WHERE h.votePost.id = :postId AND h.user.id = :userId")
     Optional<VotePostHistory> findByVotePost_IdAndUser_Id(@Param("postId") Long postId, @Param("userId") UUID userId);
+
+    /** 댓글 목록 조회 시 투표 선택지 일괄 조회 — userId 목록에 해당하는 투표 내역 반환 */
+    @Query("SELECT h FROM VotePostHistory h JOIN FETCH h.votePostOption JOIN FETCH h.user WHERE h.votePost.id = :postId AND h.user.id IN :userIds")
+    List<VotePostHistory> findByVotePost_IdAndUser_IdIn(@Param("postId") Long postId, @Param("userIds") List<UUID> userIds);
 }

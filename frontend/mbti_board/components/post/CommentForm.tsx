@@ -7,6 +7,8 @@ import { useAuthStore } from "@/store/authStore";
 import { createComment } from "@/lib/api/comment";
 import { commentKeys } from "@/hooks/useComments";
 import GuestPasswordModal, { MODAL_ACTION } from "@/components/post/GuestPasswordModal";
+import ErrorMessage from "@/components/common/ErrorMessage";
+import { toast } from "@/components/common/Toast";
 import type { DebateStance } from "@/types/comment";
 
 interface Props {
@@ -16,6 +18,11 @@ interface Props {
   onSuccess?: () => void;
 }
 
+/*
+  토론 게시글(debateStance prop이 존재)에서:
+    - 회원: 의견 미선택 시 등록 불가
+    - 비회원: 의견 선택 자체가 불가능하므로 댓글 등록 불가 (백엔드도 stance 필수로 거부)
+*/
 export default function CommentForm({ postId, debateStance, parentId, onSuccess }: Props) {
   const isLoggedIn = !!useAuthStore((s) => s.accessToken);
   const queryClient = useQueryClient();
@@ -25,10 +32,8 @@ export default function CommentForm({ postId, debateStance, parentId, onSuccess 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalError, setModalError] = useState<string | undefined>();
 
-  // 토론 게시글(debateStance prop이 존재)에서:
-  //   - 회원: 의견 미선택 시 등록 불가
-  //   - 비회원: 의견 선택 자체가 불가능하므로 댓글 등록 불가 (백엔드도 stance 필수로 거부)
-  const isDebatePost = debateStance !== undefined;
+  // Debate Post State
+  const isDebatePost = (debateStance !== undefined);
   const requiresStance = isDebatePost && (
     (isLoggedIn && debateStance === null) || !isLoggedIn
   );
@@ -63,7 +68,22 @@ export default function CommentForm({ postId, debateStance, parentId, onSuccess 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim()) return;
+    if (!content.trim()) {
+      toast.warning(
+          "댓글 내용을 작성해주세요."
+      );
+      return;
+    }
+
+    if (requiresStance) {
+      toast.warning(
+        !isLoggedIn
+          ? "로그인 후 의견을 선택하고 댓글을 작성할 수 있습니다."
+          : "의견을 먼저 선택해주세요."
+      );
+      return;
+    }
+
     setFormError(undefined);
     if (isLoggedIn) {
       mutation.mutate(undefined);
@@ -73,36 +93,35 @@ export default function CommentForm({ postId, debateStance, parentId, onSuccess 
     }
   };
 
+  const isButtonDisabled = mutation.isPending || !content.trim();
+
   return (
     <>
-      <form onSubmit={handleSubmit} className="mt-6 space-y-2">
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="댓글을 입력하세요"
-          rows={3}
-          maxLength={1000}
-          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm resize-none focus:border-gray-400 focus:outline-none"
-        />
-        {formError && <p className="text-xs text-red-500">{formError}</p>}
-        <div className="flex items-center justify-between">
-          {requiresStance ? (
-            <p className="text-xs text-gray-400">
-              {!isLoggedIn
-                ? "로그인 후 의견을 선택하고 댓글을 작성할 수 있습니다."
-                : "의견을 먼저 선택해주세요."}
-            </p>
-          ) : (
-            <span />
-          )}
-          <button
-            type="submit"
-            disabled={mutation.isPending || !content.trim() || requiresStance}
-            className="rounded-lg bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700 disabled:opacity-50 transition-colors"
-          >
-            {mutation.isPending ? "등록 중..." : "댓글 등록"}
-          </button>
+      <form onSubmit={handleSubmit}>
+        <div className="bg-surface-container-low rounded-xl p-4 border border-outline-variant focus-within:border-secondary transition-colors">
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="댓글을 입력하세요"
+            rows={4}
+            maxLength={1000}
+            className="w-full bg-transparent border-none focus:ring-0 text-sm text-on-surface placeholder:text-outline-variant resize-none focus:outline-none"
+          />
+          <div className="flex justify-end mt-2 pt-2 border-t border-outline-variant">
+            <button
+              type="submit"
+              disabled={mutation.isPending}
+              className={`bg-primary text-primary-foreground px-8 py-2 rounded-lg text-sm font-semibold transition-all ${
+                isButtonDisabled || requiresStance
+                  ? "opacity-50 cursor-not-allowed"
+                  : "hover:opacity-90 active:scale-[0.98]"
+              }`}
+            >
+              {mutation.isPending ? "등록 중..." : "댓글 등록"}
+            </button>
+          </div>
         </div>
+        <ErrorMessage message={formError} />
       </form>
 
       <GuestPasswordModal

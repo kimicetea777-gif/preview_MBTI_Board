@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
+import Youtube from "@tiptap/extension-youtube";
 import { useEffect } from "react";
 
 interface Props {
@@ -12,7 +13,7 @@ interface Props {
 
 function RichContentViewerInner({ content }: Props) {
   const editor = useEditor({
-    extensions: [StarterKit, Image.configure({ inline: false })],
+    extensions: [StarterKit, Image.configure({ inline: false }), Youtube.configure({ nocookie: true })],
     editable: false,
     editorProps: {
       attributes: {

@@ -1,8 +1,7 @@
 package com.board.kimicetea.domain.mbti.controller;
 
-import com.board.kimicetea.domain.mbti.dto.MbtiQuestionResponse;
-import com.board.kimicetea.domain.mbti.dto.MbtiResponse;
 import com.board.kimicetea.domain.mbti.dto.MbtiTestResultResponse;
+import com.board.kimicetea.domain.mbti.dto.QuestionResponse;
 import com.board.kimicetea.domain.mbti.dto.MbtiTestSubmitRequest;
 import com.board.kimicetea.domain.mbti.service.MbtiService;
 import com.board.kimicetea.domain.user.security.CustomUserDetails;
@@ -13,13 +12,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,10 +25,10 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * MBTI 메타데이터 및 검사 API 컨트롤러
- * 주의: GET 엔드포인트는 인증 불필요, POST /test/submit은 JWT 인증 필수
+ * MBTI 검사 API 컨트롤러 — 메타데이터 표시 데이터는 프론트 정적, 검사 기능만 제공
+ * 주의: GET /test/questions 인증 불필요, POST /test/submit은 JWT 인증 필수
  */
-@Tag(name = "MBTI", description = "MBTI 메타데이터 및 검사 API")
+@Tag(name = "MBTI", description = "MBTI 검사 API")
 @Validated
 @RestController
 @RequestMapping("/api/mbti")
@@ -41,39 +38,15 @@ public class MbtiController {
     private final MbtiService mbtiService;
 
     /**
-     * 전체 MBTI 목록 조회 — 프론트 셀렉트박스 등 참조 데이터용
+     * MBTI 검사 문항 조회 — MBTI 32문항 + FN 3문항 혼합, 총 35문항
+     * 주의: type 필드로 MBTI / FUN 구분 (Discriminated Union)
      */
-    @Operation(summary = "MBTI 목록 조회", description = "전체 MBTI 유형 목록을 조회합니다. 인증 불필요.")
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
-    })
-    @GetMapping
-    public ResponseEntity<ApiResponse<List<MbtiResponse>>> getMbtiList() {
-        return ResponseEntity.ok(ApiResponse.ok(mbtiService.getAllMbti()));
-    }
-
-    /**
-     * MBTI 단건 조회 — 프론트 상세 페이지 등 단일 유형 참조 데이터용
-     */
-    @Operation(summary = "MBTI 단건 조회", description = "MBTI ID로 단일 유형 메타데이터를 조회합니다. 인증 불필요.")
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 MBTI")
-    })
-    @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<MbtiResponse>> getMbtiById(@PathVariable @Size(max = 6) final String id) {
-        return ResponseEntity.ok(ApiResponse.ok(mbtiService.getMbtiById(id)));
-    }
-
-    /**
-     * MBTI 검사 문항 조회 — 카테고리당 8개씩 랜덤 추출, 총 32문항
-     */
-    @Operation(summary = "MBTI 검사 문항 조회", description = "카테고리(EI·SN·TF·JP)별 8개씩 랜덤 추출한 32문항을 반환합니다. 인증 불필요.")
+    @Operation(summary = "MBTI 검사 문항 조회", description = "MBTI 32문항 + FN 재미 3문항을 섞어 반환합니다. type 필드로 구분. 인증 불필요.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
     })
     @GetMapping("/test/questions")
-    public ResponseEntity<ApiResponse<List<MbtiQuestionResponse>>> getTestQuestions() {
+    public ResponseEntity<ApiResponse<List<QuestionResponse>>> getTestQuestions() {
         return ResponseEntity.ok(ApiResponse.ok(mbtiService.getTestQuestions()));
     }
 

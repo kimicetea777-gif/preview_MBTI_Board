@@ -1,4 +1,4 @@
-import { ROUTES } from "@/lib/routes";
+import { ROUTES } from "@/constants/routes";
 import { POST_TYPE } from "@/types/post";
 import type { PostType } from "@/types/post";
 

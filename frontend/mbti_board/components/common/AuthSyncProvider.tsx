@@ -4,8 +4,8 @@ import { useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { subscribeAuthChannel } from "@/lib/authChannel";
 import axios from "axios";
-import { ROUTES } from "@/lib/routes";
-import { API } from "@/lib/apiEndpoints";
+import { ROUTES } from "@/constants/routes";
+import { API } from "@/constants/apiEndpoints";
 
 /**
  * 앱 최초 마운트 시 silent refresh로 AT 복구,

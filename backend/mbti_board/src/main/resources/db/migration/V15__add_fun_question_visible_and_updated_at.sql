@@ -1,0 +1,3 @@
+ALTER TABLE fun_questions
+    ADD COLUMN is_visible  BOOLEAN                  NOT NULL DEFAULT TRUE,
+    ADD COLUMN updated_at  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW();

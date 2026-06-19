@@ -10,5 +10,6 @@ import org.springframework.data.domain.Pageable;
 public interface CommentRepositoryCustom {
 
     /** 어드민 전용 — isVisible 필터 없음, 숨겨진 댓글 포함 조회 */
-    Page<Comment> findAllCommentsForAdmin(Long postId, Boolean isVisible, Pageable pageable);
+    Page<Comment> findAllCommentsForAdmin(Long postId, Boolean isVisible, String authorNickname,
+            String sortDir, Pageable pageable);
 }

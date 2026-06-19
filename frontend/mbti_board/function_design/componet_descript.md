@@ -1,6 +1,17 @@
 # Phase 0 — 생성 파일 요약
 
+## Route Handlers
+
+- `app/api/upload/route.ts` — 이미지 업로드 프록시: Sharp WebP 변환 후 백엔드에 X-Internal-Key로 전달
+- `app/api/images/route.ts` — 미저장 이미지 취소 프록시: X-Internal-Key 주입 후 백엔드 DELETE 전달 (브라우저에서 키 노출 방지)
+
+## My Page
+
+- `components/my/MyPostsPreview.tsx` — 마이페이지 내 게시글 프리뷰 (최근 5개, QueryResetErrorBoundary + Suspense + useSuspenseQuery 패턴)
+
 ## Types
+
+- `components/common/ClearableInput.tsx` — value가 있을 때 우측에 X(지우기) 버튼이 표시되는 입력창 래퍼
 
 - `types/api.ts` — 백엔드 공통 응답 포맷 `ApiResponse<T>`, `PageResponse<T>` 타입 정의
 - `types/auth.ts` — 로그인·회원가입 요청 및 응답 타입 정의
@@ -25,9 +36,11 @@
 
 - `components/common/QueryProvider.tsx` — TanStack Query `QueryClient`를 앱 전역에 제공하는 클라이언트 컴포넌트
 - `components/common/AuthSyncProvider.tsx` — 앱 마운트 시 silent refresh로 AT 복구, BroadcastChannel 탭 동기화 구독
-- `components/common/MbtiBadge.tsx` — MBTI 유형과 인증 상태(`TESTED`/`SELF`/`DEFAULT`)를 색상 배지로 표시하는 컴포넌트
+- `components/common/MbtiAvatar.tsx` — MBTI 유형의 colorCode 방사형 그라데이언트 + 마스크 처리된 이미지를 원형으로 표시; `size` prop으로 sm(96px)/lg(160px) 선택, imageUrl 없으면 그라데이언트 원형만 표시
+- `components/common/MbtiBadge.tsx` — MBTI 유형과 인증 상태(`TESTED`/`SELF`/`DEFAULT`)를 색상 배지로 표시; `TESTED`/`SELF` 클릭 시 `MbtiTypeCard` 팝오버(portal, fixed 위치) 표시, 바깥 클릭으로 닫기
 - `components/common/ApiErrorBoundary.tsx` — React 렌더 에러를 포착해 에러 메시지와 재시도 버튼을 표시하는 클래스형 Error Boundary
 - `components/common/Header.tsx` — AT 존재 여부로 로그인/로그아웃 버튼을 전환하는 상단 고정 헤더
+- `components/auth/SocialLoginButtons.tsx` — Google·Kakao 소셜 로그인 버튼 목록; `lastUsedMethod` 전달 시 마지막 로그인 제공자 말풍선 표시
 - `components/common/Sidebar.tsx` — 자유·투표·토론 게시판 탭 링크와 현재 경로 활성화 표시 사이드바
 
 ## Root
@@ -40,7 +53,7 @@
 
 ## Types
 
-- `types/user.ts` — `MyProfileResponse` 추가: 백엔드 `GET /api/users/me` 응답 타입 (mbtiColorCode, isSocialOnly 포함)
+- `types/user.ts` — `MyProfileResponse` 추가: 백엔드 `GET /api/users/me` 응답 타입 (isSocialOnly, hasPhone 포함)
 
 ## Lib
 
@@ -49,7 +62,14 @@
 
 ## Components
 
-- `components/my/MyPageContent.tsx` — 내 프로필 조회(useQuery)·수정(useMutation) 클라이언트 컴포넌트; MBTI 변경 시 배지 즉시 갱신
+- `components/my/MyPageContent.tsx` — 마이 페이지 조립 서버 컴포넌트; MyProfileCard·MyActivityStats·MyPostsPreview·MyCommentsPreview·MyAccountSection 레이아웃 구성
+- `components/my/MyProfileCard.tsx` — 프로필 카드 + 닉네임/MBTI 편집 다이얼로그; useMyProfileSuspense 사용, 자체 QueryResetErrorBoundary+Suspense 포함
+- `components/my/MyActivityStats.tsx` — 작성 게시글·댓글 수·최근 검사 MBTI 활동 통계; useMyActivityStatsSuspense 사용, 자체 QueryResetErrorBoundary+Suspense 포함
+- `components/my/MyPostsPreview.tsx` — 내가 작성한 게시글 프리뷰 섹션 (placeholder)
+- `components/my/MyCommentsPreview.tsx` — 내가 작성한 댓글 프리뷰 섹션 (placeholder, MyRecentlyViewedPreview로 교체됨)
+- `components/my/MyRecentlyViewedPreview.tsx` — 최근 조회한 게시글 프리뷰 섹션; localStorage(recently_viewed_posts)에서 최대 5개 읽어 링크 목록 표시, useState lazy initializer로 클라이언트 마운트 시 로드
+- `components/my/MyPostPreviewItem.tsx` — 마이페이지 게시글 목록 공용 행 컴포넌트; typeCode 뱃지·제목·시간 레이블 표시, stats prop(viewCount/commentCount) 선택적 제공 시 우측에 통계 표시; MyPostsPreview·MyRecentlyViewedPreview에서 공유
+- `components/my/MyAccountSection.tsx` — 회원 탈퇴 섹션 + 2단계 OTP 다이얼로그; mutation 전용, Suspense 불필요
 
 ## Pages
 
@@ -196,8 +216,9 @@
 
 ## Pages
 
-- `app/(main)/mbti/test/page.tsx` — `/mbti/test` 서버 래퍼; MbtiTestContent 렌더링
-- `app/(main)/mbti/test/MbtiTestContent.tsx` — MBTI 검사 클라이언트 컴포넌트; 문항 스텝 UI·진행 바·5지선다 채점·결과 카드·저장 모달, 비로그인 시 sessionStorage 점수 임시 저장 후 로그인 복귀 자동 제출, 재검사 시 캐시 무효화로 새 문항 랜덤 추출
+- `app/(main)/mbti/test/page.tsx` — `/mbti/test` 클라이언트 컴포넌트; useQueryErrorResetBoundary + ApiErrorBoundary + Suspense(MbtiTestLoading) 조합으로 데이터 fetch 에러·로딩 처리
+- `app/(main)/mbti/test/MbtiTestContent.tsx` — MBTI 검사 클라이언트 컴포넌트; 문항 스텝 UI·진행 바·5지선다 채점·결과 카드·저장 모달, 비로그인 시 sessionStorage 점수 임시 저장 후 로그인 복귀 자동 제출, 재검사 시 캐시 무효화로 새 문항 랜덤 추출 (useSuspenseQuery 사용)
+- `app/(main)/mbti/test/loading.tsx` — `/mbti/test` 라우트 이동 시 표시되는 Next.js route-level 로딩 UI; LuSnail 아이콘 bounce 애니메이션
 
 ---
 
@@ -211,10 +232,17 @@
 
 - `components/mbti/MbtiTypeCard.tsx` — 단일 MBTI 유형 카드; iconUrl 이미지(없으면 colorCode 원형 폴백), 유형 코드(id), 요약(summary) 표시, 상단 colorCode 테마 보더
 
+## Components
+
+- `components/mbti/GardenProgress.tsx` — 흙밭(ground.png) 위에 채소(vegetable.png)를 clip-path로 좌→우 점진 노출하는 정원 진행도 컴포넌트; `progress`(0–4)에 따라 애니메이션으로 풍성해짐
+- `components/mbti/MbtiDetail.tsx` — MBTI 유형 공통 상세 뷰; 이미지·설명·성격 특성·궁합 파트너 표시, Web Share API + 클립보드 폴백 공유 버튼 내장, `actionSlot` prop으로 저장 버튼 등 추가 액션 주입 가능
+
 ## Pages
 
 - `app/(main)/mbti/page.tsx` — `/mbti` 서버 래퍼; MbtiListContent 렌더링
-- `app/(main)/mbti/MbtiListContent.tsx` — MBTI 유형 목록 클라이언트 컴포넌트; useMbtiList로 전체 조회 후 MBTI_GROUPS 기준 4개 섹션 그리드, 로딩 스켈레톤, NONE 필터링, 검사 CTA 버튼
+- `app/(main)/mbti/MbtiListContent.tsx` — MBTI 유형 목록 클라이언트 컴포넌트; useMbtiList로 전체 조회 후 MBTI_GROUPS 기준 4개 섹션 그리드, 로딩 스켈레톤, NONE 필터링, 검사 CTA 버튼, 카드 클릭 시 `/mbti/[id]` 상세 페이지 이동
+- `app/(main)/mbti/[id]/page.tsx` — `/mbti/[id]` 서버 래퍼; params.id를 MbtiDetailContent에 전달
+- `app/(main)/mbti/[id]/MbtiDetailContent.tsx` — MBTI 유형 상세 클라이언트 컴포넌트; useMbtiList 캐시에서 해당 유형 조회, 없으면 notFound(), MbtiDetail 렌더링
 
 ---
 
@@ -236,18 +264,33 @@
 
 ## Components
 
-- `components/admin/AdminDashboard.tsx` — 어드민 대시보드 탭 컨테이너; 유저·게시글·댓글 관리 탭 전환, 각 탭에 해당 테이블 컴포넌트 렌더링
-- `components/admin/AdminUserTable.tsx` — 유저 관리 테이블; 이메일·상태·역할 필터, 역할/상태 인라인 드롭다운 변경(useMutation), 페이지네이션
-- `components/admin/AdminPostTable.tsx` — 게시글 관리 테이블; 유형·가시성 필터, 숨김/복구 버튼(useMutation), 페이지네이션
+- `components/admin/AdminNav.tsx` — 어드민 전용 사이드바; 대시보드·유저·게시글·댓글·MBTI 문제 탭 링크, 데스크탑 sidebar + 모바일 드로어(navStore 공유), "일반 사이트로" 복귀 링크
+- `components/admin/AdminDashboardContent.tsx` — 대시보드 클라이언트 컴포넌트; 총 유저·게시글·댓글 수 통계 카드(useAdminDashboardStats), 빠른 이동 그리드
+- `components/admin/AdminUserTable.tsx` — 유저 관리 테이블; 이메일·상태·역할 필터, 페이지네이션, 행 클릭 시 AdminUserDrawer 오픈, 유저 추가 버튼으로 AdminCreateUserModal 오픈
+- `components/admin/AdminUserDrawer.tsx` — 유저 상세/수정 사이드 드로어; 닉네임·프로필사진 삭제(updateProfile), 역할·상태 즉시 변경
+- `components/admin/AdminCreateUserModal.tsx` — 어드민 유저 직접 생성 모달; 이메일·비밀번호·닉네임·MBTI·역할·상태 입력, 이메일 인증 없이 즉시 생성(useCreateAdminUser)
+- `components/admin/AdminPostTable.tsx` — 게시글 관리 테이블; 유형·가시성·작성자·정렬 필터, 행 클릭 시 새 탭으로 게시글 페이지 이동, 인라인 숨기기/복구·삭제(2단계 확인) 버튼, 페이지네이션
 - `components/admin/AdminCommentTable.tsx` — 댓글 관리 테이블; 게시글ID·가시성 필터, 숨김/복구 버튼(useMutation), 페이지네이션
+- `components/admin/AdminMbtiContent.tsx` — MBTI 문항 관리 클라이언트 컴포넌트; AdminMbtiQuestion[] 직접 사용(타입 필터링 불필요), 행 클릭 시 모달 오픈, 노출 열에 AdminMbtiVisibilityButton 삽입
+- `components/admin/AdminMbtiQuestionDetailModal.tsx` — MBTI 문항 상세 보기·수정 모달; AdminMbtiQuestion 타입 사용, title·category·isReverse 편집, isVisible 토글, isDirty 체크로 저장 버튼 비활성
+- `components/admin/AdminMbtiVisibilityButton.tsx` — MBTI 문항 행별 독립 useMutation 인스턴스를 가진 노출 토글 버튼; 공유 mutation 경쟁 상태(race condition) 방지
+- `components/admin/AdminFunVisibilityButton.tsx` — FUN 문항 행별 독립 useMutation 인스턴스를 가진 노출 토글 버튼; AdminFunVisibilityButton과 동일 패턴
+
+## Layout
+
+- `app/(admin)/layout.tsx` — 어드민 전용 레이아웃; Header + AdminNav 사이드바 + main, (main) 레이아웃의 SiteNav 대신 AdminNav 사용
 
 ## Middleware
 
-- `middleware.ts` — /admin/:path* 경로 추가: session 쿠키 없으면 /login 리다이렉트 (ADMIN 권한 검증은 API 서버에서 수행)
+- `middleware.ts` — /admin/:path* 경로: session 쿠키 없으면 /login 리다이렉트 (ADMIN 권한 검증은 API 서버에서 수행)
 
 ## Pages
 
-- `app/(main)/admin/page.tsx` — `/admin` 서버 컴포넌트; AdminDashboard 렌더링
+- `app/(admin)/admin/page.tsx` — `/admin` 대시보드; AdminDashboardContent 렌더링
+- `app/(admin)/admin/users/page.tsx` — `/admin/users` 유저 관리 페이지
+- `app/(admin)/admin/posts/page.tsx` — `/admin/posts` 게시글 관리 페이지
+- `app/(admin)/admin/comments/page.tsx` — `/admin/comments` 댓글 관리 페이지
+- `app/(admin)/admin/mbti/page.tsx` — `/admin/mbti` MBTI 문제 관리 페이지
 
 ---
 
@@ -265,7 +308,9 @@
 
 ## Components
 
-- `components/auth/FindAccountContent.tsx` — 이메일 찾기(닉네임 입력·마스킹 결과·소셜 안내) / 비밀번호 찾기(2단계: 이메일 입력 → 발송 완료) 탭 UI 클라이언트 컴포넌트
+- `components/auth/FindAccountContent.tsx` — 이메일/비밀번호 찾기 탭 컨테이너; 탭 전환·헤더 config·passwordSent 상태 관리, FindEmailSection·FindPasswordSection 렌더링
+- `components/auth/FindEmailSection.tsx` — 전화번호 입력으로 이메일 조회하는 섹션; usePhoneInput 훅·findEmail mutation·마스킹 결과 표시
+- `components/auth/FindPasswordSection.tsx` — 이메일 입력으로 비밀번호 재설정 링크 발송하는 섹션; 2단계(입력 → 발송완료) 상태 관리
 - `components/auth/LoginForm.tsx` — 로그인 폼 하단에 "이메일 찾기 | 비밀번호 찾기" 링크 추가 (8-4)
 
 ## Pages
@@ -328,12 +373,19 @@
 ## Components
 
 - `components/post/PostCard.tsx` — `showType` prop 추가: 게시판 유형 뱃지(자유=파랑/투표=보라/토론=주황) 조건부 표시
+- `components/post/DebateProgressBar.tsx` — 토론 찬반 비율 그라디언트 프로그레스 바; `proPct·conPct` prop, `height` prop(기본 h-4)으로 크기 조절 가능
+- `components/post/VoteSection.tsx` — 투표 결과 바·선택지·투표하기 버튼 통합 섹션; `postId·voteResult·isLoggedIn` prop, 내부에서 선택 상태·투표 변경·mutation 관리
+- `components/post/DebateSection.tsx` — 토론 찬반 비율·진영 버튼·마감일 통합 섹션; `postId·debateResult·isLoggedIn·isEditing·onStanceChange` prop, 내부에서 selectedStance·stanceMutation 관리, 변경 시 onStanceChange로 부모(CommentSection)에 동기화
 
 ---
 
 ## Components (공통)
 
-- `components/common/Logo.tsx` — MBTI 4개 차원을 4색 정사각형 아이콘으로 표현한 로고 컴포넌트; `size`(sm/md/lg)·`asLink`(홈 링크 여부) prop 지원
+- `components/common/ShareButton.tsx` — 공유 버튼 컴포넌트; `path` prop으로 상대 경로를 받아 모바일은 Web Share API, 데스크탑은 URL 팝오버(단축 URL + 복사 버튼) 방식으로 공유
+
+
+
+- `components/common/Logo.tsx` — `/images/logo.png` 이미지 기반 로고 컴포넌트; `size`(sm/md/lg)·`asLink`(홈 링크 여부) prop 지원, 클릭 시 `/` 이동
 - `components/auth/SocialLoginButton.tsx` — 소셜 로그인 버튼 공용 컴포넌트; `provider`(google/kakao)·`redirectTo` prop으로 OAuth2 리다이렉트 처리, 스타일·경로는 PROVIDER_CONFIG 상수로 관리
 - `components/common/Toast.tsx` — 완전 커스텀 토스트 시스템; `ToastProvider`(루트 마운트), `toast.success/error/info/warning()` 모듈 레벨 싱글턴으로 훅 없이 어디서든 호출 가능, 슬라이드인 애니메이션·자동 닫힘·수동 닫기 지원
 - `components/common/FloatingLabelInput.tsx` — 플로팅 라벨 input 베이스 컴포넌트; `rightSlot` prop으로 우측 버튼 주입, `hint` prop으로 포커스 시 힌트 텍스트 표시 지원
@@ -341,4 +393,139 @@
 - `components/common/PasswordInput.tsx` — FloatingLabelInput 기반 비밀번호 전용 래퍼; show/hide 토글 상태 내장
 - `components/common/MbtiSelect.tsx` — `@radix-ui/react-select` 기반 MBTI 선택 드롭다운; MBTI_GROUPS 그룹화·UNKNOWN→"미설정" 변환·체크 아이콘 표시 지원; `value·onChange·mbtiList·disabled` prop
 - `components/common/LabeledFilterBox.tsx` — 좌측 라벨 + 우측 children을 테두리로 감싸는 필터 래퍼 컴포넌트; `label·children` prop
+- `components/common/ErrorMessage.tsx` — 폼 에러 메시지 공통 컴포넌트; 빨간 테두리·반투명 배경·아이콘 포함, `message` null/undefined 시 렌더링 안 함
 - `components/post/BoardTypeNav.tsx` — 전체·자유글·투표글·토론글 탭 링크; usePathname으로 현재 경로에 따라 활성 탭 강조
+- `hooks/usePhoneInput.ts` — 전화번호 입력 상태·포맷팅(숫자만 추출 + 하이픈 자동 삽입) 훅; `{ phone, handlePhoneChange }` 반환
+- `hooks/usePostEditDelete.tsx` — 자유글 전용 수정/삭제 훅; 편집 상태·모달 상태·update/delete mutation·핸들러·menuItems·guestModalProps 반환, redirectPath로 삭제 후 이동 경로 주입
+- `hooks/usePostDelete.tsx` — 투표·토론 전용 삭제 전용 훅; 수정 시 toast 표시(editUnavailableMessage), 삭제 시 게스트 비밀번호 모달 지원, menuItems·guestModalProps 반환
+- `hooks/useImageUpload.ts` — 이미지 업로드 추적 훅; 업로드 URL Set 관리, 언마운트 시 미저장 이미지 PENDING 취소 요청(keepalive), `{ hasImage, handleUpload, markSaved }` 반환
+- `components/post/PostDetailSkeleton.tsx` — 투표·토론 상세 페이지 공통 로딩 스켈레톤 (max-w-225)
+- `components/post/PostAuthorMeta.tsx` — 상세 페이지 공통 작성자 행; MbtiBadge·닉네임·날짜·조회수 표시
+- `components/post/PostHeader.tsx` — 상세 페이지 공통 헤더; 제목(수정 시 input 전환)·wanted 뱃지·케밥 메뉴·PostAuthorMeta 포함; menuItems prop으로 아이템 주입
+- `components/post/PostMenuButton.tsx` — 상세 페이지 공통 케밥 메뉴 버튼; PostMenuItem 배열로 아이템 주입, fixed 오버레이로 외부 클릭 닫기
+- `components/auth/BackToLoginLink.tsx` — "로그인으로 돌아가기" 링크 공용 컴포넌트; ROUTES.login으로 이동, 화살표 아이콘 포함
+- `components/common/ValidationCheckBox.tsx` — 입력값 유효성 상태 표시 컴포넌트; `checks: CheckItem | CheckItem[]` prop으로 단일·복수 검증 항목 수용, valid 시 연두색 체크, invalid 시 주황색 X 표시; `CheckItem` 타입 named export
+- `components/common/InfoBanner.tsx` — 안내 배너 공통 컴포넌트; 단건(`variant + text`)·복수(`items[]`) union props 지원, variant(info/warning/error/success)에 따라 아이콘·색상 자동 결정, 단건 시 rounded-full·복수 시 rounded-xl 렌더링
+- `components/auth/AuthCardIllustration.tsx` — 인증 카드 삽화 헤더; h-44 배경에 w-24 원형 아이콘·선택적 뱃지, SignupContent EMAIL_SENT 단계에서 사용
+- `components/auth/AuthCardHeader.tsx` — 인증 카드 상단 배경 헤더; `bg-secondary-container/20`에 w-16 원형 아이콘·선택적 StepIndicator, LoginForm·SignupContent EMAIL 단계에서 공용 사용
+- `components/common/IconDivider.tsx` — 아이콘을 가운데에 둔 수평 구분선 컴포넌트; `icon`·`iconSize`·`className` prop 지원
+- `components/common/TextDivider.tsx` — 텍스트를 가운데에 둔 수평 구분선 컴포넌트; `text`·`textSize`(xs/sm/md)·`color`(muted/default/primary)·`className` prop 지원
+
+---
+
+## SignupContent step 분리
+
+- `components/auth/steps/EmailStep.tsx` — 회원가입 1단계 이메일 입력 카드; 마지막 로그인 안내 배너·소셜 로그인·이메일 폼 포함
+- `components/auth/steps/EmailSentStep.tsx` — 회원가입 2단계 이메일 발송 대기 카드; 재발송 쿨다운 카운트다운·뒤로가기 버튼 포함
+- `components/auth/steps/FormStep.tsx` — 회원가입 3단계 프로필 입력 폼; 닉네임·비밀번호·MBTI·전화번호 입력, 클라이언트 유효성 검증 내장
+- `components/auth/steps/DoneStep.tsx` — 회원가입 완료 카드; 로그인 이동 링크 표시
+
+---
+
+# Phase 10 — 모바일 네비게이션
+
+## Constants
+
+- `constants/navigation.ts` — BOARD_TABS·MY_TABS·EXTRA_TABS 네비게이션 상수; Sidebar·MobileDrawer가 공유
+
+## Components
+
+- `components/common/MobileDrawer.tsx` — 모바일 전용 좌측 슬라이드 드로어; pathname 기반 게시판/마이페이지 탭 전환, 백드롭 클릭으로 닫기, useSearchParams로 현재 탭 활성 상태 표시
+
+---
+
+# Phase 10-2 — 계정 관리 페이지
+
+## Constants
+
+- `constants/navigation.ts` — MY_TABS에 `계정 관리 → /my/account` 탭 추가 (MdManageAccounts 아이콘)
+- `constants/routes.ts` — ROUTES.myAccount `/my/account` 추가
+- `constants/apiEndpoints.ts` — users 섹션에 `mePhone: "/api/users/me/phone"` 추가
+
+## Types
+
+- `types/user.ts` — MyProfileResponse에 `hasPhone: boolean` 추가; ChangePasswordRequest 인터페이스 추가
+
+## Lib
+
+- `lib/api/user.ts` — `changePassword`, `updatePhone`, `removePhone` API 함수 추가
+
+## Components
+
+- `components/my/account/MyAccountContent.tsx` — 계정 관리 페이지 조립 컴포넌트; useMyProfileSuspense로 isSocialOnly·hasPhone 읽어 각 섹션에 전달, QueryResetErrorBoundary+Suspense 포함
+- `components/my/account/MyPasswordSection.tsx` — 비밀번호 변경 섹션; 현재/새 비밀번호 입력, ValidationCheckBox로 정책 실시간 표시, isSocialOnly=true 시 InfoBanner로 비활성 안내
+- `components/my/account/MyPhoneSection.tsx` — 전화번호 관리 섹션; hasPhone 상태 배지, 등록/변경/삭제 다이얼로그, 등록 시 중복 검증, invalidateQueries로 프로필 캐시 갱신
+- `components/my/account/MyWithdrawalSection.tsx` — 회원 탈퇴 섹션 (MyAccountSection에서 이전); 2단계 OTP 다이얼로그
+
+## Pages
+
+- `app/(main)/my/account/page.tsx` — `/my/account` 서버 컴포넌트; MyAccountContent 렌더링
+
+---
+
+# Refactor — 통합 작성 페이지 분리
+
+## Hooks
+
+- `hooks/useWriteForm.ts` — 통합 작성 폼 커스텀 훅; 자유글·투표·토론 전용 state·mutation·handler 통합 관리, `OptionRow` 타입 export
+
+## Components (Write 전용)
+
+- `components/post/DeadlineField.tsx` — 마감일 datetime-local 입력 + "기한 없음" 토글 버튼 공통 컴포넌트; VoteOptionsField·DebateLabelsField에서 공유
+- `components/post/VoteOptionsField.tsx` — 투표 선택지 fieldset + DeadlineField 조합 컴포넌트; MBTI 모드 토글·항목 추가/삭제/입력 UI
+- `components/post/DebateLabelsField.tsx` — 토론 의견1/2 레이블 입력 + DeadlineField 조합 컴포넌트
+
+## Pages (Write)
+
+- `app/(main)/board/write/WriteFormContent.tsx` — useWriteForm 훅으로 로직 분리 후 순수 UI 렌더링만 담당하도록 리팩토링
+
+---
+
+# Refactor — 통합 게시판 목록 컴포넌트 분리
+
+## Components
+
+- `components/post/PostCardSkeleton.tsx` — 게시글 카드 로딩 스켈레톤; BoardPostList Suspense fallback 및 무한 스크롤 로딩 인디케이터로 공용 사용
+- `components/post/BoardPostList.tsx` — 게시판 목록 UI 전담 클라이언트 컴포넌트; useSuspensePostList 기반, 정렬·MBTI 필터·카드/리스트 뷰 모드·무한 스크롤·광고 삽입 담당 (isLoading/isError 제거, Suspense+QueryResetErrorBoundary로 위임)
+- `components/mbti/MbtiTypePreviewCard.tsx` — MbtiBadge 팝오버용 MBTI 유형 미리보기 카드; MbtiAvatar(lg) + 유형 코드 + personalities 아이콘·라벨 4개 표시
+
+---
+
+- `components/common/ViewModeToggle.tsx` — 카드/리스트 뷰 모드 전환 토글 버튼; `viewMode`·`onChange` prop, VIEW_MODE/ViewMode는 @/types/post에서 공유
+
+---
+
+# Phase FN — Fun Question 통계 페이지
+
+## Pages
+
+- `app/(main)/mbti/fun/stats/page.tsx` — `/mbti/fun/stats` 서버 컴포넌트; QueryResetErrorBoundary + Suspense(FunStatsLoading 스켈레톤) 조합으로 FunStatsContent 감싸기
+- `app/(main)/mbti/fun/stats/FunStatsContent.tsx` — Fun 질문 통계 클라이언트 컴포넌트; useFunStats로 전체 질문·선택지·MBTI별 집계 조회, 질문별 옵션 바(최댓값 기준 정규화) + MBTI 뱃지 표시
+
+---
+
+# Phase — 어드민 유저 통계
+
+## Components
+
+- `components/admin/AdminUserStatsContent.tsx` — 유저 통계 대시보드 클라이언트 컴포넌트; Recharts PieChart(상태·역할·MBTI인증·로그인방식)×4 + BarChart(MBTI분포) + AreaChart(30일 가입 추이), useAdminUserStats hook 사용
+
+## Pages
+
+- `app/(admin)/admin/users/stats/page.tsx` — `/admin/users/stats` 유저 통계 페이지; ApiErrorBoundary + Suspense + AdminUserStatsContent
+
+---
+
+# Phase — 어드민 게시글/댓글/MBTI 검사 통계
+
+## Components
+
+- `components/admin/AdminPostStatsContent.tsx` — 게시글 통계 대시보드; 총 게시글·숨김 현황 카드, 타입 분포 progress bar, AreaChart(30일 추이), BarChart(MBTI별 작성 분포)
+- `components/admin/AdminCommentStatsContent.tsx` — 댓글 통계 대시보드; 총 댓글·숨김 현황 카드, 좋아요/싫어요 리액션 현황, AreaChart(30일 추이), BarChart(MBTI별 댓글 분포)
+- `components/admin/AdminMbtiTestStatsContent.tsx` — MBTI 검사 통계 대시보드; 누적 검사 횟수 카드, 지표별 평균 progress bar, 재검사 빈도 progress bar, AreaChart(30일 추이), BarChart(검사 결과 MBTI 분포)
+
+## Pages
+
+- `app/(admin)/admin/posts/stats/page.tsx` — `/admin/posts/stats` 게시글 통계 페이지
+- `app/(admin)/admin/comments/stats/page.tsx` — `/admin/comments/stats` 댓글 통계 페이지
+- `app/(admin)/admin/mbti/stats/page.tsx` — `/admin/mbti/stats` MBTI 검사 통계 페이지

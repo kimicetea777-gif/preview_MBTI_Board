@@ -12,14 +12,14 @@ export interface Comment {
   content: string;
   authorNickname: string;
   authorMbtiId: string;
-  authorMbtiColor: string;
   mbtiVerified: MbtiVerified;
-  mbtiVerifiedColor: string;
   likeCount: number;
   dislikeCount: number;
   myReactionType: ReactionType | null;
   debateStance: DebateStance | null;
+  voteOptionText: string | null;
   isGuest: boolean;
+  isMine: boolean;
   createdAt: string;
   updatedAt: string;
   replies: Comment[];

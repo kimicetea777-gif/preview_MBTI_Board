@@ -1,16 +1,20 @@
+export const POST_TYPE_META = {
+  FREE:   { label: "자유", color: "bg-primary-container/90 text-surface-variant" },
+  VOTE:   { label: "투표",   color: "bg-on-tertiary-container text-surface-variant" },
+  DEBATE: { label: "토론",   color: "bg-on-tertiary-fixed-variant text-surface-variant", },
+};
+
+export type PostType = keyof typeof POST_TYPE_META;
+
 export const POST_TYPE = {
   FREE: "FREE",
   VOTE: "VOTE",
   DEBATE: "DEBATE",
-} as const;
+} as const satisfies Record<PostType, PostType>;
 
-export type PostType = (typeof POST_TYPE)[keyof typeof POST_TYPE];
-
-export const POST_TYPE_LABELS: Record<PostType, string> = {
-  FREE: "자유글",
-  VOTE: "투표",
-  DEBATE: "토론",
-};
+export const POST_TYPE_LABELS: Record<PostType, string> = Object.fromEntries(
+  (Object.keys(POST_TYPE_META) as PostType[]).map((k) => [k, POST_TYPE_META[k].label])
+) as Record<PostType, string>;
 
 // sort 값은 백엔드 PostSortType enum과 동일하게 대문자 사용
 export const POST_SORT = {
@@ -27,8 +31,21 @@ export const SORT_OPTIONS: { label: string; value: PostSortType }[] = [
   { label: "댓글순", value: POST_SORT.COMMENTS },
 ];
 
+export const VIEW_MODE = {
+  CARD: "card",
+  LIST: "list",
+} as const;
+
+export type ViewMode = (typeof VIEW_MODE)[keyof typeof VIEW_MODE];
+
+export const MAX_TITLE_LENGTH = 150;
+
 export const VOTE_OPTION_MIN = 2;
 export const VOTE_OPTION_MAX = 10;
+export const MAX_POST_IMAGES = 3;
+
+export const GUEST_PASSWORD_MIN_LENGTH = 4;
+export const GUEST_PASSWORD_MAX_LENGTH = 72;
 
 
 // GET /api/posts, GET /api/users/me/posts 목록 응답
@@ -40,15 +57,23 @@ export interface PostSummaryResponse {
   imageUrls: string[] | null;      // 첫 번째 요소가 썸네일
   authorNickname: string;          // user_id 없으면 백엔드가 "(비회원)"으로 치환 — null 불가
   authorMbtiId: string;
-  authorMbtiColor: string;
   mbtiVerified: import("./user").MbtiVerified;
-  mbtiVerifiedColor: string;
   targetMbtiId: string | null;     // null = 전체 대상
   viewCount: number;
   commentCount: number;
   createdAt: string;               // ISO 8601
   debateSummary?: DebateResult;              // DEBATE 타입일 때만 non-null
-  voteOptions?: Pick<VoteOptionResponse, "id" | "optionText">[]; // VOTE 타입일 때만 non-null, 최대 3개
+  voteOptions?: Pick<VoteOptionResponse, "id" | "optionText" | "voteCount">[]; // VOTE 타입일 때만 non-null, 최대 3개
+}
+
+// GET /api/users/me/posts/preview 응답 (최근 5개)
+export interface MyPostPreview {
+  id: number;
+  typeCode: PostType;
+  title: string;
+  commentCount: number;
+  viewCount: number;
+  createdAt: string;
 }
 
 // GET /api/users/me/posts 쿼리 파라미터
@@ -83,6 +108,7 @@ export interface DebateResult {
   conCount: number;
   isClosed: boolean;
   endsAt: string | null;           // ISO 8601, null이면 무기한
+  myStance: 1 | -1 | null;        // 현재 사용자의 진영 투표 (비로그인·미투표 시 null)
 }
 
 // GET /api/posts/{id} 상세 응답

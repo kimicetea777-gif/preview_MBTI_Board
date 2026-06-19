@@ -15,10 +15,16 @@ public record SignupRequest(
         @Pattern(regexp = ValidationConstants.PASSWORD_REGEXP, message = ValidationConstants.PASSWORD_MESSAGE)
         String password,
 
-        @NotBlank @Size(min = 2, max = 50)
+        @NotBlank @Size(min = 2, max = 12)
+        @Pattern(regexp = ValidationConstants.NICKNAME_REGEXP, message = ValidationConstants.NICKNAME_MESSAGE)
         String nickname,
 
         /** mbti_metadata.id (예: INTJ, INTP). 미선택 시 "NONE" 전달 */
         @NotBlank
-        String mbtiId
+        @Pattern(regexp = ValidationConstants.MBTI_OR_NONE_REGEXP, message = ValidationConstants.MBTI_MESSAGE)
+        String mbtiId,
+
+        /** 이메일 찾기 전용 — 미입력 시 null 허용 */
+        @Pattern(regexp = ValidationConstants.PHONE_REGEXP, message = ValidationConstants.PHONE_MESSAGE)
+        String phone
 ) {}

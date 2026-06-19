@@ -38,6 +38,11 @@ MBTI 기반 커뮤니티 플랫폼. 자유글·투표·토론 게시판을 제�
 - **Networking**: Cloudflare Tunnel
 - **Monitoring**: Prometheus + Grafana
 
+## 배포 환경
+
+- RAM 8GB 제한 → JVM 힙: `-Xmx512m` 권장
+- 파일 스토리지는 로컬 디스크 금지, 반드시 Cloudflare R2 사용
+
 ## 설계 문서
 
 - PRD (제품 요구사항): `../../prd.md`

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, XCircle, Info, AlertTriangle, X } from "lucide-react";
+import { LuCircleCheckBig, LuCircleX, LuInfo, LuTriangleAlert, LuX } from "react-icons/lu";
 
 type ToastType = "success" | "error" | "info" | "warning";
 
@@ -27,19 +27,19 @@ export const toast = {
 const TYPE_CONFIG: Record<ToastType, { className: string; icon: React.ReactNode }> = {
   success: {
     className: "bg-green-50 border-green-300 text-green-800",
-    icon: <CheckCircle2 size={16} />,
+    icon: <LuCircleCheckBig size={16} />,
   },
   error: {
     className: "bg-red-50 border-red-300 text-red-800",
-    icon: <XCircle size={16} />,
+    icon: <LuCircleX size={16} />,
   },
   info: {
     className: "bg-blue-50 border-blue-300 text-blue-800",
-    icon: <Info size={16} />,
+    icon: <LuInfo size={16} />,
   },
   warning: {
     className: "bg-orange-50 border-orange-300 text-orange-800",
-    icon: <AlertTriangle size={16} />,
+    icon: <LuTriangleAlert size={16} />,
   },
 };
 
@@ -79,7 +79,7 @@ function ToastCard({ item, onRemove }: { item: ToastItem; onRemove: (id: string)
         onClick={handleClose}
         className="shrink-0 opacity-50 hover:opacity-100 transition-opacity"
       >
-        <X size={14} />
+        <LuX size={14} />
       </button>
     </div>
   );

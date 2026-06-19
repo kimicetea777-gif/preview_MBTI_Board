@@ -1,3 +1,10 @@
+export const FIND_ACCOUNT_TAB = {
+  EMAIL: "email",
+  PASSWORD: "password",
+  PASSWORD_SENT: "passwordSent",
+} as const;
+export type FindAccountTab = typeof FIND_ACCOUNT_TAB[keyof typeof FIND_ACCOUNT_TAB];
+
 export interface LoginRequest {
   email: string;
   password: string;
@@ -8,6 +15,7 @@ export interface SignupRequest {
   password: string;
   nickname: string;
   mbtiId: string;
+  phone?: string;
 }
 
 export interface LoginResponse {
@@ -26,7 +34,7 @@ export interface EmailVerifyConfirmRequest {
 }
 
 export interface FindEmailRequest {
-  nickname: string;
+  phone: string;
 }
 
 export interface FindEmailResponse {

@@ -3,11 +3,14 @@ package com.board.kimicetea.domain.user.controller;
 import com.board.kimicetea.domain.mbti.dto.MbtiTestHistoryResponse;
 import com.board.kimicetea.domain.mbti.service.MbtiService;
 import com.board.kimicetea.domain.post.PostSortType;
+import com.board.kimicetea.domain.post.dto.MyPostPreviewResponse;
 import com.board.kimicetea.domain.post.dto.PostSummaryResponse;
 import com.board.kimicetea.domain.post.service.PostService;
 import com.board.kimicetea.domain.user.dto.ChangePasswordRequest;
 import com.board.kimicetea.domain.user.dto.MyProfileResponse;
+import com.board.kimicetea.domain.user.dto.UpdatePhoneRequest;
 import com.board.kimicetea.domain.user.dto.UpdateProfileRequest;
+import com.board.kimicetea.domain.user.dto.UserActivityStatsResponse;
 import com.board.kimicetea.domain.user.dto.UserProfileResponse;
 import com.board.kimicetea.domain.user.dto.WithdrawalRequest;
 import com.board.kimicetea.domain.user.security.CustomUserDetails;
@@ -125,6 +128,36 @@ public class UserController {
     }
 
     /**
+     * 마이페이지 내 게시글 프리뷰 — 최근 5개
+     */
+    @Operation(summary = "내 게시글 프리뷰 조회", description = "마이페이지용 최근 작성 게시글 5개를 반환합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
+    })
+    @GetMapping("/me/posts/preview")
+    public ResponseEntity<ApiResponse<List<MyPostPreviewResponse>>> getMyPostsPreview(
+            @AuthenticationPrincipal final CustomUserDetails userDetails) {
+
+        return ResponseEntity.ok(ApiResponse.ok(postService.getMyPostsPreview(userDetails.userId())));
+    }
+
+    /**
+     * 내 활동 통계 조회 — 작성 게시글 수·댓글 수·최근 검사 MBTI
+     */
+    @Operation(summary = "내 활동 통계 조회", description = "작성한 게시글 수, 댓글 수, 가장 최근 MBTI 검사 결과를 반환합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
+    })
+    @GetMapping("/me/stats")
+    public ResponseEntity<ApiResponse<UserActivityStatsResponse>> getMyActivityStats(
+            @AuthenticationPrincipal final CustomUserDetails userDetails) {
+
+        return ResponseEntity.ok(ApiResponse.ok(userService.getMyActivityStats(userDetails.userId())));
+    }
+
+    /**
      * 탈퇴 OTP 발송 — 가입된 이메일로 6자리 인증 코드 전송 (유효 시간 3분)
      */
     @Operation(summary = "탈퇴 인증 코드 발송", description = "가입 이메일로 6자리 OTP를 발송합니다. 3분 이내에 탈퇴 요청에 포함해야 합니다.")
@@ -175,6 +208,39 @@ public class UserController {
     public ResponseEntity<ApiResponse<List<MbtiTestHistoryResponse>>> getMyMbtiHistory(
             @AuthenticationPrincipal final CustomUserDetails userDetails) {
         return ResponseEntity.ok(ApiResponse.ok(mbtiService.getMyMbtiHistory(userDetails.userId())));
+    }
+
+    /**
+     * 전화번호 등록/변경 — HMAC 해싱 후 저장, 중복 검증 포함
+     */
+    @Operation(summary = "전화번호 등록/변경", description = "전화번호를 해싱해 저장합니다. 이미 등록된 번호는 중복 오류를 반환합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "등록/변경 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 다른 계정에 등록된 전화번호")
+    })
+    @PatchMapping("/me/phone")
+    public ResponseEntity<ApiResponse<Void>> updatePhone(
+            @AuthenticationPrincipal final CustomUserDetails userDetails,
+            @Valid @RequestBody final UpdatePhoneRequest request) {
+
+        userService.updatePhone(userDetails.userId(), request);
+        return ResponseEntity.ok(ApiResponse.ok("전화번호가 등록되었습니다."));
+    }
+
+    /**
+     * 전화번호 삭제
+     */
+    @Operation(summary = "전화번호 삭제", description = "등록된 전화번호를 제거합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "삭제 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
+    })
+    @DeleteMapping("/me/phone")
+    public ResponseEntity<ApiResponse<Void>> removePhone(
+            @AuthenticationPrincipal final CustomUserDetails userDetails) {
+
+        userService.removePhone(userDetails.userId());
+        return ResponseEntity.ok(ApiResponse.ok("전화번호가 삭제되었습니다."));
     }
 
     /**

@@ -54,8 +54,8 @@ MBTI 기반 커뮤니티 플랫폼. 자유글·투표·토론 게시판을 제�
 
 - (Frontend) 컴포넌트 **생성** 시 : 한 줄 요약해서 `frontend/mbti_board/function_design/componet_descript.md`에 작성
 
-- (Frontend) URL 경로 하드코딩 금지 — 반드시 `@frontend/mbti_board/lib/routes.ts`의 `ROUTES` 상수를 참조
-- (Frontend) API 엔드포인트 하드코딩 금지 — 반드시 `@frontend/mbti_board/lib/apiEndpoints.ts`의 `API` 상수를 참조
+- (Frontend) URL 경로 하드코딩 금지 — 반드시 `@frontend/mbti_board/constants/routes.ts`의 `ROUTES` 상수를 참조
+- (Frontend) API 엔드포인트 하드코딩 금지 — 반드시 `@frontend/mbti_board/constants/apiEndpoints.ts`의 `API` 상수를 참조
 
 - (Frontend) 하드코딩 금지 — 도메인 상수(숫자 리터럴, enum 값 등)는 해당 `types/*.ts` 파일에 상수로 정의해서 사용
   - 비교·분기에 사용하는 문자열 리터럴 포함 (예: `=== "FREE"` → `=== POST_TYPE.FREE`)
@@ -64,5 +64,14 @@ MBTI 기반 커뮤니티 플랫폼. 자유글·투표·토론 게시판을 제�
 - (Frontend) 하드코딩 금지 — 공통 유틸 함수(날짜 포맷 등)는 `lib/` 하위 전용 파일에서 관리 (예: `lib/dateUtils.ts`)
 
 - (Frontend) 본문은 <article>, <section>, <p> 태그를 사용하고, 메뉴는 <nav>, 하단 정보는 <footer> 같은 의미 있는 태그 적극 사용
+
+- (Frontend) 데이터 페칭은 `useSuspenseQuery` 방식을 사용한다
+  - 컴포넌트 내부에서 `isLoading` / `isError` 분기 금지
+  - 페이지(또는 상위 래퍼)에서 `<Suspense fallback={...}>` + `<ApiErrorBoundary>` 로 감싼다
+  - 훅은 `useQuery` 대신 `useSuspenseQuery` 를 사용한다
+
+## 아이콘
+
+- 아이콘 사용 시 react-icons 라이브러리 사용
 
 ---

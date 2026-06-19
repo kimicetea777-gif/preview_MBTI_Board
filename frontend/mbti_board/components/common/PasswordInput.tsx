@@ -14,6 +14,7 @@ interface Props {
   required?: boolean;
   minLength?: number;
   autoComplete?: string;
+  hint?: string;
   error?: boolean;
 }
 
@@ -27,6 +28,7 @@ export default function PasswordInput({
   required,
   minLength,
   autoComplete = "current-password",
+  hint,
   error,
 }: Props) {
   const [showPassword, setShowPassword] = useState(false);
@@ -43,6 +45,7 @@ export default function PasswordInput({
       required={required}
       minLength={minLength}
       autoComplete={autoComplete}
+      hint={hint}
       error={error}
       rightSlot={
         <button

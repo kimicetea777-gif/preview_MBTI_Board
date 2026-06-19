@@ -14,6 +14,7 @@ import com.board.kimicetea.domain.post.PostConstants;
 import com.board.kimicetea.global.common.util.GuestPasswordHelper;
 import com.board.kimicetea.domain.post.entity.Post;
 import com.board.kimicetea.domain.post.repository.PostRepository;
+import com.board.kimicetea.domain.post.repository.VotePostHistoryRepository;
 import com.board.kimicetea.domain.user.entity.User;
 import com.board.kimicetea.domain.user.repository.UserRepository;
 import com.board.kimicetea.domain.user.security.CustomUserDetails;
@@ -26,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -41,6 +43,7 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final CommentReactionRepository reactionRepository;
     private final PostRepository postRepository;
+    private final VotePostHistoryRepository votePostHistoryRepository;
     private final UserRepository userRepository;
     private final MbtiMetadataRepository mbtiMetadataRepository;
     private final PasswordEncoder passwordEncoder;
@@ -52,12 +55,12 @@ public class CommentService {
      */
     @Transactional(readOnly = true)
     public List<CommentResponse> getComments(final Long postId, final UUID userId) {
-        if (!postRepository.existsByIdAndIsVisibleTrue(postId)) {
-            throw new CustomException(ErrorCode.POST_NOT_FOUND);
-        }
+        final Post post = postRepository.findWithDetailsById(postId)
+                .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
 
         final List<Comment> all = commentRepository.findAllVisibleByPostId(postId);
         final Map<Long, Short> reactionMap = buildReactionMap(userId, all);
+        final Map<UUID, String> voteOptionMap = buildVoteOptionMap(postId, post, all);
 
         // parent_id 기준으로 대댓글 그룹핑
         final Map<Long, List<Comment>> repliesByParentId = all.stream()
@@ -67,8 +70,33 @@ public class CommentService {
         // 루트 댓글만 추려 replies 조립 후 반환
         return all.stream()
                 .filter(c -> c.getParent() == null)
-                .map(c -> CommentResponse.from(c, repliesByParentId.getOrDefault(c.getId(), List.of()), reactionMap))
+                .map(c -> CommentResponse.from(c, repliesByParentId.getOrDefault(c.getId(), List.of()), reactionMap, userId, voteOptionMap))
                 .toList();
+    }
+
+    /**
+     * VOTE 게시글의 댓글 작성자별 투표 선택지 텍스트 맵 — userId → optionText
+     * 주의: VOTE 게시글이 아니거나 로그인 댓글이 없으면 빈 맵 반환
+     */
+    private Map<UUID, String> buildVoteOptionMap(final Long postId, final Post post, final List<Comment> comments) {
+        if (!PostConstants.TYPE_VOTE.equals(post.getPostType().getCode())) {
+            return Map.of();
+        }
+        final List<UUID> userIds = comments.stream()
+                .map(Comment::getUser)
+                .filter(Objects::nonNull)
+                .map(User::getId)
+                .distinct()
+                .toList();
+        if (userIds.isEmpty()) {
+            return Map.of();
+        }
+        return votePostHistoryRepository.findByVotePost_IdAndUser_IdIn(postId, userIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        h -> h.getUser().getId(),
+                        h -> h.getVotePostOption().getOptionText(),
+                        (existing, replacement) -> existing));
     }
 
     /**
@@ -126,7 +154,8 @@ public class CommentService {
                 .guestPassword(GuestPasswordHelper.encode(user, request.guestPassword(), passwordEncoder))
                 .build();
 
-        return CommentResponse.from(commentRepository.save(comment));
+        final UUID requestUserId = userDetails != null ? userDetails.userId() : null;
+        return CommentResponse.from(commentRepository.save(comment), requestUserId);
     }
 
     /**
@@ -180,7 +209,8 @@ public class CommentService {
         final Comment comment = findCommentForPostOrThrow(commentId, postId);
         verifyOwnership(comment, userDetails, request.guestPassword());
         comment.update(request.content().strip());
-        return CommentResponse.from(comment);
+        final UUID requestUserId = userDetails != null ? userDetails.userId() : null;
+        return CommentResponse.from(comment, requestUserId);
     }
 
     /**

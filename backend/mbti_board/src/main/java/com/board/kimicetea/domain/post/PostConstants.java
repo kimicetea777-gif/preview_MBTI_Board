@@ -11,4 +11,7 @@ public final class PostConstants {
     public static final String TYPE_FREE    = "FREE";
     public static final String TYPE_VOTE    = "VOTE";
     public static final String TYPE_DEBATE  = "DEBATE";
+
+    /** 게시글 본문에 첨부 가능한 최대 이미지 수 */
+    public static final int MAX_IMAGE_COUNT = 3;
 }

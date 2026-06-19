@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/store/authStore";
-import { ROUTES } from "@/lib/routes";
+import { ROUTES } from "@/constants/routes";
 import { toSafeRedirect } from "@/lib/safeRedirect";
 import { setLastLoginMethod, PENDING_SOCIAL_PROVIDER_KEY, type LoginMethod } from "@/lib/lastLoginMethod";
 
@@ -27,8 +27,9 @@ export default function OAuth2CallbackContent({ accessToken, error }: Props) {
 
   useEffect(() => {
     if (error || !accessToken) return;
+
     setAccessToken(accessToken);
-    const raw = sessionStorage.getItem(OAUTH2_REDIRECT_KEY) ?? "/";
+    const raw = sessionStorage.getItem(OAUTH2_REDIRECT_KEY) ?? ROUTES.home;
     sessionStorage.removeItem(OAUTH2_REDIRECT_KEY);
     const provider = sessionStorage.getItem(PENDING_SOCIAL_PROVIDER_KEY) as LoginMethod | null;
     if (provider) {

@@ -1,8 +1,10 @@
 package com.board.kimicetea.domain.comment.controller;
 
+import com.board.kimicetea.domain.comment.dto.AdminCommentStatsResponse;
 import com.board.kimicetea.domain.comment.dto.AdminCommentSummaryResponse;
 import com.board.kimicetea.domain.comment.dto.AdminCommentVisibilityRequest;
 import com.board.kimicetea.domain.comment.service.AdminCommentService;
+import com.board.kimicetea.domain.comment.service.AdminCommentStatsService;
 import com.board.kimicetea.global.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -31,8 +33,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminCommentController {
 
     private final AdminCommentService adminCommentService;
+    private final AdminCommentStatsService adminCommentStatsService;
 
-    @Operation(summary = "댓글 목록 조회", description = "숨겨진 댓글을 포함한 전체 목록을 조회합니다. postId·isVisible 필터와 페이지네이션을 지원합니다.")
+    @Operation(summary = "댓글 통계 조회", description = "MBTI 분포, 리액션 현황, 작성 추이, 숨김 현황 등 댓글 현황 통계를 반환합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ADMIN 권한 없음")
+    })
+    @GetMapping("/stats")
+    public ResponseEntity<ApiResponse<AdminCommentStatsResponse>> getCommentStats() {
+        return ResponseEntity.ok(ApiResponse.ok(adminCommentStatsService.getStats()));
+    }
+
+    @Operation(summary = "댓글 목록 조회", description = "숨겨진 댓글을 포함한 전체 목록을 조회합니다. postId·isVisible·authorNickname·sortDir 필터와 페이지네이션을 지원합니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ADMIN 권한 없음")
@@ -41,10 +54,12 @@ public class AdminCommentController {
     public ResponseEntity<ApiResponse<Page<AdminCommentSummaryResponse>>> getComments(
             @RequestParam(required = false) final Long postId,
             @RequestParam(required = false) final Boolean isVisible,
+            @RequestParam(required = false) final String authorNickname,
+            @RequestParam(defaultValue = "DESC") final String sortDir,
             @RequestParam(defaultValue = "0") final int page,
             @RequestParam(defaultValue = "20") final int size) {
         return ResponseEntity.ok(ApiResponse.ok(
-                adminCommentService.getComments(postId, isVisible,
+                adminCommentService.getComments(postId, isVisible, authorNickname, sortDir,
                         PageRequest.of(Math.max(page, 0), Math.max(1, Math.min(size, 100))))));
     }
 

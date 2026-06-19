@@ -76,7 +76,7 @@ class CommentControllerTest extends IntegrationTestSupport {
         mockMvc.perform(post(SIGNUP_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
-                                new SignupRequest(email, TEST_PASSWORD, nickname, TEST_MBTI))))
+                                new SignupRequest(email, TEST_PASSWORD, nickname, TEST_MBTI, null))))
                 .andExpect(status().isCreated());
 
         final String body = mockMvc.perform(post(LOGIN_URL)

@@ -2,16 +2,19 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MdSearch, MdNotificationsNone, MdAccountCircle } from "react-icons/md";
+import { MdMenu, MdAccountCircle } from "react-icons/md";
 import { useAuthStore } from "@/store/authStore";
+import { useNavStore } from "@/store/navStore";
 import { apiClient } from "@/lib/apiClient";
-import { ROUTES } from "@/lib/routes";
-import { API } from "@/lib/apiEndpoints";
+import { ROUTES } from "@/constants/routes";
+import { API } from "@/constants/apiEndpoints";
+import Logo from "./Logo";
 
 export default function Header() {
   const accessToken = useAuthStore((s) => s.accessToken);
   const setAccessToken = useAuthStore((s) => s.setAccessToken);
   const router = useRouter();
+  const openDrawer = useNavStore((s) => s.openDrawer);
 
   const handleLogout = async () => {
     try {
@@ -27,22 +30,21 @@ export default function Header() {
       <div className="mx-auto flex h-16 max-w-300 items-center justify-between px-8 gap-4">
 
         {/* Brand */}
-        <div className="flex-1 flex items-center min-w-0">
+        <div className="flex-1 flex items-center gap-3 min-w-0">
+          <button
+            className="md:hidden p-2 rounded-full text-on-surface-variant hover:bg-accent transition-colors"
+            onClick={openDrawer}
+            aria-label="메뉴 열기"
+          >
+            <MdMenu size={24} />
+          </button>
           <Link href={ROUTES.board.all} className="flex items-center gap-2.5 shrink-0">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden>
-              <circle cx="14" cy="14" r="14" fill="#1b3022" />
-              <path d="M9 20c0-5 3-8 5-9 2 1 5 4 5 9" stroke="#c4ef48" strokeWidth="1.5" strokeLinecap="round" />
-              <line x1="14" y1="11" x2="14" y2="20" stroke="#c4ef48" strokeWidth="1.5" strokeLinecap="round" />
-              <path d="M11 14.5c1-1.5 2-2 3-2" stroke="#c4ef48" strokeWidth="1.2" strokeLinecap="round" />
-            </svg>
-            <span className="font-jakarta font-bold text-lg text-primary tracking-tight">
-              MBTI Board
-            </span>
+            <Logo size="lg" asLink={false}/>
           </Link>
         </div>
 
         {/* Search */}
-        <div className="flex-1 flex justify-center">
+        {/* <div className="flex-1 flex justify-center">
           <div className="hidden sm:flex items-center gap-2 bg-surface-container-low px-4 py-2 rounded-full border border-outline-variant w-full max-w-sm">
             <MdSearch className="text-on-surface-variant shrink-0" size={20} />
             <input
@@ -51,14 +53,10 @@ export default function Header() {
               className="bg-transparent border-none outline-none text-sm w-full placeholder:text-on-surface-variant text-foreground"
             />
           </div>
-        </div>
+        </div> */}
 
         {/* Actions */}
         <div className="flex-1 flex items-center justify-end gap-1">
-          <button className="p-2 rounded-full text-on-surface-variant hover:bg-accent transition-colors">
-            <MdNotificationsNone size={22} />
-          </button>
-
           {accessToken ? (
             <>
               <Link
@@ -66,7 +64,7 @@ export default function Header() {
                 className="p-2 rounded-full text-on-surface-variant hover:bg-accent transition-colors"
                 title="마이페이지"
               >
-                <MdAccountCircle size={22} />
+                <MdAccountCircle size={30} />
               </Link>
               <button
                 onClick={handleLogout}

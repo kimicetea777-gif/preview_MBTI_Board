@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { ROUTES } from "@/lib/routes";
+import { ROUTES } from "@/constants/routes";
 
 export default function VoteBoardWriteRedirect() {
   redirect(ROUTES.board.voteWrite);

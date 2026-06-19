@@ -21,9 +21,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className={cn("h-full antialiased", "font-sans", geist.variable, plusJakarta.variable)} suppressHydrationWarning>
+    <html lang="ko" className={cn("h-full antialiased theme-earthen", "font-sans", geist.variable, plusJakarta.variable)} suppressHydrationWarning>
       <body className="min-h-full flex flex-col">
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange themes={["light", "dark", "theme-navy", "theme-rose"]}>
+        <ThemeProvider attribute="class" defaultTheme="theme-earthen" enableSystem={false} disableTransitionOnChange themes={["theme-earthen", "light", "dark", "theme-navy", "theme-rose"]}>
           <QueryProvider>
             <ToastProvider>
               <AuthSyncProvider>

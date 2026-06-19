@@ -1,12 +1,14 @@
 package com.board.kimicetea.domain.mbti.service;
 
+import com.board.kimicetea.domain.mbti.dto.FunQuestionResponse;
 import com.board.kimicetea.domain.mbti.dto.MbtiQuestionResponse;
-import com.board.kimicetea.domain.mbti.dto.MbtiResponse;
 import com.board.kimicetea.domain.mbti.dto.MbtiTestHistoryResponse;
 import com.board.kimicetea.domain.mbti.dto.MbtiTestResultResponse;
 import com.board.kimicetea.domain.mbti.dto.MbtiTestSubmitRequest;
+import com.board.kimicetea.domain.mbti.dto.QuestionResponse;
 import com.board.kimicetea.domain.mbti.entity.MbtiMetadata;
 import com.board.kimicetea.domain.mbti.entity.MbtiTestHistory;
+import com.board.kimicetea.domain.mbti.repository.FunQuestionRepository;
 import com.board.kimicetea.domain.mbti.repository.MbtiMetadataRepository;
 import com.board.kimicetea.domain.mbti.repository.MbtiQuestionRepository;
 import com.board.kimicetea.domain.mbti.repository.MbtiTestHistoryRepository;
@@ -16,13 +18,13 @@ import com.board.kimicetea.domain.user.repository.UserRepository;
 import com.board.kimicetea.global.common.exception.CustomException;
 import com.board.kimicetea.global.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -37,32 +39,41 @@ public class MbtiService {
 
     private final MbtiMetadataRepository mbtiMetadataRepository;
     private final MbtiQuestionRepository mbtiQuestionRepository;
+    private final FunQuestionRepository funQuestionRepository;
     private final MbtiTestHistoryRepository mbtiTestHistoryRepository;
     private final UserRepository userRepository;
 
-    /** 전체 MBTI 목록 반환 */
-    @Cacheable("mbtiList")
-    public List<MbtiResponse> getAllMbti() {
-        return mbtiMetadataRepository.findAll().stream()
-                .map(MbtiResponse::from)
+    /**
+     * MBTI 32문항 + FN 3문항 혼합 반환
+     * 주의: FN 질문은 fun_questions 테이블에서 별도 조회 후 셔플하여 섞음
+     */
+    public List<QuestionResponse> getTestQuestions() {
+        final List<com.board.kimicetea.domain.mbti.entity.MbtiQuestion> raw =
+                mbtiQuestionRepository.findRandomQuestionsByVersion("v1.0");
+
+        final Map<String, Long> countByCategory = raw.stream()
+                .collect(Collectors.groupingBy(
+                        com.board.kimicetea.domain.mbti.entity.MbtiQuestion::getCategory,
+                        Collectors.counting()));
+
+        final List<String> insufficient = List.of("EI", "SN", "TF", "JP").stream()
+                .filter(cat -> countByCategory.getOrDefault(cat, 0L) < 8)
                 .toList();
-    }
 
-    /** MBTI 단건 조회 */
-    // @Cacheable(value = "mbti", key = "#mbtiId") 사용 시 CacheConfig에 "mbtiId" 추가
-    public MbtiResponse getMbtiById(final String mbtiId) {
-        final MbtiMetadata mbti = mbtiMetadataRepository.findById(mbtiId)
-                .orElseThrow(() -> new CustomException(ErrorCode.MBTI_NOT_FOUND));
-        return MbtiResponse.from(mbti);
-    }
+        if (!insufficient.isEmpty()) {
+            throw new CustomException(ErrorCode.INSUFFICIENT_VISIBLE_QUESTIONS);
+        }
 
-    /** 카테고리당 8개씩 랜덤 추출 후 셔플하여 반환 */
-    public List<MbtiQuestionResponse> getTestQuestions() {
-        final List<MbtiQuestionResponse> questions = mbtiQuestionRepository
-                .findRandomQuestionsByVersion("v1.0")
+        final List<QuestionResponse> questions = new ArrayList<>(
+                raw.stream().map(MbtiQuestionResponse::from).toList()
+        );
+
+        final List<Long> funIds = funQuestionRepository.findRandomIdsByVersion("v1.0", 3);
+        funQuestionRepository.findAllWithOptionsByIds(funIds)
                 .stream()
-                .map(MbtiQuestionResponse::from)
-                .collect(Collectors.toCollection(ArrayList::new));
+                .map(FunQuestionResponse::from)
+                .forEach(questions::add);
+
         Collections.shuffle(questions);
         return questions;
     }
@@ -105,7 +116,7 @@ public class MbtiService {
     }
 
     private String deriveMbtiId(final short eiScore, final short snScore, final short tfScore, final short jpScore) {
-        return String.valueOf(new char[] {
+        return String.valueOf(new char[]{
                 eiScore >= 0 ? 'E' : 'I',
                 snScore >= 0 ? 'S' : 'N',
                 tfScore >= 0 ? 'T' : 'F',
