@@ -35,12 +35,17 @@
 ```sql
 -- 1. MBTI 마스터 데이터
 CREATE TABLE mbti_metadata (
-    id VARCHAR(7) PRIMARY KEY, -- 'UNKNOWN','INTP', 'ENFP' 등
-    icon_url TEXT,
-    color_code VARCHAR(7) NOT NULL,
-    description TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+    id            VARCHAR(6)   PRIMARY KEY, -- 'NONE','INTP', 'ENFP' 등
+    title         VARCHAR(100) NOT NULL,
+    color_code    VARCHAR(7)   NOT NULL,
+    image_url     VARCHAR(255),            -- Next.js public 기준 경로 (/images/mbti/icons/{id}.png), NONE은 NULL
+    descript      JSONB        NOT NULL,    -- { "title": "...", "content": "...", "icon": "..." }
+    personalities JSONB        NOT NULL DEFAULT '[]',
+    -- [{ "label": "...", "description": "...", "icon": "..." }, ...]
+    best_mbti     VARCHAR(6)   CONSTRAINT fk_mbti_metadata_best REFERENCES mbti_metadata (id),
+    bad_mbti      VARCHAR(6)   CONSTRAINT fk_mbti_metadata_bad  REFERENCES mbti_metadata (id),
+    created_at    TIMESTAMPTZ  DEFAULT NOW() NOT NULL,
+    updated_at    TIMESTAMPTZ  DEFAULT NOW() NOT NULL
 );
 
 -- 2. 유저 테이블

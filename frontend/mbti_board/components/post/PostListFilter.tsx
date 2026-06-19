@@ -1,7 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { fetchMbtiList } from "@/lib/api/mbti";
+import { getAllMbti } from "@/constants/mbtiData";
 import { POST_SORT } from "@/types/post";
 import MbtiSelect from "@/components/common/MbtiSelect";
 import LabeledFilterBox from "@/components/common/LabeledFilterBox";
@@ -31,11 +30,7 @@ export default function PostListFilter({
   onAuthorMbtiChange,
   onTargetMbtiChange,
 }: Props) {
-  const { data: mbtiList = [] } = useQuery({
-    queryKey: ["mbtiList"],
-    queryFn: fetchMbtiList,
-    staleTime: Infinity,
-  });
+  const mbtiList = getAllMbti();
 
   return (
     <nav className="flex flex-col gap-2 py-3">
@@ -62,8 +57,8 @@ export default function PostListFilter({
         <div className="flex items-center gap-3">
           <LabeledFilterBox label="작성자 MBTI">
             <MbtiSelect
-              value={authorMbti ?? ""}
-              onChange={(v) => onAuthorMbtiChange(v || undefined)}
+              value={authorMbti}
+              onChange={onAuthorMbtiChange}
               mbtiList={mbtiList}
               placeholder="전체"
               className="border-0 rounded-none flex-1 py-1.5"
@@ -72,8 +67,8 @@ export default function PostListFilter({
 
           <LabeledFilterBox label="대상 MBTI">
             <MbtiSelect
-              value={targetMbti ?? ""}
-              onChange={(v) => onTargetMbtiChange(v || undefined)}
+              value={targetMbti}
+              onChange={onTargetMbtiChange}
               mbtiList={mbtiList}
               placeholder="전체"
               className="border-0 rounded-none flex-1 py-1.5"

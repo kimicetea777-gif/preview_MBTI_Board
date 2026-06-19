@@ -1,8 +1,10 @@
-import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useSuspenseInfiniteQuery, useQuery, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import type { InfiniteData } from "@tanstack/react-query";
 import { fetchPosts, fetchPostById } from "@/lib/api/post";
 import type { PostListParams, PostSummaryResponse, PostDetailResponse } from "@/types/post";
 import type { PageResponse } from "@/types/api";
+import { recordRecentlyViewed } from "@/lib/recentlyViewedPosts";
 
 export const postKeys = {
   all:     () => ["posts"]                    as const,
@@ -14,14 +16,44 @@ export const postKeys = {
                [...postKeys.details(), id]    as const,
 };
 
-export function usePostList(params: Omit<PostListParams, "page">) {
-  return useInfiniteQuery({
+export function useSuspensePostList(params: Omit<PostListParams, "page">) {
+  return useSuspenseInfiniteQuery({
     queryKey: postKeys.list(params),
     queryFn: ({ pageParam }) => fetchPosts({ ...params, page: pageParam }),
     initialPageParam: 0,
     getNextPageParam: (lastPage) =>
       lastPage.last ? undefined : lastPage.number + 1,
   });
+}
+
+export function useSuspensePostDetail(id: number) {
+  const queryClient = useQueryClient();
+
+  const result = useSuspenseQuery({
+    queryKey: postKeys.detail(id),
+    queryFn: () => fetchPostById(id),
+    initialData: () => {
+      const listCaches = queryClient.getQueriesData<
+        InfiniteData<PageResponse<PostSummaryResponse>>
+      >({ queryKey: postKeys.lists() });
+
+      for (const [, cached] of listCaches) {
+        for (const page of cached?.pages ?? []) {
+          const match = page.content.find((post) => post.id === id);
+          if (match) return match as unknown as PostDetailResponse;
+        }
+      }
+    },
+    initialDataUpdatedAt: 0,
+  });
+
+  const { id: postId, typeCode, title } = result.data;
+  useEffect(() => {
+    if (!typeCode) return;
+    recordRecentlyViewed({ id: postId, typeCode, title });
+  }, [postId, typeCode, title]);
+
+  return result;
 }
 
 export function usePostDetail(id: number) {

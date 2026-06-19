@@ -8,10 +8,11 @@ const useHasMounted = () =>
   useSyncExternalStore(() => () => {}, () => true, () => false);
 
 const THEMES = [
-  { id: "light",       label: "라이트",  bg: "#ffffff", accent: "#111827" },
-  { id: "dark",        label: "다크",    bg: "#0a0a0a", accent: "#f5f5f5" },
-  { id: "theme-navy",  label: "네이비",  bg: "#0A0F1E", accent: "#E4F0F6" },
-  { id: "theme-rose",  label: "로즈",    bg: "#1A0A0A", accent: "#E8729A" },
+  { id: "theme-earthen", label: "어스",   bg: "#fbf9f5", accent: "#31170a" },
+  { id: "light",         label: "라이트", bg: "#ffffff",  accent: "#111827" },
+  { id: "dark",          label: "다크",   bg: "#0a0a0a",  accent: "#f5f5f5" },
+  { id: "theme-navy",    label: "네이비", bg: "#0A0F1E",  accent: "#E4F0F6" },
+  { id: "theme-rose",    label: "로즈",   bg: "#1A0A0A",  accent: "#E8729A" },
 ] as const;
 
 export default function ThemeSwitcher() {

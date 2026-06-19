@@ -21,6 +21,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
@@ -31,6 +32,7 @@ import java.util.UUID;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
+@DynamicUpdate
 @Table(name = "users")
 public class User {
 
@@ -51,10 +53,13 @@ public class User {
     @Column(name = "provider_id")
     private String providerId;
 
+    @Column(name = "phone_hash", length = 64)
+    private String phoneHash;
+
     @Column(name = "profile_image_url")
     private String profileImageUrl;
 
-    @Column(name = "nickname", unique = true, nullable = false, length = 50)
+    @Column(name = "nickname", unique = true, nullable = false, length = 12)
     private String nickname;
 
     @Enumerated(EnumType.STRING)
@@ -113,6 +118,10 @@ public class User {
         this.password = encodedPassword;
     }
 
+    public void changePhone(final String phoneHash) {
+        this.phoneHash = phoneHash;
+    }
+
     public void changeRole(final UserRole role) {
         this.role = role;
     }
@@ -122,6 +131,7 @@ public class User {
         this.email = "withdrawn_" + this.id + "@deleted.invalid";
         this.nickname = "withdrawn_" + this.id.toString().substring(0, 8);
         this.password = null;
+        this.phoneHash = null;
         this.profileImageUrl = null;
         this.socialProvider = null;
         this.providerId = null;

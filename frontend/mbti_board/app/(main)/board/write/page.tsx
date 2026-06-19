@@ -6,10 +6,11 @@ function parseInitialType(param: string | undefined): PostType {
   return "FREE";
 }
 
-export default function UnifiedWritePage({
+export default async function UnifiedWritePage({
   searchParams,
 }: {
-  searchParams: { type?: string };
+  searchParams: Promise<{ type?: string }>;
 }) {
-  return <WriteFormContent initialType={parseInitialType(searchParams.type)} />;
+  const { type } = await searchParams;
+  return <WriteFormContent initialType={parseInitialType(type)} />;
 }

@@ -9,6 +9,7 @@ import com.board.kimicetea.global.security.oauth2.OAuth2AuthenticationFailureHan
 import com.board.kimicetea.global.security.oauth2.OAuth2AuthenticationSuccessHandler;
 import com.board.kimicetea.global.security.redis.TokenRedisService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -30,96 +31,113 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtProvider jwtProvider;
-    private final TokenRedisService tokenRedisService;
-    private final CustomOAuth2UserService customOAuth2UserService;
-    private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
-    private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
-    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
-    private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
+        private final JwtProvider jwtProvider;
+        private final TokenRedisService tokenRedisService;
+        private final CustomOAuth2UserService customOAuth2UserService;
+        private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+        private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
+        private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+        private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
-    @Bean
-    SecurityFilterChain filterChain(final HttpSecurity http) throws Exception {
-        http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .formLogin(AbstractHttpConfigurer::disable)
-                .httpBasic(AbstractHttpConfigurer::disable)
+        @Value("${frontend.url}")
+        private String frontendUrl;
 
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers(
-                                "/api/auth/signup",
-                                "/api/auth/login",
-                                "/api/auth/reissue", // RT Cookie 기반 — 인증 없이 접근해야 함
-                                "/api/auth/email-verify/send",
-                                "/api/auth/email-verify/confirm",
-                                "/api/auth/find-email",
-                                "/api/auth/password-reset/request",
-                                "/api/auth/password-reset/confirm",
-                                "/oauth2/**",
-                                "/login/oauth2/**",
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**")
-                        .permitAll()
-                        // /me보다 먼저 선언해야 아래 /api/users/* 패턴이 /me를 가로채지 않음
-                        .requestMatchers(HttpMethod.GET, "/api/users/me", "/api/users/me/mbti/history", "/api/users/me/posts").authenticated()
-                        .requestMatchers(HttpMethod.GET,
-                                "/api/posts/**",
-                                "/api/comments/**",
-                                "/api/users/*")
-                        .permitAll()
-                        // MBTI 검사 제출은 회원 전용 — anyRequest().authenticated()에 위임
-                        .requestMatchers(HttpMethod.POST, "/api/mbti/test/submit").authenticated()
-                        // MBTI 메타데이터·문항 조회는 완전 공개 (GET 전용)
-                        .requestMatchers(HttpMethod.GET, "/api/mbti", "/api/mbti/**").permitAll()
-                        // 이미지 업로드는 게시글 작성과 같이 비회원도 허용
-                        .requestMatchers(HttpMethod.POST,   "/api/images/upload").permitAll()
-                        // /pending은 컨트롤러에서 X-Internal-Key 헤더로 2차 검증
-                        .requestMatchers(HttpMethod.POST,   "/api/images/pending").permitAll()
-                        .requestMatchers(HttpMethod.DELETE, "/api/images").permitAll()
-                        // 게시글·댓글 작성·수정·삭제는 비회원도 허용 (서비스 레이어에서 회원/비회원 분기)
-                        // 투표·토론 게시글 작성은 회원 전용 — anyRequest().authenticated()에 위임
-                        .requestMatchers(HttpMethod.POST,   "/api/posts", "/api/posts/*/comments").permitAll()
-                        .requestMatchers(HttpMethod.PATCH,  "/api/posts/*", "/api/posts/*/comments/*").permitAll()
-                        .requestMatchers(HttpMethod.DELETE, "/api/posts/*", "/api/posts/*/comments/*").permitAll()
-                        .anyRequest().authenticated())
+        @Bean
+        SecurityFilterChain filterChain(final HttpSecurity http) throws Exception {
+                http
+                                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                                .csrf(AbstractHttpConfigurer::disable)
+                                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                                .formLogin(AbstractHttpConfigurer::disable)
+                                .httpBasic(AbstractHttpConfigurer::disable)
 
-                .oauth2Login(oauth2 -> oauth2
-                        .userInfoEndpoint(u -> u.userService(customOAuth2UserService))
-                        .successHandler(oAuth2AuthenticationSuccessHandler)
-                        .failureHandler(oAuth2AuthenticationFailureHandler))
+                                .authorizeHttpRequests(auth -> auth
+                                                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                                                .requestMatchers(
+                                                                "/api/auth/signup",
+                                                                "/api/auth/login",
+                                                                "/api/auth/reissue", // RT Cookie 기반 — 인증 없이 접근해야 함
+                                                                "/api/auth/email-verify/send",
+                                                                "/api/auth/email-verify/confirm",
+                                                                "/api/auth/find-email",
+                                                                "/api/auth/password-reset/request",
+                                                                "/api/auth/password-reset/confirm",
+                                                                "/oauth2/**",
+                                                                "/login/oauth2/**",
+                                                                "/swagger-ui/**",
+                                                                "/v3/api-docs/**")
+                                                .permitAll()
+                                                // /me보다 먼저 선언해야 아래 /api/users/* 패턴이 /me를 가로채지 않음
+                                                .requestMatchers(HttpMethod.GET,
+                                                                "/api/users/me",
+                                                                "/api/users/me/stats",
+                                                                "/api/users/me/mbti/history",
+                                                                "/api/users/me/posts",
+                                                                "/api/users/me/posts/preview")
+                                                .authenticated()
+                                                .requestMatchers(HttpMethod.GET,
+                                                                "/api/posts/**",
+                                                                "/api/comments/**",
+                                                                "/api/users/*")
+                                                .permitAll()
+                                                // MBTI 검사 제출은 회원 전용 — anyRequest().authenticated()에 위임
+                                                .requestMatchers(HttpMethod.POST, "/api/mbti/test/submit")
+                                                .authenticated()
+                                                // FN 응답 저장: 비회원 포함 허용 (GET stats도 동일)
+                                                .requestMatchers(HttpMethod.POST, "/api/mbti/fun/responses")
+                                                .permitAll()
+                                                // MBTI 메타데이터·문항 조회는 완전 공개 (GET 전용)
+                                                .requestMatchers(HttpMethod.GET, "/api/mbti", "/api/mbti/**")
+                                                .permitAll()
+                                                // 이미지 업로드: Security는 permitAll — 실제 인증은 X-Internal-Key 헤더로 컨트롤러에서 처리
+                                                .requestMatchers(HttpMethod.POST, "/api/images/upload").permitAll()
+                                                .requestMatchers(HttpMethod.DELETE, "/api/images").permitAll()
+                                                // 게시글·댓글 작성·수정·삭제는 비회원도 허용 (서비스 레이어에서 회원/비회원 분기)
+                                                // 투표·토론 게시글 작성은 회원 전용 — anyRequest().authenticated()에 위임
+                                                .requestMatchers(HttpMethod.POST, "/api/posts", "/api/posts/*/comments")
+                                                .permitAll()
+                                                .requestMatchers(HttpMethod.PATCH, "/api/posts/*",
+                                                                "/api/posts/*/comments/*")
+                                                .permitAll()
+                                                .requestMatchers(HttpMethod.DELETE, "/api/posts/*",
+                                                                "/api/posts/*/comments/*")
+                                                .permitAll()
+                                                .anyRequest().authenticated())
 
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
-                        .accessDeniedHandler(jwtAccessDeniedHandler))
+                                .oauth2Login(oauth2 -> oauth2
+                                                .userInfoEndpoint(u -> u.userService(customOAuth2UserService))
+                                                .successHandler(oAuth2AuthenticationSuccessHandler)
+                                                .failureHandler(oAuth2AuthenticationFailureHandler))
 
-                .addFilterBefore(
-                        new JwtAuthenticationFilter(jwtProvider, tokenRedisService),
-                        UsernamePasswordAuthenticationFilter.class);
+                                .exceptionHandling(ex -> ex
+                                                .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                                                .accessDeniedHandler(jwtAccessDeniedHandler))
 
-        return http.build();
-    }
+                                .addFilterBefore(
+                                                new JwtAuthenticationFilter(jwtProvider, tokenRedisService),
+                                                UsernamePasswordAuthenticationFilter.class);
 
-    @Bean
-    PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+                return http.build();
+        }
 
-    /**
-     * 프론트엔드 개발 시작 시 주석 해제
-     * 주의: allowCredentials(true) 사용 시 allowedOrigins에 "*" 불가 — 출처 명시 필수
-     */
-    @Bean
-    CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:3000"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(true); // RT 쿠키 전송을 위해 필수
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        return source;
-    }
+        @Bean
+        PasswordEncoder passwordEncoder() {
+                return new BCryptPasswordEncoder();
+        }
+
+        /**
+         * 주의: allowCredentials(true) 사용 시 allowedOrigins에 "*" 불가 — 출처 명시 필수
+         * 주의: frontendUrl은 ${frontend.url} 환경변수에서 주입 — 하드코딩 금지
+         */
+        @Bean
+        CorsConfigurationSource corsConfigurationSource() {
+                CorsConfiguration config = new CorsConfiguration();
+                config.setAllowedOrigins(List.of(frontendUrl));
+                config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+                config.setAllowedHeaders(List.of("*"));
+                config.setAllowCredentials(true); // RT 쿠키 전송을 위해 필수
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+                source.registerCorsConfiguration("/**", config);
+                return source;
+        }
 }

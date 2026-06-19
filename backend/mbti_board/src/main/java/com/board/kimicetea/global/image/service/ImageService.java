@@ -24,19 +24,20 @@ import java.util.UUID;
 public class ImageService {
 
     private static final Set<String> ALLOWED_TYPES = Set.of(
-            "image/jpeg", "image/png", "image/gif", "image/webp"
+            "image/jpeg", "image/png", "image/webp", "image/bmp"
     );
-    private static final long MAX_SIZE = 5L * 1024 * 1024;
+    private static final long MAX_SIZE = 10L * 1024 * 1024;
 
     // 각 포맷의 파일 시그니처(magic bytes) — 클라이언트 Content-Type 스푸핑 방어
     private static final Map<String, byte[]> MAGIC_BYTES = Map.of(
             "image/jpeg", new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF},
             "image/png",  new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47},
-            "image/gif",  new byte[]{0x47, 0x49, 0x46, 0x38},
+            "image/bmp",  new byte[]{0x42, 0x4D},
             "image/webp", new byte[]{0x52, 0x49, 0x46, 0x46}    // "RIFF" + 4바이트 + "WEBP" 구조
     );
 
     private final S3Client r2Client;
+    private final ImageCleanupService imageCleanupService;
 
     @Value("${r2.bucket}")
     private String bucket;
@@ -44,7 +45,7 @@ public class ImageService {
     @Value("${r2.public-url}")
     private String publicUrl;
 
-    /** MultipartFile을 R2에 업로드하고 공개 URL을 반환 */
+    /** MultipartFile을 R2에 업로드하고 PENDING 등록 후 공개 URL을 반환 */
     public String upload(final MultipartFile file) {
         final String contentType = validate(file);
         final String key = "images/" + UUID.randomUUID() + "." + extensionOf(contentType);
@@ -55,13 +56,17 @@ public class ImageService {
                             .key(key)
                             .contentType(contentType)
                             .contentLength(file.getSize())
+                            .cacheControl("public, max-age=31536000, immutable")
                             .build(),
                     RequestBody.fromInputStream(file.getInputStream(), file.getSize())
             );
         } catch (IOException e) {
             throw new CustomException(ErrorCode.IMAGE_UPLOAD_FAILED);
         }
-        return publicUrl + "/" + key;
+        final String base = publicUrl.endsWith("/") ? publicUrl.substring(0, publicUrl.length() - 1) : publicUrl;
+        final String imageUrl = base + "/" + key;
+        imageCleanupService.registerPending(imageUrl);
+        return imageUrl;
     }
 
     /** 검증을 통과한 contentType을 반환 — null 체크 + MIME 검증 + 크기 + magic bytes */
@@ -109,7 +114,7 @@ public class ImageService {
         return switch (contentType) {
             case "image/jpeg" -> "jpg";
             case "image/png"  -> "png";
-            case "image/gif"  -> "gif";
+            case "image/bmp"  -> "bmp";
             case "image/webp" -> "webp";
             default -> throw new CustomException(ErrorCode.INVALID_IMAGE_TYPE);
         };

@@ -6,7 +6,10 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * 게시글 기본 CRUD + viewCount 원자적 증가
@@ -22,4 +25,36 @@ public interface PostRepository extends JpaRepository<Post, Long>, PostRepositor
     @Modifying
     @Query("UPDATE Post p SET p.viewCount = p.viewCount + 1 WHERE p.id = :id")
     void increaseViewCount(@Param("id") Long id);
+
+    @Query("SELECT COUNT(p) FROM Post p WHERE p.user.id = :userId AND p.isVisible = true")
+    long countByUserId(@Param("userId") UUID userId);
+
+    // ── 어드민 통계 쿼리 ─────────────────────────────────────────────────────────────
+
+    /** 숨겨진 게시글 수 */
+    @Query(value = "SELECT COUNT(*) FROM posts WHERE is_visible = false", nativeQuery = true)
+    long countHidden();
+
+    /** 타입 코드별 게시글 수 */
+    @Query(value = "SELECT pt.code AS name, COUNT(*) AS value FROM posts p JOIN post_types pt ON p.type_id = pt.id GROUP BY pt.code ORDER BY value DESC", nativeQuery = true)
+    List<Object[]> countGroupByTypeRaw();
+
+    /** MBTI별 게시글 수 */
+    @Query(value = "SELECT author_mbti AS name, COUNT(*) AS value FROM posts GROUP BY author_mbti ORDER BY value DESC", nativeQuery = true)
+    List<Object[]> countGroupByMbtiRaw();
+
+    /** 최근 :since 이후 일별 게시글 수 */
+    @Query(value = """
+            SELECT TO_CHAR(DATE_TRUNC('day', created_at), 'MM-DD') AS date,
+                   COUNT(*)                                         AS value
+            FROM posts
+            WHERE created_at >= :since
+            GROUP BY DATE_TRUNC('day', created_at)
+            ORDER BY DATE_TRUNC('day', created_at)
+            """, nativeQuery = true)
+    List<Object[]> findPostTrendRaw(@Param("since") Instant since);
+
+    /** :from 이상 :to 미만 구간의 신규 게시글 수 */
+    @Query("SELECT COUNT(p) FROM Post p WHERE p.createdAt >= :from AND p.createdAt < :to")
+    long countByCreatedAtBetween(@Param("from") Instant from, @Param("to") Instant to);
 }

@@ -13,14 +13,16 @@ import java.util.List;
  */
 public interface MbtiQuestionRepository extends JpaRepository<MbtiQuestion, Long> {
 
+    List<MbtiQuestion> findAllByTestVersionOrderByCategoryAscIdAsc(String testVersion);
+
     @Query(value = """
-            (SELECT * FROM mbti_questions WHERE category = 'EI' AND test_version = :version ORDER BY RANDOM() LIMIT 8)
+            (SELECT * FROM mbti_questions WHERE category = 'EI' AND test_version = :version AND is_visible = true ORDER BY RANDOM() LIMIT 8)
             UNION ALL
-            (SELECT * FROM mbti_questions WHERE category = 'SN' AND test_version = :version ORDER BY RANDOM() LIMIT 8)
+            (SELECT * FROM mbti_questions WHERE category = 'SN' AND test_version = :version AND is_visible = true ORDER BY RANDOM() LIMIT 8)
             UNION ALL
-            (SELECT * FROM mbti_questions WHERE category = 'TF' AND test_version = :version ORDER BY RANDOM() LIMIT 8)
+            (SELECT * FROM mbti_questions WHERE category = 'TF' AND test_version = :version AND is_visible = true ORDER BY RANDOM() LIMIT 8)
             UNION ALL
-            (SELECT * FROM mbti_questions WHERE category = 'JP' AND test_version = :version ORDER BY RANDOM() LIMIT 8)
+            (SELECT * FROM mbti_questions WHERE category = 'JP' AND test_version = :version AND is_visible = true ORDER BY RANDOM() LIMIT 8)
             """, nativeQuery = true)
     List<MbtiQuestion> findRandomQuestionsByVersion(@Param("version") String version);
 }

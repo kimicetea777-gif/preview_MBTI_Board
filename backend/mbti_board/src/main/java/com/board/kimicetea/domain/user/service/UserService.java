@@ -1,10 +1,16 @@
 package com.board.kimicetea.domain.user.service;
 
+import com.board.kimicetea.domain.comment.repository.CommentRepository;
 import com.board.kimicetea.domain.mbti.entity.MbtiMetadata;
+import com.board.kimicetea.domain.mbti.entity.MbtiTestHistory;
 import com.board.kimicetea.domain.mbti.repository.MbtiMetadataRepository;
+import com.board.kimicetea.domain.mbti.repository.MbtiTestHistoryRepository;
+import com.board.kimicetea.domain.post.repository.PostRepository;
 import com.board.kimicetea.domain.user.dto.ChangePasswordRequest;
 import com.board.kimicetea.domain.user.dto.MyProfileResponse;
+import com.board.kimicetea.domain.user.dto.UpdatePhoneRequest;
 import com.board.kimicetea.domain.user.dto.UpdateProfileRequest;
+import com.board.kimicetea.domain.user.dto.UserActivityStatsResponse;
 import com.board.kimicetea.domain.user.dto.UserProfileResponse;
 import com.board.kimicetea.domain.user.entity.User;
 import com.board.kimicetea.domain.user.enums.MbtiVerified;
@@ -13,15 +19,19 @@ import com.board.kimicetea.domain.user.enums.UserState;
 import com.board.kimicetea.domain.user.repository.UserRepository;
 import com.board.kimicetea.global.common.exception.CustomException;
 import com.board.kimicetea.global.common.exception.ErrorCode;
+import com.board.kimicetea.global.crypto.PhoneHashService;
 import com.board.kimicetea.global.mail.EmailService;
 import com.board.kimicetea.global.security.jwt.JwtProvider;
 import com.board.kimicetea.global.security.redis.TokenRedisService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -34,15 +44,22 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final MbtiMetadataRepository mbtiMetadataRepository;
+    private final PostRepository postRepository;
+    private final CommentRepository commentRepository;
+    private final MbtiTestHistoryRepository mbtiTestHistoryRepository;
     private final PasswordEncoder passwordEncoder;
+    private final PhoneHashService phoneHashService;
     private final TokenRedisService tokenRedisService;
     private final JwtProvider jwtProvider;
     private final EmailService emailService;
 
-    /** 회원가입 — AuthService에서 위임받아 유저 엔티티 생성 */
+    /**
+     * 어드민 유저 직접 생성 — 이메일 인증 없이 role·state 직접 지정
+     * 주의: phone은 저장하지 않음 (어드민 생성 계정은 이메일 찾기 불필요)
+     */
     @Transactional
-    public void registerUser(final String email, final String rawPassword,
-            final String nickname, final String mbtiId) {
+    public void adminCreateUser(final String email, final String rawPassword,
+            final String nickname, final String mbtiId, final UserRole role, final UserState state) {
         if (userRepository.existsByEmail(email)) {
             throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
         }
@@ -55,6 +72,38 @@ public class UserService {
                 .email(email)
                 .password(passwordEncoder.encode(rawPassword))
                 .nickname(nickname)
+                .mbtiVerified(mbtiVerified)
+                .role(role)
+                .state(state)
+                .mbti(mbti)
+                .build());
+    }
+
+    /** 회원가입 — AuthService에서 위임받아 유저 엔티티 생성. phone은 null 허용 (이메일 찾기 전용) */
+    @Transactional
+    public void registerUser(final String email, final String rawPassword,
+            final String nickname, final String mbtiId, final String phone) {
+        if (userRepository.existsByEmail(email)) {
+            throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
+        }
+        validateNicknameNotDuplicate(nickname);
+
+        String phoneHash = null;
+        if (phone != null && !phone.isBlank()) {
+            phoneHash = phoneHashService.hash(phone);
+            if (userRepository.existsByPhoneHash(phoneHash)) {
+                throw new CustomException(ErrorCode.DUPLICATE_PHONE);
+            }
+        }
+
+        final MbtiMetadata mbti = findMbtiOrThrow(mbtiId);
+        final MbtiVerified mbtiVerified = mbti.isNone() ? MbtiVerified.DEFAULT : MbtiVerified.SELF;
+
+        userRepository.save(User.builder()
+                .email(email)
+                .password(passwordEncoder.encode(rawPassword))
+                .nickname(nickname)
+                .phoneHash(phoneHash)
                 .mbtiVerified(mbtiVerified)
                 .role(UserRole.USER)
                 .state(UserState.NORMAL)
@@ -95,6 +144,19 @@ public class UserService {
     public UserProfileResponse getUserProfile(final UUID userId) {
         final User user = findUserOrThrow(userId);
         return UserProfileResponse.from(user);
+    }
+
+    /** 내 활동 통계 조회 — 게시글 수·댓글 수·최근 검사 MBTI·검사 일시 */
+    @Transactional(readOnly = true)
+    public UserActivityStatsResponse getMyActivityStats(final UUID userId) {
+        final long postCount = postRepository.countByUserId(userId);
+        final long commentCount = commentRepository.countByUserId(userId);
+        final List<MbtiTestHistory> latest = mbtiTestHistoryRepository.findLatestByUserId(
+                userId, PageRequest.of(0, 1));
+        final MbtiTestHistory latestHistory = latest.isEmpty() ? null : latest.get(0);
+        final String latestTestMbtiId = latestHistory == null ? null : latestHistory.getMbti().getId();
+        final Instant latestTestDate  = latestHistory == null ? null : latestHistory.getCreatedAt();
+        return UserActivityStatsResponse.of(postCount, commentCount, latestTestMbtiId, latestTestDate);
     }
 
     /**
@@ -159,6 +221,27 @@ public class UserService {
         }
 
         user.changePassword(passwordEncoder.encode(request.newPassword()));
+    }
+
+    /**
+     * 전화번호 등록/변경 — 중복 검증 후 HMAC 해시로 저장
+     * 주의: 원본 전화번호는 저장하지 않으므로 현재 번호 조회 불가
+     */
+    @Transactional
+    public void updatePhone(final UUID userId, final UpdatePhoneRequest request) {
+        final String phoneHash = phoneHashService.hash(request.phone());
+        if (userRepository.existsByPhoneHashAndIdNot(phoneHash, userId)) {
+            throw new CustomException(ErrorCode.DUPLICATE_PHONE);
+        }
+        final User user = findUserOrThrow(userId);
+        user.changePhone(phoneHash);
+    }
+
+    /** 전화번호 삭제 */
+    @Transactional
+    public void removePhone(final UUID userId) {
+        final User user = findUserOrThrow(userId);
+        user.changePhone(null);
     }
 
     /** 닉네임 중복 검증 **/

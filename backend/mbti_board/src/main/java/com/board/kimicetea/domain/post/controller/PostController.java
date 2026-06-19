@@ -2,6 +2,7 @@ package com.board.kimicetea.domain.post.controller;
 
 import com.board.kimicetea.domain.post.PostSortType;
 import com.board.kimicetea.domain.post.dto.DebatePostCreateRequest;
+import com.board.kimicetea.domain.post.dto.DebateStanceRequest;
 import com.board.kimicetea.domain.post.dto.PostCreateRequest;
 import com.board.kimicetea.domain.post.dto.PostDeleteRequest;
 import com.board.kimicetea.domain.post.dto.PostDetailResponse;
@@ -122,6 +123,36 @@ public class PostController {
 
                 return ResponseEntity.status(HttpStatus.CREATED)
                                 .body(ApiResponse.ok(postService.createVotePost(request, userDetails)));
+        }
+
+        @Operation(summary = "토론 진영 투표", description = "회원이 토론 게시글에 찬성(1) 또는 반대(-1) 의견을 선택합니다. 이미 선택한 경우 변경됩니다.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "투표 성공"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "마감된 토론 또는 잘못된 stance 값"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "로그인 필요")
+        })
+        @PostMapping("/debate/{id}/stance")
+        public ResponseEntity<ApiResponse<Void>> voteDebateStance(
+                        @PathVariable final Long id,
+                        @Valid @RequestBody final DebateStanceRequest request,
+                        @AuthenticationPrincipal final CustomUserDetails userDetails) {
+
+                postService.voteDebateStance(id, request, userDetails);
+                return ResponseEntity.ok(ApiResponse.ok(null));
+        }
+
+        @Operation(summary = "토론 진영 투표 취소", description = "회원이 자신의 토론 진영 선택을 취소합니다.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "취소 성공"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "로그인 필요")
+        })
+        @DeleteMapping("/debate/{id}/stance")
+        public ResponseEntity<ApiResponse<Void>> removeDebateStance(
+                        @PathVariable final Long id,
+                        @AuthenticationPrincipal final CustomUserDetails userDetails) {
+
+                postService.removeDebateStance(id, userDetails);
+                return ResponseEntity.ok(ApiResponse.ok(null));
         }
 
         @Operation(summary = "게시글 수정", description = "작성자(회원) 또는 비회원(guestPassword 검증)이 게시글을 수정합니다.")

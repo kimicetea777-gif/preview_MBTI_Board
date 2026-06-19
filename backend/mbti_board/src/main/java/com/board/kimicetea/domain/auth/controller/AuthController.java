@@ -12,6 +12,7 @@ import com.board.kimicetea.domain.auth.dto.SignupRequest;
 import com.board.kimicetea.domain.auth.service.AuthService;
 import com.board.kimicetea.domain.user.security.CustomUserDetails;
 import com.board.kimicetea.global.common.response.ApiResponse;
+import com.board.kimicetea.global.ratelimit.RateLimitService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -39,31 +40,40 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
         private final AuthService authService;
+        private final RateLimitService rateLimitService;
 
         /**
-         * 닉네임으로 이메일 찾기 — WITHDRAWN 계정은 404 반환
+         * 전화번호로 이메일 찾기 — WITHDRAWN 계정은 404 반환
+         * 주의: IP당 10분에 5회로 Rate Limit (전화번호 열거 방지)
          */
-        @Operation(summary = "이메일 찾기", description = "닉네임으로 마스킹된 이메일을 조회합니다.")
+        @Operation(summary = "이메일 찾기", description = "전화번호로 마스킹된 이메일을 조회합니다.")
         @ApiResponses({
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "이메일 조회 성공"),
-                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "해당 닉네임의 사용자 없음")
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "해당 전화번호의 사용자 없음"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "요청 횟수 초과")
         })
         @PostMapping("/find-email")
         public ResponseEntity<ApiResponse<FindEmailResponse>> findEmail(
-                        @Valid @RequestBody final FindEmailRequest request) {
+                        @Valid @RequestBody final FindEmailRequest request,
+                        final HttpServletRequest httpRequest) {
+                rateLimitService.check("find-email", httpRequest, 5, 600);
                 return ResponseEntity.ok(ApiResponse.ok(authService.findEmail(request)));
         }
 
         /**
          * 비밀번호 재설정 이메일 발송 — 이메일 열거 방지를 위해 항상 동일 응답 반환
+         * 주의: IP당 10분에 3회로 Rate Limit (재설정 이메일 스팸 방지)
          */
         @Operation(summary = "비밀번호 재설정 이메일 발송", description = "이메일로 비밀번호 재설정 링크를 발송합니다. 이메일 존재 여부와 무관하게 항상 200을 반환합니다.")
         @ApiResponses({
-                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "발송 처리 완료")
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "발송 처리 완료"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "요청 횟수 초과")
         })
         @PostMapping("/password-reset/request")
         public ResponseEntity<ApiResponse<Void>> requestPasswordReset(
-                        @Valid @RequestBody final PasswordResetRequestBody request) {
+                        @Valid @RequestBody final PasswordResetRequestBody request,
+                        final HttpServletRequest httpRequest) {
+                rateLimitService.check("password-reset", httpRequest, 3, 600);
                 authService.requestPasswordReset(request);
                 return ResponseEntity.ok(ApiResponse.ok("이메일이 발송되었습니다."));
         }
@@ -85,15 +95,19 @@ public class AuthController {
 
         /**
          * 이메일 인증 링크 발송 — 프론트 /signup/verify?token={uuid} 로 연결되는 링크 발송
+         * 주의: IP당 10분에 3회로 Rate Limit (임의 이메일 스팸 발송 방지)
          */
         @Operation(summary = "이메일 인증 발송", description = "입력한 이메일로 인증 링크를 발송합니다.")
         @ApiResponses({
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "발송 성공"),
-                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "이메일 형식 오류")
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "이메일 형식 오류"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "요청 횟수 초과")
         })
         @PostMapping("/email-verify/send")
         public ResponseEntity<ApiResponse<Void>> sendEmailVerification(
-                        @Valid @RequestBody final EmailVerifySendRequest request) {
+                        @Valid @RequestBody final EmailVerifySendRequest request,
+                        final HttpServletRequest httpRequest) {
+                rateLimitService.check("email-verify", httpRequest, 3, 600);
                 authService.sendEmailVerification(request);
                 return ResponseEntity.ok(ApiResponse.ok("인증 이메일이 발송되었습니다."));
         }
@@ -130,16 +144,22 @@ public class AuthController {
         /**
          * 로컬 로그인 — Access Token(body) + Refresh Token(HttpOnly Cookie) 발급
          */
+        /**
+         * 로컬 로그인 — Access Token(body) + Refresh Token(HttpOnly Cookie) 발급
+         * 주의: IP당 1분에 10회로 Rate Limit (비밀번호 brute force 방지)
+         */
         @Operation(summary = "로그인", description = "이메일·비밀번호로 로그인합니다. AT는 body, RT는 HttpOnly Cookie로 반환됩니다.")
         @ApiResponses({
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "로그인 성공"),
-                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "이메일 또는 비밀번호 불일치")
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "이메일 또는 비밀번호 불일치"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "요청 횟수 초과")
         })
         @PostMapping("/login")
         public ResponseEntity<ApiResponse<LoginResponse>> login(
                         @Valid @RequestBody final LoginRequest request,
+                        final HttpServletRequest httpRequest,
                         final HttpServletResponse response) {
-
+                rateLimitService.check("login", httpRequest, 10, 60);
                 return ResponseEntity.ok(ApiResponse.ok(authService.login(request, response)));
         }
 

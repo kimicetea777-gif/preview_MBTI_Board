@@ -1,19 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSuspenseQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import Image from "next/image";
 import { fetchMyPosts, deletePost } from "@/lib/api/post";
 import { formatRelativeTime } from "@/lib/dateUtils";
-import { ROUTES } from "@/lib/routes";
 import { POST_TYPE, POST_TYPE_LABELS } from "@/types/post";
 import type { PostType } from "@/types/post";
-
-const POST_DETAIL_HREF: Record<PostType, (id: number) => string> = {
-  [POST_TYPE.FREE]:   (id) => ROUTES.board.freePost(id),
-  [POST_TYPE.VOTE]:   (id) => ROUTES.board.votePost(id),
-  [POST_TYPE.DEBATE]: (id) => ROUTES.board.debatePost(id),
-};
+import { postHref } from "@/lib/boardUtils";
+import PostTypeBadge from "@/components/common/PostTypeBadge";
+import {
+  MdChatBubble, MdBarChart,
+  MdEdit, MdDelete, MdChevronLeft, MdChevronRight,
+} from "react-icons/md";
 
 const TABS: { label: string; value: PostType | undefined }[] = [
   { label: "전체",                             value: undefined },
@@ -22,14 +22,27 @@ const TABS: { label: string; value: PostType | undefined }[] = [
   { label: POST_TYPE_LABELS[POST_TYPE.DEBATE], value: POST_TYPE.DEBATE },
 ];
 
+
 const PAGE_SIZE = 10;
+
+function buildPageNumbers(current: number, total: number): number[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i);
+  const pages: number[] = [0];
+  if (current > 3) pages.push(-1);
+  const start = Math.max(1, current - 1);
+  const end = Math.min(total - 2, current + 1);
+  for (let i = start; i <= end; i++) pages.push(i);
+  if (current < total - 4) pages.push(-1);
+  pages.push(total - 1);
+  return pages;
+}
 
 export default function MyPostsSection() {
   const queryClient = useQueryClient();
   const [selectedType, setSelectedType] = useState<PostType | undefined>(undefined);
   const [page, setPage] = useState(0);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data } = useSuspenseQuery({
     queryKey: ["myPosts", selectedType, page],
     queryFn: () => fetchMyPosts({ type: selectedType, sort: "LATEST", page, size: PAGE_SIZE }),
   });
@@ -37,8 +50,7 @@ export default function MyPostsSection() {
   const { mutate: remove, isPending: isDeleting } = useMutation({
     mutationFn: (id: number) => deletePost(id),
     onSuccess: () => {
-      // 현재 페이지 게시글이 1개였다면 이전 페이지로
-      if (data?.content.length === 1 && page > 0) {
+      if (data.content.length === 1 && page > 0) {
         setPage((p) => p - 1);
       } else {
         queryClient.invalidateQueries({ queryKey: ["myPosts"] });
@@ -56,107 +68,151 @@ export default function MyPostsSection() {
     remove(id);
   };
 
+  const pageNumbers = buildPageNumbers(page, data.totalPages);
+
   return (
     <section>
-      {/* 탭 필터 */}
-      <nav className="flex gap-1 mb-4 border-b border-gray-200">
-        {TABS.map((tab) => (
-          <button
-            key={tab.label}
-            onClick={() => handleTabChange(tab.value)}
-            className={[
-              "px-3 py-2 text-sm font-medium transition-colors",
-              selectedType === tab.value
-                ? "border-b-2 border-gray-900 text-gray-900"
-                : "text-gray-500 hover:text-gray-700",
-            ].join(" ")}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
+      {/* 헤더 + 필터 탭 */}
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-primary flex items-baseline gap-2">
+          내 게시글
+          <span className="text-sm font-normal text-on-surface-variant">{data.totalElements}개</span>
+        </h1>
+        <div className="flex items-center gap-1 p-1 bg-surface-container rounded-xl">
+          {TABS.map((tab) => (
+            <button
+              key={tab.label}
+              type="button"
+              onClick={() => handleTabChange(tab.value)}
+              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                selectedType === tab.value
+                  ? "bg-surface-container-lowest text-primary shadow-sm"
+                  : "text-on-surface-variant hover:text-on-surface"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* 목록 */}
-      {isLoading && (
-        <p className="py-6 text-center text-sm text-gray-400">불러오는 중...</p>
-      )}
-
-      {isError && (
-        <p className="py-6 text-center text-sm text-red-500">게시글을 불러올 수 없습니다.</p>
-      )}
-
-      {!isLoading && !isError && data?.content.length === 0 && (
-        <p className="py-6 text-center text-sm text-gray-400">아직 작성한 게시글이 없습니다.</p>
-      )}
-
-      {!isLoading && !isError && data && data.content.length > 0 && (
+      {data.content.length === 0 ? (
+        <p className="py-16 text-center text-sm text-on-surface-variant">아직 작성한 게시글이 없습니다.</p>
+      ) : (
         <>
-          <ul>
+          <div className="flex flex-col border-t border-outline-variant/20">
             {data.content.map((post) => {
-              const detailHref = POST_DETAIL_HREF[post.typeCode](post.id);
+              const detailHref = postHref(post.typeCode, post.id);
+              const thumbnail = post.imageUrls?.[0];
+
               return (
-                <li key={post.id} className="border-b border-gray-100 last:border-0 py-3 px-1">
-                  <div className="flex items-start gap-3">
-                    <span className="shrink-0 mt-0.5 text-xs font-medium text-gray-400 w-10">
-                      [{POST_TYPE_LABELS[post.typeCode]}]
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <Link
-                        href={detailHref}
-                        className="block hover:underline"
-                      >
-                        <p className="text-sm font-medium text-gray-900 truncate">{post.title}</p>
+                <article
+                  key={post.id}
+                  className="group flex items-center gap-5 p-5 border-b border-outline-variant/20 hover:bg-surface-container-low transition-colors"
+                >
+                  {/* 썸네일 */}
+                  <div className="relative w-16 h-16 shrink-0 rounded-xl overflow-hidden">
+                    {thumbnail ? (
+                      <Image
+                        src={thumbnail}
+                        alt=""
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-full border-2 border-dashed border-outline-variant rounded-xl" />
+                    )}
+                  </div>
+
+                  {/* 본문 */}
+                  <div className="grow min-w-0 flex flex-col justify-between gap-2">
+                    <div className="flex flex-col gap-1">
+                      <PostTypeBadge type={post.typeCode} className="self-start" />
+                      <Link href={detailHref} className="block hover:underline min-w-0">
+                        <p className="text-sm font-semibold text-primary truncate">{post.title}</p>
                       </Link>
-                      <div className="mt-1 flex items-center gap-2 text-xs text-gray-400">
-                        <span>댓글 {post.commentCount}</span>
-                        <span>조회 {post.viewCount}</span>
-                        <span>·</span>
-                        <span>{formatRelativeTime(post.createdAt)}</span>
-                      </div>
                     </div>
-                    {/* 수정·삭제 버튼 */}
-                    <div className="shrink-0 flex items-center gap-1">
-                      <Link
-                        href={detailHref}
-                        className="px-2 py-1 text-xs rounded border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
-                      >
-                        수정
-                      </Link>
-                      <button
-                        onClick={() => handleDelete(post.id, post.title)}
-                        disabled={isDeleting}
-                        className="px-2 py-1 text-xs rounded border border-red-200 text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40"
-                      >
-                        삭제
-                      </button>
+
+                    <div className="flex items-center gap-4 text-xs text-on-surface-variant">
+                      <span className="w-12 shrink-0">{formatRelativeTime(post.createdAt)}</span>
+                      <span className="flex items-center gap-1">
+                        <MdBarChart className="text-base" />
+                        {post.viewCount}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MdChatBubble className="text-base" />
+                        {post.commentCount}
+                      </span>
                     </div>
                   </div>
-                </li>
+
+                  {/* 수정·삭제 */}
+                  <div className="shrink-0 flex items-center gap-1">
+                    <Link
+                      href={detailHref}
+                      title="수정"
+                      className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-highest transition-colors"
+                    >
+                      <MdEdit className="text-lg" />
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(post.id, post.title)}
+                      disabled={isDeleting}
+                      title="삭제"
+                      className="p-2 rounded-full text-error hover:bg-error-container/30 transition-colors disabled:opacity-40"
+                    >
+                      <MdDelete className="text-lg" />
+                    </button>
+                  </div>
+                </article>
               );
             })}
-          </ul>
+          </div>
 
           {/* 페이지네이션 */}
           {data.totalPages > 1 && (
-            <div className="flex items-center justify-center gap-4 mt-4 pt-4 border-t border-gray-100">
+            <nav className="mt-12 flex justify-center items-center gap-2">
               <button
+                type="button"
                 onClick={() => setPage((p) => p - 1)}
                 disabled={page === 0}
-                className="px-3 py-1.5 text-sm rounded border border-gray-300 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+                className="w-10 h-10 flex items-center justify-center rounded-full border border-outline-variant text-on-surface-variant hover:bg-surface-container transition-colors disabled:opacity-30"
               >
-                이전
+                <MdChevronLeft className="text-xl" />
               </button>
-              <span className="text-sm text-gray-500">
-                {page + 1} / {data.totalPages}
-              </span>
+
+              {pageNumbers.map((num, i) =>
+                num === -1 ? (
+                  <span key={`ellipsis-${i}`} className="w-10 h-10 flex items-center justify-center text-on-surface-variant">
+                    ...
+                  </span>
+                ) : (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => setPage(num)}
+                    className={`w-10 h-10 flex items-center justify-center rounded-full text-sm font-semibold transition-colors ${
+                      page === num
+                        ? "bg-primary text-on-primary"
+                        : "text-on-surface-variant hover:bg-surface-container"
+                    }`}
+                  >
+                    {num + 1}
+                  </button>
+                )
+              )}
+
               <button
+                type="button"
                 onClick={() => setPage((p) => p + 1)}
                 disabled={data.last}
-                className="px-3 py-1.5 text-sm rounded border border-gray-300 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+                className="w-10 h-10 flex items-center justify-center rounded-full border border-outline-variant text-on-surface-variant hover:bg-surface-container transition-colors disabled:opacity-30"
               >
-                다음
+                <MdChevronRight className="text-xl" />
               </button>
-            </div>
+            </nav>
           )}
         </>
       )}

@@ -1,17 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "@/components/common/Toast";
 import { confirmPasswordReset } from "@/lib/api/auth";
-import { ROUTES } from "@/lib/routes";
+import { ROUTES } from "@/constants/routes";
+import { FIND_ACCOUNT_TAB } from "@/types/auth";
 import type { ApiError } from "@/types/api";
-import { PASSWORD_REGEX, PASSWORD_MESSAGE } from "@/lib/validationConstants";
+import { validatePassword } from "@/lib/validationConstants";
+import { MdLockReset, MdLock, MdErrorOutline } from "react-icons/md";
+import AuthCardHeader from "@/components/auth/AuthCardHeader";
+import BackToLoginLink from "@/components/auth/BackToLoginLink";
+import PasswordInput from "@/components/common/PasswordInput";
+import SenderEmailNotice from "@/components/auth/SenderEmailNotice";
 
 interface Props {
-  token: string | null;
+  token: string;
 }
 
 export default function ResetPasswordContent({ token }: Props) {
@@ -19,18 +25,14 @@ export default function ResetPasswordContent({ token }: Props) {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
-  
-  // 검증 실패(400) vs 서버 오류를 구분하기 위함:
-  // - tokenInvalid=true 이면 전체 폼 숨김 (검증 링크가 만료)
-  // - retryError 이면 메시지만, 재시도 가능 (검증은 아직 유효할 수 있음)
+
+  /*
+   검증 실패(400) vs 서버 오류를 구분하기 위함:
+   - tokenInvalid=true 이면 전체 폼 숨김 (검증 링크가 만료)
+   - retryError 이면 메시지만, 재시도 가능 (검증은 아직 유효할 수 있음)
+  */
   const [tokenInvalid, setTokenInvalid] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!token) {
-      router.replace(ROUTES.accountFind);
-    }
-  }, [token, router]);
 
   const confirmMutation = useMutation({
     mutationFn: confirmPasswordReset,
@@ -47,21 +49,14 @@ export default function ResetPasswordContent({ token }: Props) {
     },
   });
 
-  if (!token) {
-    return null;
-  }
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError(null);
     setRetryError(null);
 
-    if (!PASSWORD_REGEX.test(newPassword)) {
-      setValidationError(PASSWORD_MESSAGE);
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setValidationError("비밀번호가 일치하지 않습니다.");
+    const error = validatePassword(newPassword, confirmPassword);
+    if (error) {
+      setValidationError(error);
       return;
     }
 
@@ -69,85 +64,92 @@ export default function ResetPasswordContent({ token }: Props) {
   };
 
   return (
-    <section className="max-w-md mx-auto w-full">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">비밀번호 재설정</h1>
-
-      <article className="bg-white rounded-xl border border-gray-200 p-6">
+    <div className="relative w-full max-w-120 isolate">
+      {/* -------------- Card -------------- */}
+      <article
+        className="w-full bg-card border border-outline-variant rounded-[1.5rem] overflow-hidden"
+        style={{ boxShadow: "0 4px 20px rgba(49, 23, 10, 0.12)" }}
+      >
+        <AuthCardHeader
+          icon={tokenInvalid
+            ? <MdErrorOutline className="text-primary text-3xl" />
+            : <MdLockReset className="text-primary text-3xl" />
+          }
+          title={tokenInvalid ? "링크가 만료되었습니다." : "비밀번호 재설정"}
+          description={tokenInvalid
+            ? "재설정 링크가 만료되었거나 유효하지 않습니다."
+            : "새로운 비밀번호를 입력해주세요."
+          }
+        />
+        <div className="p-8 md:p-12">
+        {/* -------------- (TOKEN 만료) -------------- */}
         {tokenInvalid ? (
-          <aside className="space-y-4 text-center py-2">
-            <p className="text-sm text-red-500">재설정 링크가 만료되었거나 유효하지 않습니다.</p>
+          <aside className="text-center py-2">
             <Link
-              href={ROUTES.accountFind + "?tab=password"}
-              className="inline-block text-sm text-gray-700 underline hover:text-gray-900 transition-colors"
+              href={`${ROUTES.accountFind}?tab=${FIND_ACCOUNT_TAB.PASSWORD}`}
+              className="text-sm font-semibold text-primary hover:text-secondary transition-colors"
             >
               다시 요청하기
             </Link>
           </aside>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label
-                htmlFor="new-password"
-                className="block text-xs text-gray-400 uppercase tracking-wide mb-1"
-              >
-                새 비밀번호
-              </label>
-              <input
-                id="new-password"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
-                autoComplete="new-password"
-                placeholder="영문+숫자 10자 이상 입력"
-                disabled={confirmMutation.isPending}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none disabled:opacity-50"
-              />
-            </div>
+          //{/* -------------- (TOKEN 유효) NEW PASSWORD FORM -------------- */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <PasswordInput
+              id="new-password"
+              label="새 비밀번호"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              icon={<MdLock />}
+              required
+              autoComplete="new-password"
+              hint="영문+숫자 10자 이상 입력"
+              disabled={confirmMutation.isPending}
+              error={!!validationError}
+            />
 
-            <div>
-              <label
-                htmlFor="confirm-password"
-                className="block text-xs text-gray-400 uppercase tracking-wide mb-1"
-              >
-                비밀번호 확인
-              </label>
-              <input
-                id="confirm-password"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                autoComplete="new-password"
-                placeholder="비밀번호를 다시 입력"
-                disabled={confirmMutation.isPending}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none disabled:opacity-50"
-              />
-            </div>
-
-            {validationError && (
-              <p className="text-xs text-red-500">{validationError}</p>
+            <PasswordInput
+              id="confirm-password"
+              label="비밀번호 확인"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              icon={<MdLock />}
+              required
+              autoComplete="new-password"
+              disabled={confirmMutation.isPending}
+              error={!!validationError}
+            />
+            {/* -------------- SENDER NOTICE -------------- */}
+            <SenderEmailNotice />
+            {/* -------------- ERROR MESSAGE -------------- */}
+            {(validationError || retryError) && (
+              <p className="text-sm text-destructive" role="alert">
+                {validationError ?? retryError}
+              </p>
             )}
-            {retryError && (
-              <p className="text-xs text-red-500">{retryError}</p>
-            )}
-
+            {/* -------------- Submit Button -------------- */}
             <button
               type="submit"
               disabled={confirmMutation.isPending}
-              className="w-full rounded-lg bg-gray-900 py-2 text-sm text-white hover:bg-gray-700 disabled:opacity-50 transition-colors"
+              className="w-full h-12 bg-primary text-primary-foreground text-sm font-semibold rounded-md hover:opacity-80 active:scale-[0.98] disabled:opacity-50 transition-all flex items-center justify-center gap-2"
             >
-              {confirmMutation.isPending ? "변경 중..." : "비밀번호 변경"}
+              {confirmMutation.isPending ? (
+                <div className="flex items-center gap-2">
+                  <span className="w-4 h-4 border-2 border-t-transparent border-white rounded-full animate-spin" />
+                  변경 중...
+                </div>
+              ) : (
+                <>비밀번호 변경 <MdLockReset className="text-lg" /></>
+              )}
             </button>
           </form>
         )}
+        {/* -------------- Footer links -------------- */}
+        <footer className="mt-8 pt-8 border-t border-outline-variant flex flex-col items-center">
+          <BackToLoginLink />
+        </footer>
+      </div>
       </article>
-
-      <p className="mt-4 text-center text-xs text-gray-400">
-        <Link href={ROUTES.login} className="hover:text-gray-600 transition-colors">
-          로그인으로 돌아가기
-        </Link>
-      </p>
-    </section>
+    </div>
   );
 }

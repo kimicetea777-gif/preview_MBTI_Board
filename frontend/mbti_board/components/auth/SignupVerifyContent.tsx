@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { confirmEmailVerification } from "@/lib/api/auth";
-import { ROUTES } from "@/lib/routes";
+import { ROUTES } from "@/constants/routes";
 import { STEP } from "@/app/(auth)/signup/steps";
 
 interface Props {

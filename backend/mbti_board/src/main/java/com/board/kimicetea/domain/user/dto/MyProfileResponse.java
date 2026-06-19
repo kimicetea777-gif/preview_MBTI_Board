@@ -15,13 +15,13 @@ public record MyProfileResponse(
         String nickname,
         String profileImageUrl,
         String mbtiId,
-        String mbtiColorCode,
         String mbtiVerified,
-        String mbtiVerifiedColorCode,
         String role,
         String state,
         boolean isSocialOnly,
-        Instant createdAt
+        boolean hasPhone,
+        Instant createdAt,
+        Instant lastLoginAt
 ) {
     public static MyProfileResponse from(final User user) {
         return new MyProfileResponse(
@@ -30,13 +30,13 @@ public record MyProfileResponse(
                 user.getNickname(),
                 user.getProfileImageUrl(),
                 user.getMbti().getId(),
-                user.getMbti().getColorCode(),
                 user.getMbtiVerified().name(),
-                user.getMbtiVerified().getColorCode(),
                 user.getRole().name(),
                 user.getState().name(),
                 user.getSocialProvider() != null,
-                user.getCreatedAt()
+                user.getPhoneHash() != null,
+                user.getCreatedAt(),
+                user.getLastLoginAt()
         );
     }
 }

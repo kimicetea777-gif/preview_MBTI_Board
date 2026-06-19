@@ -13,9 +13,7 @@ public record UserProfileResponse(
         String nickname,
         String profileImageUrl,
         String mbtiId,
-        String mbtiColorCode,
-        String mbtiVerified,
-        String mbtiVerifiedColorCode
+        String mbtiVerified
 ) {
     public static UserProfileResponse from(final User user) {
         return new UserProfileResponse(
@@ -23,9 +21,7 @@ public record UserProfileResponse(
                 user.getNickname(),
                 user.getProfileImageUrl(),
                 user.getMbti().getId(),
-                user.getMbti().getColorCode(),
-                user.getMbtiVerified().name(),
-                user.getMbtiVerified().getColorCode()
+                user.getMbtiVerified().name()
         );
     }
 }

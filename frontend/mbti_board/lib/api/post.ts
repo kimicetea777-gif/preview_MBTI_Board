@@ -1,5 +1,5 @@
 import { apiClient } from "@/lib/apiClient";
-import { API } from "@/lib/apiEndpoints";
+import { API } from "@/constants/apiEndpoints";
 import type { ApiResponse, PageResponse } from "@/types/api";
 import type {
   PostSummaryResponse,
@@ -54,6 +54,14 @@ export async function deletePost(id: number, guestPassword?: string): Promise<vo
   await apiClient.delete(API.posts.byId(id), {
     headers: guestPassword ? { "X-Guest-Password": guestPassword } : {},
   });
+}
+
+export async function voteDebateStance(postId: number, stance: 1 | -1): Promise<void> {
+  await apiClient.post(API.posts.debateStance(postId), { stance });
+}
+
+export async function removeDebateStance(postId: number): Promise<void> {
+  await apiClient.delete(API.posts.debateStance(postId));
 }
 
 export async function fetchMyPosts(

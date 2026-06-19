@@ -2,7 +2,9 @@ package com.board.kimicetea.domain.comment.repository;
 
 import com.board.kimicetea.domain.comment.entity.Comment;
 import com.board.kimicetea.domain.comment.entity.QComment;
+import com.board.kimicetea.domain.post.entity.QPostType;
 import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -13,7 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 댓글 목록 QueryDSL 구현체 — postId·visibility 필터 조합 (어드민 전용)
+ * 댓글 목록 QueryDSL 구현체 — postId·visibility·authorNickname 필터, sortDir 정렬 (어드민 전용)
  */
 @RequiredArgsConstructor
 public class CommentRepositoryImpl implements CommentRepositoryCustom {
@@ -22,8 +24,9 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
 
     @Override
     public Page<Comment> findAllCommentsForAdmin(final Long postId, final Boolean isVisible,
-            final Pageable pageable) {
+            final String authorNickname, final String sortDir, final Pageable pageable) {
         final QComment comment = QComment.comment;
+        final QPostType postType = QPostType.postType;
         final BooleanBuilder builder = new BooleanBuilder();
 
         if (postId != null) {
@@ -32,14 +35,23 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
         if (isVisible != null) {
             builder.and(comment.isVisible.eq(isVisible));
         }
+        if (authorNickname != null && !authorNickname.isBlank()) {
+            builder.and(comment.user.nickname.containsIgnoreCase(authorNickname));
+        }
+
+        final OrderSpecifier<?> order = "ASC".equalsIgnoreCase(sortDir)
+                ? comment.createdAt.asc()
+                : comment.createdAt.desc();
 
         final List<Comment> content = new ArrayList<>(queryFactory
                 .selectFrom(comment)
                 .join(comment.authorMbti).fetchJoin()
+                .join(comment.post).fetchJoin()
+                .join(comment.post.postType, postType).fetchJoin()
                 .leftJoin(comment.user).fetchJoin()
                 .leftJoin(comment.parent).fetchJoin()
                 .where(builder)
-                .orderBy(comment.createdAt.desc())
+                .orderBy(order)
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
                 .fetch());

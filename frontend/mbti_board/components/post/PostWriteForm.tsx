@@ -2,22 +2,25 @@
 
 import { useRouter } from "next/navigation";
 import RichContentEditor from "@/components/post/RichContentEditor";
-import { NONE_MBTI_ID, type MbtiMetadata } from "@/types/mbti";
+import MbtiSelect from "@/components/common/MbtiSelect";
+import FloatingLabelInput from "@/components/common/FloatingLabelInput";
+import { MBTI_ALL, type MbtiMetadata } from "@/types/mbti";
+import { MAX_TITLE_LENGTH } from "@/types/post";
 
 interface Props {
-  heading: string;
   isPending: boolean;
-  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  isUploading?: boolean;
+  onSubmit: (e: React.SyntheticEvent<HTMLFormElement>) => void;
   title: string;
   onTitleChange: (value: string) => void;
   targetMbti: string;
   onTargetMbtiChange: (value: string) => void;
   onContentChange: (value: string) => void;
   onUpload?: (url: string) => void;
+  onUploadingChange?: (count: number) => void;
   mbtiList: MbtiMetadata[];
   contentLabel?: string;
   contentPlaceholder?: string;
-  beforeTitle?: React.ReactNode;
   children?: React.ReactNode;
 }
 
@@ -26,8 +29,8 @@ interface Props {
  * 주의: 게시판별 추가 필드(투표 선택지, 비회원 비밀번호 등)는 children으로 전달
  */
 export default function PostWriteForm({
-  heading,
   isPending,
+  isUploading = false,
   onSubmit,
   title,
   onTitleChange,
@@ -35,80 +38,68 @@ export default function PostWriteForm({
   onTargetMbtiChange,
   onContentChange,
   onUpload,
+  onUploadingChange,
   mbtiList,
   contentLabel,
   contentPlaceholder = "내용을 입력하세요.",
-  beforeTitle,
   children,
 }: Props) {
   const router = useRouter();
 
   return (
-    <section className="max-w-2xl mx-auto px-4 py-6">
-      <h1 className="text-xl font-bold text-gray-900 mb-6">{heading}</h1>
-
-      <form onSubmit={onSubmit} className="space-y-5">
-        {beforeTitle}
-        <input
-          type="text"
+    <div className="bg-card border border-border rounded-3xl shadow-[0_4px_20px_-2px_rgba(0,0,0,0.08)] p-6 md:p-10">
+      <form onSubmit={onSubmit} className="space-y-6">
+        {/* Title */}
+        <FloatingLabelInput
+          id="title"
+          label="제목을 입력해요"
           value={title}
           onChange={(e) => onTitleChange(e.target.value)}
-          maxLength={150}
-          placeholder="제목"
+          maxLength={MAX_TITLE_LENGTH}
           disabled={isPending}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none disabled:opacity-50"
         />
-
-        <div>
-          <label className="block text-xs text-gray-400 uppercase tracking-wide mb-1">
-            대상 MBTI
+        {/* Target MBTI */}
+        <div className="flex items-center gap-3">
+          <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap px-1">
+            이 유형의 MBTI가 봤으면 좋겠어요  :
           </label>
-          <select
-            value={targetMbti}
-            onChange={(e) => onTargetMbtiChange(e.target.value)}
+          <MbtiSelect
+            value={targetMbti === MBTI_ALL ? undefined : targetMbti}
+            onChange={(v) => onTargetMbtiChange(v ?? MBTI_ALL)}
+            mbtiList={mbtiList}
+            placeholder="모든 MBTI"
             disabled={isPending}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none disabled:opacity-50"
-          >
-            <option value="ALL">전체</option>
-            {mbtiList
-              .filter((m) => m.id !== NONE_MBTI_ID)
-              .map((m) => (
-                <option key={m.id} value={m.id}>{m.id}</option>
-              ))}
-          </select>
+          />
         </div>
 
         {contentLabel ? (
-          <div>
-            <label className="block text-xs text-gray-400 uppercase tracking-wide mb-1">
-              {contentLabel}
-            </label>
-            <RichContentEditor onChange={onContentChange} placeholder={contentPlaceholder} onUpload={onUpload} />
+          <div className="space-y-1.5">
+            <RichContentEditor onChange={onContentChange} placeholder={contentPlaceholder} onUpload={onUpload} onUploadingChange={onUploadingChange} />
           </div>
         ) : (
-          <RichContentEditor onChange={onContentChange} placeholder={contentPlaceholder} onUpload={onUpload} />
+          <RichContentEditor onChange={onContentChange} placeholder={contentPlaceholder} onUpload={onUpload} onUploadingChange={onUploadingChange} />
         )}
 
         {children}
 
-        <div className="flex gap-2 justify-end">
+        <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-3 pt-4 border-t border-border">
           <button
             type="button"
             onClick={() => router.back()}
             disabled={isPending}
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            className="w-full sm:w-auto px-8 py-2.5 rounded-full border border-primary text-primary text-sm font-semibold hover:bg-surface-container transition-all disabled:opacity-50"
           >
             취소
           </button>
           <button
             type="submit"
             disabled={isPending}
-            className="rounded-lg bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700 disabled:opacity-50 transition-colors"
+            className={`w-full sm:w-auto px-10 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-semibold shadow-md shadow-primary/20 hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 ${isUploading ? "opacity-50 cursor-not-allowed" : ""}`}
           >
-            {isPending ? "등록 중..." : "등록"}
+            {isPending ? "등록 중..." : "등록하기"}
           </button>
         </div>
       </form>
-    </section>
+    </div>
   );
 }

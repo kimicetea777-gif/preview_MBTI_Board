@@ -16,6 +16,12 @@ export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("ko-KR");
 }
 
+export function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("ko-KR", {
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  });
+}
+
 const TIME_THRESHOLDS: { limit: number; format: (diff: number) => string }[] = [
   { limit: 60_000,        format: ()  => "방금 전" },
   { limit: 3_600_000,     format: (d) => `${Math.floor(d / 60_000)}분 전` },

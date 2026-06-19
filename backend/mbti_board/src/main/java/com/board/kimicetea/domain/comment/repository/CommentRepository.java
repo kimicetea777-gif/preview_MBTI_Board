@@ -5,8 +5,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * 댓글 기본 CRUD
@@ -35,4 +37,36 @@ public interface CommentRepository extends JpaRepository<Comment, Long>, Comment
             ORDER BY c.createdAt ASC
             """)
     List<Comment> findAllVisibleByPostId(@Param("postId") Long postId);
+
+    @Query("SELECT COUNT(c) FROM Comment c WHERE c.user.id = :userId AND c.isVisible = true")
+    long countByUserId(@Param("userId") UUID userId);
+
+    // ── 어드민 통계 쿼리 ─────────────────────────────────────────────────────────────
+
+    /** 숨겨진 댓글 수 */
+    @Query(value = "SELECT COUNT(*) FROM comments WHERE is_visible = false", nativeQuery = true)
+    long countHidden();
+
+    /** 전체 좋아요 / 싫어요 수 — [[likeSum, dislikeSum]] */
+    @Query(value = "SELECT SUM(like_count), SUM(dislike_count) FROM comments WHERE is_visible = true", nativeQuery = true)
+    List<Object[]> sumReactions();
+
+    /** MBTI별 댓글 수 */
+    @Query(value = "SELECT author_mbti AS name, COUNT(*) AS value FROM comments GROUP BY author_mbti ORDER BY value DESC", nativeQuery = true)
+    List<Object[]> countGroupByMbtiRaw();
+
+    /** 최근 :since 이후 일별 댓글 수 */
+    @Query(value = """
+            SELECT TO_CHAR(DATE_TRUNC('day', created_at), 'MM-DD') AS date,
+                   COUNT(*)                                         AS value
+            FROM comments
+            WHERE created_at >= :since
+            GROUP BY DATE_TRUNC('day', created_at)
+            ORDER BY DATE_TRUNC('day', created_at)
+            """, nativeQuery = true)
+    List<Object[]> findCommentTrendRaw(@Param("since") Instant since);
+
+    /** :from 이상 :to 미만 구간의 신규 댓글 수 */
+    @Query("SELECT COUNT(c) FROM Comment c WHERE c.createdAt >= :from AND c.createdAt < :to")
+    long countByCreatedAtBetween(@Param("from") Instant from, @Param("to") Instant to);
 }

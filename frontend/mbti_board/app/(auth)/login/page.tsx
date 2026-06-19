@@ -1,4 +1,5 @@
 import LoginForm from "@/components/auth/LoginForm";
+import { ROUTES } from "@/constants/routes";
 
 export default async function LoginPage({
   searchParams,
@@ -6,5 +7,5 @@ export default async function LoginPage({
   searchParams: Promise<{ redirect?: string }>;
 }) {
   const { redirect } = await searchParams;
-  return <LoginForm redirectTo={redirect ?? "/"} />;
+  return <LoginForm redirectTo={redirect ?? ROUTES.home} />;
 }

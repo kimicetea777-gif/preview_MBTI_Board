@@ -1,6 +1,8 @@
 | 클래스 | 경로 | 설명 |
 |---|---|---|
-| `ValidationConstants` | `global/common` | 비밀번호 정책 등 공통 검증 상수 모음 (PASSWORD_REGEXP, PASSWORD_MESSAGE) |
+| `ValidationConstants` | `global/common` | 비밀번호·전화번호 정책 등 공통 검증 상수 모음 (PASSWORD_REGEXP, PHONE_REGEXP 등) |
+| `PhoneHashService` | `global/crypto` | 전화번호 HMAC-SHA256 해싱 서비스 — DB 조회 키용 결정적 해시 생성 (시크릿 키로 역추적 방지, 최소 32자 검증) |
+| `RateLimitService` | `global/ratelimit` | Redis INCR 기반 IP별 Rate Limiting — 엔드포인트·최대 횟수·시간 창 지정 가능 (Cloudflare X-Forwarded-For 지원) |
 | `OAuth2AuthenticationFailureHandler` | `global/security/oauth2` | OAuth2 인증 실패 시 에러 코드를 쿼리 파라미터로 담아 프론트 콜백 페이지로 리다이렉트 |
 | `EmailVerifySendRequest` | `domain/auth/dto` | 이메일 인증 발송 요청 DTO (이메일 주소) |
 | `EmailVerifyConfirmRequest` | `domain/auth/dto` | 이메일 인증 토큰 확인 요청 DTO (UUID 토큰) |
@@ -9,11 +11,12 @@
 | `UserProfileResponse` | `domain/user/dto` | 타인 공개 프로필 응답 DTO (민감 정보 제외) |
 | `UpdateProfileRequest` | `domain/user/dto` | 프로필 수정 요청 DTO (닉네임·이미지·MBTI 선택적 수정) |
 | `ChangePasswordRequest` | `domain/user/dto` | 비밀번호 변경 요청 DTO (현재·새 비밀번호) |
-| `UserService` | `domain/user/service` | 유저 프로필 비즈니스 로직 (조회·수정·탈퇴 OTP 발송·탈퇴·비밀번호 변경) |
-| `UserController` | `domain/user/controller` | 유저 프로필 API 컨트롤러 (GET·PATCH /me, GET /{id}, POST·DELETE /me/withdrawal-verify·/me, PATCH /me/password) |
+| `UserService` | `domain/user/service` | 유저 프로필 비즈니스 로직 (조회·수정·탈퇴 OTP 발송·탈퇴·비밀번호 변경·전화번호 등록/삭제) |
+| `UpdatePhoneRequest` | `domain/user/dto` | 전화번호 등록/변경 요청 DTO (HMAC 해싱 전 원본 전화번호, PHONE_REGEXP 검증) |
+| `UserController` | `domain/user/controller` | 유저 프로필 API 컨트롤러 (GET·PATCH /me, GET /{id}, POST·DELETE /me/withdrawal-verify·/me, PATCH /me/password, PATCH·DELETE /me/phone) |
 | `WithdrawalRequest` | `domain/user/dto` | 회원 탈퇴 요청 DTO (6자리 OTP 코드) |
 | `EmailService` | `global/mail` | 이메일 발송 서비스 (탈퇴 OTP 발송) |
-| `MbtiResponse` | `domain/mbti/dto` | MBTI 메타데이터 응답 DTO (id·colorCode·description 노출, 내부 타임스탬프 제외) |
+| `MbtiResponse` | `domain/mbti/dto` | MBTI 메타데이터 응답 DTO (id·title·colorCode·descript·personalities·bestMbti·badMbti 노출, 내부 타임스탬프 제외) |
 | `MbtiService` | `domain/mbti/service` | MBTI 목록 및 검사 문항 비즈니스 로직 (읽기 전용, 문항 카테고리별 랜덤 추출 후 셔플) |
 | `MbtiController` | `domain/mbti/controller` | MBTI 메타데이터 및 검사 API 컨트롤러 (GET /api/mbti, GET /api/mbti/{id}, GET /api/mbti/test/questions, 인증 불필요) |
 | `MbtiQuestion` | `domain/mbti/entity` | MBTI 검사 문항 엔티티 (mbti_questions 테이블 매핑, 쓰기 없음) |
@@ -25,6 +28,16 @@
 | `MbtiTestHistoryResponse` | `domain/mbti/dto` | MBTI 검사 이력 응답 DTO (id·mbtiId·4개 점수·testVersion·createdAt) |
 | `JpaConfig` | `global/config` | QueryDSL JPAQueryFactory 빈 등록 |
 | `CacheConfig` | `global/config` | 인메모리 캐시 설정 — 참조 테이블(postTypes 등) 전용 ConcurrentMapCacheManager |
+| `UserCleanupService` | `domain/user/service` | 탈퇴 유저(WITHDRAWN) 배치 삭제 스케줄러 — 매일 04:00 실행, findAllByState → deleteAll |
+| `AdminUserStatsResponse` | `domain/user/dto` | 유저 통계 응답 DTO — totalUsers·inactiveCount·소셜/로컬 수·상태/역할/MBTI 분포·30일 가입 추이 |
+| `AdminUserStatsService` | `domain/user/service` | 어드민 유저 통계 집계 서비스 — 상태·역할·MBTI 분포, 장기 미접속 수, 가입 추이(읽기 전용) |
+| `AdminPostStatsResponse` | `domain/post/dto` | 게시글 통계 응답 DTO — totalPosts·hiddenCount·타입 분포·MBTI별 작성 분포·30일 작성 추이 |
+| `AdminPostStatsService` | `domain/post/service` | 어드민 게시글 통계 집계 서비스 — 타입 분포·MBTI 분포·숨김 현황·작성 추이(읽기 전용) |
+| `AdminCommentStatsResponse` | `domain/comment/dto` | 댓글 통계 응답 DTO — totalComments·hiddenCount·좋아요/싫어요 합계·MBTI 분포·30일 작성 추이 |
+| `AdminCommentStatsService` | `domain/comment/service` | 어드민 댓글 통계 집계 서비스 — MBTI 분포·리액션 합계·숨김 현황·작성 추이(읽기 전용) |
+| `AdminMbtiTestStatsResponse` | `domain/mbti/dto` | MBTI 검사 통계 응답 DTO — totalTests·지표별 평균·결과 분포·재검사 빈도·30일 검사 추이 |
+| `AdminMbtiTestStatsService` | `domain/mbti/service` | 어드민 MBTI 검사 통계 집계 서비스 — 결과 분포·지표 평균·재검사 빈도·추이(읽기 전용) |
+| `AdminMbtiController` | `domain/mbti/controller` | 어드민 MBTI 검사 통계 API 컨트롤러 (GET /api/admin/mbti/stats — ADMIN 전용) |
 | `PostTypeRepository` | `domain/post/repository` | 게시판 유형 조회 레포지토리 (code 기준 단건 조회) |
 | `PostRepositoryCustom` | `domain/post/repository` | 게시글 목록 QueryDSL 커스텀 조회 인터페이스 (findPosts·findAllPostsForAdmin·findMyPosts) |
 | `PostRepositoryImpl` | `domain/post/repository` | 게시글 목록 QueryDSL 구현체 (유형·정렬·MBTI 필터 조합, 내 게시글 userId 필터 포함) |
@@ -36,7 +49,11 @@
 | `PostSummaryResponse` | `domain/post/dto` | 게시글 목록 응답 DTO (content 제외, 작성자 MBTI 배지 포함) |
 | `PostDetailResponse` | `domain/post/dto` | 게시글 상세 응답 DTO (content 포함, isOwner·isGuest 포함) |
 | `PostService` | `domain/post/service` | 게시글 도메인 비즈니스 로직 (목록·단건 조회, 작성·수정·삭제, 회원/비회원 분기) |
-| `PostController` | `domain/post/controller` | 게시글 API 컨트롤러 (GET·POST /api/posts, POST /api/posts/debate, POST /api/posts/vote, GET·PATCH·DELETE /api/posts/{id}) |
+| `PostController` | `domain/post/controller` | 게시글 API 컨트롤러 (GET·POST /api/posts, POST /api/posts/debate, POST /api/posts/vote, GET·PATCH·DELETE /api/posts/{id}, POST·DELETE /api/posts/debate/{id}/stance) |
+| `DebateStanceHistoryId` | `domain/post/entity` | 토론 진영 투표 내역 복합 PK Embeddable — (user_id UUID, post_id BIGINT) |
+| `DebateStanceHistory` | `domain/post/entity` | 토론 진영 투표 내역 엔티티 — 회원 1인당 1표, stance(1/-1) 변경 가능, DB 트리거로 pro/con_count 동기화 |
+| `DebateStanceHistoryRepository` | `domain/post/repository` | 토론 진영 투표 레포지토리 — stance 단건 조회, ON CONFLICT upsert 네이티브 쿼리 포함 |
+| `DebateStanceRequest` | `domain/post/dto` | 토론 진영 투표 요청 DTO (stance: Short, 1=찬성/-1=반대) |
 | `PostSortType` | `domain/post` | 게시글 정렬 기준 Enum (LATEST·VIEWS·COMMENTS) |
 | `CommentRepository` | `domain/comment/repository` | 댓글 기본 CRUD + 게시글별 visible 댓글 flat 조회 (findAllVisibleByPostId) |
 | `CommentResponse` | `domain/comment/dto` | 댓글 응답 DTO — 루트 댓글은 replies 포함, 대댓글은 replies 빈 리스트 |
@@ -68,10 +85,13 @@
 | `AdminUserSummaryResponse` | `domain/user/dto` | 어드민 유저 목록 응답 DTO (이메일·역할·상태·MBTI 등 민감 정보 포함, ADMIN 전용) |
 | `AdminUserStateRequest` | `domain/user/dto` | 어드민 유저 상태 변경 요청 DTO (state 필수) |
 | `AdminUserRoleRequest` | `domain/user/dto` | 어드민 유저 역할 변경 요청 DTO (role 필수) |
-| `UserRepositoryCustom` | `domain/user/repository` | 유저 목록 QueryDSL 커스텀 조회 인터페이스 (이메일·상태·역할 필터, 어드민 전용) |
-| `UserRepositoryImpl` | `domain/user/repository` | 유저 목록 QueryDSL 구현체 (BooleanBuilder 필터 조합, mbti fetchJoin으로 N+1 방지) |
-| `AdminUserService` | `domain/user/service` | 어드민 유저 관리 비즈니스 로직 (목록 조회·상태 변경·역할 변경, 자기 자신 변경 금지) |
-| `AdminUserController` | `domain/user/controller` | 어드민 유저 관리 API 컨트롤러 (GET /api/admin/users, PATCH /{id}/state, PATCH /{id}/role) |
+| `UserSortField` | `domain/user/enums` | 어드민 유저 목록 정렬 기준 Enum (CREATED_AT·UPDATED_AT·LAST_LOGIN_AT) |
+| `UserRepositoryCustom` | `domain/user/repository` | 유저 목록 QueryDSL 커스텀 조회 인터페이스 (이메일·상태·역할 필터 + sortBy·direction 정렬, 어드민 전용) |
+| `UserRepositoryImpl` | `domain/user/repository` | 유저 목록 QueryDSL 구현체 (BooleanBuilder 필터 조합, 동적 정렬 OrderSpecifier, mbti fetchJoin으로 N+1 방지) |
+| `AdminUserProfileRequest` | `domain/user/dto` | 어드민 유저 프로필 수정 요청 DTO (nickname nullable, clearProfileImage boolean) |
+| `AdminUserService` | `domain/user/service` | 어드민 유저 관리 비즈니스 로직 (목록 조회·상태 변경·역할 변경·프로필 수정, 자기 자신 변경 금지) |
+| `AdminCreateUserRequest` | `domain/user/dto` | 어드민 유저 직접 생성 요청 DTO (email·password·nickname·mbtiId·role·state — 이메일 인증 없이 생성) |
+| `AdminUserController` | `domain/user/controller` | 어드민 유저 관리 API 컨트롤러 (POST /api/admin/users, GET /api/admin/users, PATCH /{id}/state, PATCH /{id}/role, PATCH /{id}/profile) |
 | `AdminPostSummaryResponse` | `domain/post/dto` | 어드민 게시글 목록 응답 DTO (isVisible·typeCode 포함, 숨김 게시글 포함 ADMIN 전용) |
 | `AdminPostVisibilityRequest` | `domain/post/dto` | 어드민 게시글 가시성 변경 요청 DTO (visible 필수, ADMIN 전용) |
 | `AdminPostService` | `domain/post/service` | 어드민 게시글 관리 비즈니스 로직 (전체 목록 조회·숨김·복구, isVisible 필터 없음) |
@@ -92,8 +112,33 @@
 | `ImageService` | `global/image/service` | R2 이미지 업로드 서비스 — 타입(jpg·png·gif·webp)·크기(5MB) 검증 후 UUID 파일명으로 저장 |
 | `ImageController` | `global/image/controller` | 이미지 API 컨트롤러 (POST /upload 업로드, POST /pending PENDING 등록(내부 키 필수), DELETE / 취소) |
 | `ImageUploadResponse` | `global/image/dto` | 이미지 업로드 응답 DTO — Tiptap Image src로 사용 가능한 공개 URL |
+| `UserActivityStatsResponse` | `domain/user/dto` | 내 활동 통계 응답 DTO (작성 게시글 수·댓글 수·최근 검사 MBTI) |
 | `FindEmailRequest` | `domain/auth/dto` | 이메일 찾기 요청 DTO (닉네임) |
 | `FindEmailResponse` | `domain/auth/dto` | 이메일 찾기 응답 DTO (마스킹 이메일·소셜 전용 여부) |
 | `PasswordResetRequestBody` | `domain/auth/dto` | 비밀번호 재설정 이메일 발송 요청 DTO (이메일) |
 | `PasswordResetConfirmRequest` | `domain/auth/dto` | 비밀번호 재설정 확인 요청 DTO (토큰·새 비밀번호, @Size(min=8)) |
 | `TiptapContentParser` | `global/common/util` | Tiptap JSONB content에서 텍스트 미리보기(extractTextPreview)·이미지 key(extractImageKeys) 추출 유틸리티 |
+| `MyPostPreviewResponse` | `domain/post/dto` | 마이페이지 내 게시글 프리뷰 응답 DTO (id·typeCode·title·commentCount·createdAt, 최근 5개 전용) |
+| `FunQuestion` | `domain/mbti/entity` | Fun 질문 엔티티 (fun_questions 테이블 매핑, options LazyLoading) |
+| `FunQuestionOption` | `domain/mbti/entity` | Fun 질문 선택지 엔티티 (fun_question_options 테이블 매핑, ManyToOne FunQuestion) |
+| `FunResponseCountId` | `domain/mbti/entity` | fun_response_counts 복합 PK Embeddable (option_id + mbti_id) |
+| `FunResponseCount` | `domain/mbti/entity` | Fun 응답 집계 엔티티 (option×mbti 조합별 count, ON CONFLICT UPSERT로 원자적 증가) |
+| `QuestionResponse` | `domain/mbti/dto` | MBTI/FUN 문항 응답 Sealed Interface — Jackson @JsonTypeInfo(type 필드)로 다형 직렬화 |
+| `FunOptionResponse` | `domain/mbti/dto` | Fun 선택지 응답 DTO (id·optionText·displayOrder) |
+| `FunQuestionResponse` | `domain/mbti/dto` | Fun 질문 응답 DTO (id·title·options 포함, QuestionResponse 구현체) |
+| `FunResponseSubmitRequest` | `domain/mbti/dto` | Fun 응답 제출 요청 DTO (mbtiId 4자·optionIds 목록, 비인증 허용) |
+| `FunStatRow` | `domain/mbti/dto` | Fun 통계 네이티브 쿼리 Projection Interface (questionId·optionId·mbtiId·count 7컬럼) |
+| `FunStatsResponse` | `domain/mbti/dto` | Fun 질문 통계 응답 DTO (questionId·title·options별 totalCount·mbtiCounts 중첩 레코드) |
+| `FunQuestionRepository` | `domain/mbti/repository` | Fun 질문 레포지토리 (JOIN FETCH options 쿼리, 통계 네이티브 쿼리) |
+| `FunResponseCountRepository` | `domain/mbti/repository` | Fun 응답 집계 레포지토리 (ON CONFLICT DO UPDATE upsertCount 네이티브 쿼리) |
+| `FunService` | `domain/mbti/service` | Fun 질문 비즈니스 로직 (랜덤 3개 추출, 응답 UPSERT, 통계 LinkedHashMap 조립) |
+| `FunController` | `domain/mbti/controller` | Fun API 컨트롤러 (POST /api/mbti/fun/responses, GET /api/mbti/fun/stats — 인증 불필요) |
+| `UserCleanupService` | `domain/user/service` | WITHDRAWN 상태 유저 정기 삭제 서비스 — 매일 오전 04:00 배치 실행, PII는 탈퇴 시점 즉시 익명화됨 |
+| `WithdrawalLog` | `domain/user/entity` | 탈퇴 이벤트 기록 엔티티 — PII 없이 withdrawn_at 타임스탬프만 보관, 탈퇴 추이 통계 전용 |
+| `WithdrawalLogRepository` | `domain/user/repository` | 탈퇴 로그 레포지토리 — MM-DD 기준 일별 탈퇴 수 집계 네이티브 쿼리 (findTrendRaw) |
+| `AdminMbtiQuestionUpdateRequest` | `domain/mbti/dto` | 어드민 MBTI 문항 수정 요청 DTO (title·category·isReverse, testVersion 변경 불가) |
+| `AdminMbtiQuestionService` | `domain/mbti/service` | 어드민 MBTI 문항 수정·노출 변경 서비스 — title·category·isReverse 수정, isVisible 토글, QUESTION_NOT_FOUND 예외 처리 |
+| `AdminMbtiQuestionVisibilityRequest` | `domain/mbti/dto` | 어드민 MBTI 문항 노출 여부 변경 요청 DTO (visible 필수) |
+| `AdminFunQuestionResponse` | `domain/mbti/dto` | 어드민 FUN 문항 응답 DTO (id·title·optionCount·isVisible·updatedAt, 공개 엔드포인트 사용 금지) |
+| `AdminFunQuestionVisibilityRequest` | `domain/mbti/dto` | 어드민 FUN 문항 노출 여부 변경 요청 DTO (Boolean 박싱 타입, visible 필수) |
+| `AdminFunQuestionService` | `domain/mbti/service` | 어드민 FUN 문항 전체 조회·노출 변경 서비스 — options JOIN FETCH, is_visible 무관 전체 반환 |

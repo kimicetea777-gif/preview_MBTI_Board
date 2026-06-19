@@ -21,11 +21,11 @@ public class AdminCommentService {
 
     private final CommentRepository commentRepository;
 
-    /** 댓글 전체 목록 조회 (숨겨진 댓글 포함) — postId·isVisible 선택 필터 */
+    /** 댓글 전체 목록 조회 (숨겨진 댓글 포함) — postId·isVisible·authorNickname·sortDir 선택 필터 */
     @Transactional(readOnly = true)
     public Page<AdminCommentSummaryResponse> getComments(final Long postId, final Boolean isVisible,
-            final Pageable pageable) {
-        return commentRepository.findAllCommentsForAdmin(postId, isVisible, pageable)
+            final String authorNickname, final String sortDir, final Pageable pageable) {
+        return commentRepository.findAllCommentsForAdmin(postId, isVisible, authorNickname, sortDir, pageable)
                 .map(AdminCommentSummaryResponse::from);
     }
 

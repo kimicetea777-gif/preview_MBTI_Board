@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ROUTES } from "@/lib/routes";
+import { ROUTES } from "@/constants/routes";
 
 // session 쿠키(프론트 도메인에 설정)로 판단. 실제 유효성 검증은 API 서버에서 수행.
 // FREE 게시글 작성은 비회원 허용. /board/write?type=VOTE|DEBATE 만 로그인 필요.

@@ -1,34 +1,16 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { fetchMbtiById, fetchMbtiList, fetchMbtiTestQuestions, submitMbtiTest } from "@/lib/api/mbti";
-import type { MbtiTestScores } from "@/types/mbti";
+import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
+import { fetchMbtiTestQuestions, submitMbtiTest, submitFunResponses, fetchFunStats } from "@/lib/api/mbti";
+import type { MbtiTestScores, TotalQuestion, FunResponseSubmit } from "@/types/mbti";
 
 export const mbtiKeys = {
-  all:       () => ["mbti"]                              as const,
-  list:      () => [...mbtiKeys.all(), "list"]           as const,
-  byId:      (id: string) => [...mbtiKeys.all(), "id", id] as const,
-  questions: () => [...mbtiKeys.all(), "questions"]      as const,
+  all:       () => ["mbti"]                         as const,
+  questions: () => [...mbtiKeys.all(), "questions"] as const,
+  funStats:  () => [...mbtiKeys.all(), "fun-stats"] as const,
 };
 
-export function useMbtiList() {
-  return useQuery({
-    queryKey: mbtiKeys.list(),
-    queryFn: fetchMbtiList,
-    staleTime: Infinity,
-  });
-}
-
-export function useMbtiById(id: string) {
-  return useQuery({
-    queryKey: mbtiKeys.byId(id),
-    queryFn: () => fetchMbtiById(id),
-    staleTime: Infinity,
-    enabled: !!id,
-  });
-}
-
-/** 검사 시작 시 32문항을 한 번만 불러오고, 페이지 이탈 전까지 재요청하지 않음 */
+/** 검사 시작 시 35문항을 한 번만 불러오고, 페이지 이탈 전까지 재요청하지 않음 */
 export function useMbtiTestQuestions() {
-  return useQuery({
+  return useSuspenseQuery<TotalQuestion[]>({
     queryKey: mbtiKeys.questions(),
     queryFn: fetchMbtiTestQuestions,
     staleTime: Infinity,
@@ -44,5 +26,21 @@ export function useMbtiTestQuestions() {
 export function useSubmitMbtiTest() {
   return useMutation({
     mutationFn: (scores: MbtiTestScores) => submitMbtiTest(scores),
+  });
+}
+
+/** FN 응답 제출 mutation — 결과 화면 진입 즉시 호출, 인증 불필요 */
+export function useSubmitFunResponses() {
+  return useMutation({
+    mutationFn: (data: FunResponseSubmit) => submitFunResponses(data),
+  });
+}
+
+/** FN 질문 전체 통계 조회 */
+export function useFunStats() {
+  return useSuspenseQuery({
+    queryKey: mbtiKeys.funStats(),
+    queryFn: fetchFunStats,
+    staleTime: 1000 * 60 * 5,
   });
 }

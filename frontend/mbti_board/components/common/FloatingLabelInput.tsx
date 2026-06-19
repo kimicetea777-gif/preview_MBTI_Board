@@ -40,7 +40,7 @@ export default function FloatingLabelInput({
   const hasRightSlot = !!onClear || !!rightSlot;
 
   return (
-    <div className={`relative rounded-lg border px-3 ${error ? "border-red-400 focus-within:border-red-500" : "border-gray-300 focus-within:border-gray-500"}`}>
+    <div className={`relative rounded-lg border px-3 bg-background ${error ? "border-red-400 focus-within:border-red-500" : "border-gray-300 focus-within:border-gray-500"}`}>
       <input
         type={type}
         id={id}
@@ -56,10 +56,11 @@ export default function FloatingLabelInput({
       />
       <label
         htmlFor={id}
-        className="absolute left-3 flex items-center gap-1 text-gray-400 pointer-events-none transition-all duration-200 bg-white px-1
+        className="absolute left-3 flex items-center gap-1 text-gray-400 pointer-events-none transition-all duration-200 px-1
           text-xs top-0 -translate-y-1/2
           peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-sm
-          peer-focus:top-0 peer-focus:-translate-y-1/2 peer-focus:text-xs peer-focus:text-gray-500"
+          peer-focus:top-0 peer-focus:-translate-y-1/2 peer-focus:text-xs peer-focus:text-gray-500
+          bg-background"
       >
         {icon}
         {label}

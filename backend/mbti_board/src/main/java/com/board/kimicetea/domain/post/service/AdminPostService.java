@@ -21,11 +21,11 @@ public class AdminPostService {
 
     private final PostRepository postRepository;
 
-    /** 게시글 전체 목록 조회 (숨겨진 게시글 포함) — typeCode·isVisible 선택 필터 */
+    /** 게시글 전체 목록 조회 (숨겨진 게시글 포함) — typeCode·isVisible·authorNickname 필터, sortDir 정렬 */
     @Transactional(readOnly = true)
     public Page<AdminPostSummaryResponse> getPosts(final String typeCode, final Boolean isVisible,
-            final Pageable pageable) {
-        return postRepository.findAllPostsForAdmin(typeCode, isVisible, pageable)
+            final String authorNickname, final String sortDir, final Pageable pageable) {
+        return postRepository.findAllPostsForAdmin(typeCode, isVisible, authorNickname, sortDir, pageable)
                 .map(AdminPostSummaryResponse::from);
     }
 
@@ -35,5 +35,13 @@ public class AdminPostService {
         final Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
         post.changeVisibility(visible);
+    }
+
+    /** 게시글 영구 삭제 — CASCADE로 댓글 전체 함께 삭제 */
+    @Transactional
+    public void deletePost(final long postId) {
+        final Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
+        postRepository.delete(post);
     }
 }

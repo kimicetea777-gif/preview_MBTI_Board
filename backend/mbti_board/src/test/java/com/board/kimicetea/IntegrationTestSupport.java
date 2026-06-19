@@ -68,7 +68,7 @@ public abstract class IntegrationTestSupport {
     protected static final String REACTIONS_BASE = "/api/comments/";
 
     // Image
-    protected static final String IMAGE_PENDING_URL = "/api/images/pending";
+    protected static final String IMAGE_UPLOAD_URL  = "/api/images/upload";
     protected static final String IMAGE_CANCEL_URL  = "/api/images";
 
     // MBTI 검사 / 메타데이터

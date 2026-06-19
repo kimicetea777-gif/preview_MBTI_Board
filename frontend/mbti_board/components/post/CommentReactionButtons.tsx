@@ -5,6 +5,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useReactionDebounce } from "@/hooks/useReactionDebounce";
 import { REACTION } from "@/types/comment";
 import type { Comment, ReactionType } from "@/types/comment";
+import { MdThumbUp, MdThumbUpAlt, MdThumbDown, MdThumbDownAlt } from "react-icons/md";
 
 interface Props {
   comment: Comment;
@@ -27,44 +28,49 @@ export default function CommentReactionButtons({ comment, postId }: Props) {
     handleClick(type);
   };
 
-  const buttonBase = "flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors";
+  const likeActive = localState.myReactionType === REACTION.LIKE;
+  const dislikeActive = localState.myReactionType === REACTION.DISLIKE;
 
   return (
-    <div className="mt-2 space-y-1">
-      <div className="flex items-center gap-3 text-xs text-gray-400">
-        <button
-          type="button"
-          onClick={() => onReactionClick(REACTION.LIKE)}
-          disabled={isMutating}
-          aria-pressed={localState.myReactionType === REACTION.LIKE}
-          className={`${buttonBase} ${
-            !isLoggedIn
-              ? "cursor-default opacity-50"
-              : localState.myReactionType === REACTION.LIKE
-              ? "text-blue-500 bg-blue-50"
-              : "hover:text-blue-400"
-          }`}
-        >
-          👍 <span>{localState.likeCount}</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => onReactionClick(REACTION.DISLIKE)}
-          disabled={isMutating}
-          aria-pressed={localState.myReactionType === REACTION.DISLIKE}
-          className={`${buttonBase} ${
-            !isLoggedIn
-              ? "cursor-default opacity-50"
-              : localState.myReactionType === REACTION.DISLIKE
-              ? "text-red-500 bg-red-50"
-              : "hover:text-red-400"
-          }`}
-        >
-          👎 <span>{localState.dislikeCount}</span>
-        </button>
-      </div>
+    <div className="flex items-center gap-4">
+      <button
+        type="button"
+        onClick={() => onReactionClick(REACTION.LIKE)}
+        disabled={isMutating}
+        aria-pressed={likeActive}
+        className={`flex items-center gap-1.5 transition-colors ${
+          !isLoggedIn
+            ? "cursor-default text-on-surface-variant opacity-60"
+            : likeActive
+            ? "text-primary"
+            : "text-on-surface-variant hover:text-secondary"
+        }`}
+      >
+        {likeActive ? <MdThumbUp size={18} /> : <MdThumbUpAlt size={18} />}
+        <span className="text-xs">{localState.likeCount}</span>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => onReactionClick(REACTION.DISLIKE)}
+        disabled={isMutating}
+        aria-pressed={dislikeActive}
+        className={`flex items-center gap-1.5 transition-colors ${
+          !isLoggedIn
+            ? "cursor-default text-on-surface-variant opacity-60"
+            : dislikeActive
+            ? "text-destructive"
+            : "text-on-surface-variant hover:text-secondary"
+        }`}
+      >
+        {dislikeActive ? <MdThumbDown size={18} /> : <MdThumbDownAlt size={18} />}
+        <span className="text-xs">{localState.dislikeCount}</span>
+      </button>
+
       {loginAlert && (
-        <p className="text-xs text-gray-400">로그인 후 이용 가능합니다.</p>
+        <span className="text-xs text-on-surface-variant animate-callout">
+          로그인 후 이용 가능합니다.
+        </span>
       )}
     </div>
   );

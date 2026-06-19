@@ -37,17 +37,52 @@ public final class TiptapContentParser {
 
     /**
      * Tiptap JSON에서 이미지 key를 문서 순서대로 최대 maxCount개 추출
-     * {public-url}/ prefix를 제거한 key만 저장 (예: images/uuid.webp)
+     * {public-url}/ 또는 실제 r2PublicUrl/ prefix 모두 처리 (저장 방식 호환)
      * 이미지가 없으면 null 반환
      */
-    public static String[] extractImageKeys(final String jsonContent, final int maxCount) {
+    public static String[] extractImageKeys(final String jsonContent, final int maxCount, final String r2PublicUrl) {
         if (jsonContent == null || jsonContent.isBlank()) return null;
         try {
             final List<String> keys = new ArrayList<>();
-            collectImageKeys(MAPPER.readTree(jsonContent), keys, 0, maxCount);
+            collectImageKeys(MAPPER.readTree(jsonContent), keys, 0, maxCount, r2PublicUrl);
             return keys.isEmpty() ? null : keys.toArray(new String[0]);
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    /** r2PublicUrl 없이 호출하는 기존 경로 — {public-url}/ prefix만 처리 */
+    public static String[] extractImageKeys(final String jsonContent, final int maxCount) {
+        return extractImageKeys(jsonContent, maxCount, null);
+    }
+
+    /** Tiptap JSON에 포함된 이미지 노드 수를 반환 — 개수 초과 여부 검증에 사용 */
+    public static int countImages(final String jsonContent) {
+        if (jsonContent == null || jsonContent.isBlank()) return 0;
+        try {
+            final int[] count = {0};
+            countImageNodes(MAPPER.readTree(jsonContent), count, 0);
+            return count[0];
+        } catch (Exception e) {
+            // 파싱 실패 = 유효하지 않은 content → 항상 한도 초과로 처리해 저장 차단
+            return Integer.MAX_VALUE;
+        }
+    }
+
+    private static void countImageNodes(final JsonNode node, final int[] count, final int depth) {
+        if (depth > MAX_DEPTH) return;
+        if (node.isObject()) {
+            if ("image".equals(node.path("type").asText())) {
+                count[0]++;
+                return;
+            }
+            if (node.has("content")) {
+                countImageNodes(node.path("content"), count, depth + 1);
+            }
+        } else if (node.isArray()) {
+            for (final JsonNode child : node) {
+                countImageNodes(child, count, depth + 1);
+            }
         }
     }
 
@@ -70,26 +105,32 @@ public final class TiptapContentParser {
         }
     }
 
-    private static void collectImageKeys(final JsonNode node, final List<String> keys, final int depth, final int maxCount) {
+    private static void collectImageKeys(final JsonNode node, final List<String> keys,
+            final int depth, final int maxCount, final String r2PublicUrl) {
         if (depth > MAX_DEPTH || keys.size() >= maxCount) return;
         if (node.isObject()) {
             if ("image".equals(node.path("type").asText())) {
                 final String src = node.path("attrs").path("src").asText(null);
-                if (src != null && src.startsWith(PLACEHOLDER_PREFIX)) {
-                    final String key = src.substring(PLACEHOLDER_PREFIX.length());
-                    if (VALID_IMAGE_KEY.matcher(key).matches()) {
+                if (src != null) {
+                    String key = null;
+                    if (src.startsWith(PLACEHOLDER_PREFIX)) {
+                        key = src.substring(PLACEHOLDER_PREFIX.length());
+                    } else if (r2PublicUrl != null && src.startsWith(r2PublicUrl + "/")) {
+                        key = src.substring(r2PublicUrl.length() + 1);
+                    }
+                    if (key != null && VALID_IMAGE_KEY.matcher(key).matches()) {
                         keys.add(key);
                     }
                 }
                 return;
             }
             if (node.has("content")) {
-                collectImageKeys(node.path("content"), keys, depth + 1, maxCount);
+                collectImageKeys(node.path("content"), keys, depth + 1, maxCount, r2PublicUrl);
             }
         } else if (node.isArray()) {
             for (final JsonNode child : node) {
                 if (keys.size() >= maxCount) break;
-                collectImageKeys(child, keys, depth + 1, maxCount);
+                collectImageKeys(child, keys, depth + 1, maxCount, r2PublicUrl);
             }
         }
     }

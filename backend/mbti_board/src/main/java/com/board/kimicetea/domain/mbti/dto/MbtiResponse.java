@@ -1,26 +1,12 @@
 package com.board.kimicetea.domain.mbti.dto;
 
 import com.board.kimicetea.domain.mbti.entity.MbtiMetadata;
-import com.fasterxml.jackson.annotation.JsonRawValue;
 
 /**
- * MBTI 메타데이터 응답 DTO (GET /api/mbti, GET /api/mbti/{id})
- * 주의: createdAt/updatedAt 등 내부 관리 필드는 노출하지 않음
+ * MBTI 메타데이터 응답 DTO — 표시 데이터는 프론트 정적, id만 반환
  */
-public record MbtiResponse(
-        String id,
-        String iconUrl,
-        String colorCode,
-        String summary,
-        @JsonRawValue String description
-) {
+public record MbtiResponse(String id) {
     public static MbtiResponse from(final MbtiMetadata mbti) {
-        return new MbtiResponse(
-                mbti.getId(),
-                mbti.getIconUrl(),
-                mbti.getColorCode(),
-                mbti.getSummary(),
-                mbti.getDescription()
-        );
+        return new MbtiResponse(mbti.getId());
     }
 }

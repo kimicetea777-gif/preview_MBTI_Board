@@ -13,10 +13,15 @@ public record AdminUserSummaryResponse(
         UUID id,
         String email,
         String nickname,
+        String profileImageUrl,
         String role,
         String state,
         String mbtiId,
+        String mbtiVerified,
+        boolean isSocialLogin,
+        boolean hasPhone,
         Instant lastLoginAt,
+        Instant updatedAt,
         Instant createdAt
 ) {
 
@@ -25,10 +30,15 @@ public record AdminUserSummaryResponse(
                 user.getId(),
                 user.getEmail(),
                 user.getNickname(),
+                user.getProfileImageUrl(),
                 user.getRole().name(),
                 user.getState().name(),
                 user.getMbti().getId(),
+                user.getMbtiVerified().name(),
+                user.getSocialProvider() != null,
+                user.getPhoneHash() != null,
                 user.getLastLoginAt(),
+                user.getUpdatedAt(),
                 user.getCreatedAt()
         );
     }

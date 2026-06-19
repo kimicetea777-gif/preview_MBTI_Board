@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import ResetPasswordContent from "@/components/auth/ResetPasswordContent";
+import { ROUTES } from "@/constants/routes";
 
 export default async function ResetPasswordPage({
   searchParams,
@@ -6,5 +8,6 @@ export default async function ResetPasswordPage({
   searchParams: Promise<{ token?: string }>;
 }) {
   const { token } = await searchParams;
-  return <ResetPasswordContent token={token ?? null} />;
+  if (!token) redirect(ROUTES.accountFind);
+  return <ResetPasswordContent token={token} />;
 }

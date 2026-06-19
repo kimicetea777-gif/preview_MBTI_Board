@@ -43,6 +43,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         final String provider = userRequest.getClientRegistration().getRegistrationId();
         final OAuth2UserInfo userInfo = resolveUserInfo(provider, oAuth2User.getAttributes());
         final User user = findOrCreateUser(provider, userInfo);
+        user.updateLastLoginAt();
         return new OAuth2UserPrincipal(user, oAuth2User.getAttributes());
     }
 

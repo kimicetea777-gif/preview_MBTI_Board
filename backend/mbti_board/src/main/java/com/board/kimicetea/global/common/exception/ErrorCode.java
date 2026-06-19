@@ -11,6 +11,7 @@ public enum ErrorCode {
     // Auth
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
     DUPLICATE_NICKNAME(HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다."),
+    DUPLICATE_PHONE(HttpStatus.CONFLICT, "이미 등록된 전화번호입니다."),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."),
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 토큰입니다."),
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "만료된 토큰입니다."),
@@ -33,6 +34,7 @@ public enum ErrorCode {
     WITHDRAWAL_OTP_EXPIRED(HttpStatus.BAD_REQUEST, "인증 코드가 만료되었습니다. 다시 요청해 주세요."),
     WITHDRAWAL_OTP_MAX_ATTEMPTS(HttpStatus.BAD_REQUEST, "인증 코드가 만료되었습니다. 새로운 인증 코드를 요청해 주세요."),
     PASSWORD_RESET_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "유효하지 않은 비밀번호 재설정 링크입니다. 다시 요청해 주세요."),
+    INTERNAL_KEY_INVALID(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
     ACCOUNT_LOCKED(HttpStatus.FORBIDDEN, "계정이 잠겨 있습니다."),
     ACCOUNT_BANNED(HttpStatus.FORBIDDEN, "정지된 계정입니다."),
     ACCOUNT_INACTIVE(HttpStatus.FORBIDDEN, "휴면 계정입니다. 고객센터에 문의해 주세요."),
@@ -49,6 +51,8 @@ public enum ErrorCode {
     // Debate
     DEBATE_POST_NOT_FOUND(HttpStatus.NOT_FOUND, "토론 게시글을 찾을 수 없습니다."),
     DEBATE_ENDS_AT_INVALID(HttpStatus.BAD_REQUEST, "마감일은 현재 시각보다 이후여야 합니다."),
+    DEBATE_STANCE_CLOSED(HttpStatus.BAD_REQUEST, "마감된 토론에는 의견을 선택할 수 없습니다."),
+    DEBATE_STANCE_INVALID(HttpStatus.BAD_REQUEST, "찬반 입장은 1(찬성) 또는 -1(반대)이어야 합니다."),
 
     // Vote
     VOTE_POST_NOT_FOUND(HttpStatus.NOT_FOUND, "투표 게시글을 찾을 수 없습니다."),
@@ -70,14 +74,19 @@ public enum ErrorCode {
 
     // Admin
     ADMIN_CANNOT_MODIFY_SELF(HttpStatus.BAD_REQUEST, "자기 자신의 상태/역할은 변경할 수 없습니다."),
+    ADMIN_INVALID_CREATE_STATE(HttpStatus.BAD_REQUEST, "WITHDRAWN 상태로는 유저를 생성할 수 없습니다."),
+    QUESTION_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 문항입니다."),
+    INSUFFICIENT_VISIBLE_QUESTIONS(HttpStatus.SERVICE_UNAVAILABLE, "출제 가능한 문항이 부족합니다. 관리자에게 문의하세요."),
 
     // Image
-    INVALID_IMAGE_TYPE(HttpStatus.BAD_REQUEST, "지원하지 않는 이미지 형식입니다. (jpg·png·gif·webp만 허용)"),
-    IMAGE_TOO_LARGE(HttpStatus.BAD_REQUEST, "이미지 크기는 5MB를 초과할 수 없습니다."),
+    INVALID_IMAGE_TYPE(HttpStatus.BAD_REQUEST, "지원하지 않는 이미지 형식입니다. (jpg·png·webp·bmp만 허용)"),
+    IMAGE_TOO_LARGE(HttpStatus.BAD_REQUEST, "이미지 크기는 10MB를 초과할 수 없습니다."),
     IMAGE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "이미지 업로드에 실패했습니다."),
+    IMAGE_COUNT_EXCEEDED(HttpStatus.BAD_REQUEST, "이미지는 최대 3개까지 첨부할 수 있습니다."),
 
     // Common
     AUTHENTICATION_REQUIRED(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."),
+    RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
 
     private final HttpStatus httpStatus;

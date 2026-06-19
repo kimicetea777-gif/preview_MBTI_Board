@@ -42,8 +42,8 @@ spring:
 
   servlet:
     multipart:
-      max-file-size: 5MB
-      max-request-size: 6MB
+      max-file-size: 10MB
+      max-request-size: 11MB
 
   security:
     oauth2:
@@ -80,7 +80,7 @@ frontend:
 
 app:
   cookie:
-    secure: false # 프로덕션(HTTPS) 환경에서는 반드시 true로 변경
+    secure: ${APP_COOKIE_SECURE:true} # 로컬 개발 시 환경변수 APP_COOKIE_SECURE=false 설정
 
 r2:
   account-id: ${R2_ACCOUNT_ID}
@@ -91,3 +91,6 @@ r2:
 
 internal:
   api-key: ${INTERNAL_API_KEY}
+
+phone:
+  hmac-secret: ${PHONE_HMAC_SECRET}

@@ -1,8 +1,10 @@
 package com.board.kimicetea.domain.post.controller;
 
+import com.board.kimicetea.domain.post.dto.AdminPostStatsResponse;
 import com.board.kimicetea.domain.post.dto.AdminPostSummaryResponse;
 import com.board.kimicetea.domain.post.dto.AdminPostVisibilityRequest;
 import com.board.kimicetea.domain.post.service.AdminPostService;
+import com.board.kimicetea.domain.post.service.AdminPostStatsService;
 import com.board.kimicetea.global.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -12,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,8 +34,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminPostController {
 
     private final AdminPostService adminPostService;
+    private final AdminPostStatsService adminPostStatsService;
 
-    @Operation(summary = "게시글 목록 조회", description = "숨겨진 게시글을 포함한 전체 목록을 조회합니다. typeCode·isVisible 필터와 페이지네이션을 지원합니다.")
+    @Operation(summary = "게시글 통계 조회", description = "타입·MBTI 분포, 작성 추이, 숨김 현황 등 게시글 현황 통계를 반환합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ADMIN 권한 없음")
+    })
+    @GetMapping("/stats")
+    public ResponseEntity<ApiResponse<AdminPostStatsResponse>> getPostStats() {
+        return ResponseEntity.ok(ApiResponse.ok(adminPostStatsService.getStats()));
+    }
+
+    @Operation(summary = "게시글 목록 조회", description = "숨겨진 게시글을 포함한 전체 목록을 조회합니다. typeCode·isVisible·authorNickname 필터, sortDir 정렬, 페이지네이션을 지원합니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ADMIN 권한 없음")
@@ -41,11 +55,25 @@ public class AdminPostController {
     public ResponseEntity<ApiResponse<Page<AdminPostSummaryResponse>>> getPosts(
             @RequestParam(required = false) final String typeCode,
             @RequestParam(required = false) final Boolean isVisible,
+            @RequestParam(required = false) final String authorNickname,
+            @RequestParam(defaultValue = "DESC") final String sortDir,
             @RequestParam(defaultValue = "0") final int page,
             @RequestParam(defaultValue = "20") final int size) {
         return ResponseEntity.ok(ApiResponse.ok(
-                adminPostService.getPosts(typeCode, isVisible,
+                adminPostService.getPosts(typeCode, isVisible, authorNickname, sortDir,
                         PageRequest.of(Math.max(page, 0), Math.max(1, Math.min(size, 100))))));
+    }
+
+    @Operation(summary = "게시글 삭제", description = "게시글을 영구 삭제합니다. 연결된 댓글도 CASCADE 삭제됩니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "삭제 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ADMIN 권한 없음"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "게시글 없음")
+    })
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deletePost(@PathVariable final long id) {
+        adminPostService.deletePost(id);
+        return ResponseEntity.ok(ApiResponse.ok("게시글이 삭제되었습니다."));
     }
 
     @Operation(summary = "게시글 가시성 변경", description = "게시글을 숨기거나 복구합니다. 숨겨진 게시글도 대상이 됩니다.")
