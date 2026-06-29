@@ -86,6 +86,15 @@ function NavContent({ pathname, currentType, onNavClick }: {
       {STATS_TABS.map(({ label, href, icon }) => (
         <NavItem key={href} href={href} icon={icon} label={label} active={pathname === href} onClick={onNavClick} />
       ))}
+      <div className="h-px bg-outline-variant my-3" />
+      <footer className="flex gap-3 px-3 pb-1">
+        <Link href={ROUTES.terms} onClick={onNavClick} className="text-xs text-on-surface-variant hover:text-on-surface transition-colors">
+          이용약관
+        </Link>
+        <Link href={ROUTES.privacy} onClick={onNavClick} className="text-xs text-on-surface-variant hover:text-on-surface transition-colors">
+          개인정보처리방침
+        </Link>
+      </footer>
     </>
   );
 }

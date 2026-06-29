@@ -25,7 +25,7 @@ public record AdminPostSummaryResponse(
         final boolean hasUser = post.getUser() != null;
         return new AdminPostSummaryResponse(
                 post.getId(),
-                post.getPostType().getCode(),
+                post.getPostType().name(),
                 post.getTitle(),
                 hasUser ? post.getUser().getNickname() : "(비회원)",
                 post.getAuthorMbti().getId(),

@@ -10,6 +10,7 @@ import com.board.kimicetea.global.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -64,10 +65,11 @@ public class CommentController {
     public ResponseEntity<ApiResponse<CommentResponse>> createComment(
             @PathVariable final Long postId,
             @Valid @RequestBody final CommentCreateRequest request,
-            @AuthenticationPrincipal final CustomUserDetails userDetails) {
+            @AuthenticationPrincipal final CustomUserDetails userDetails,
+            final HttpServletRequest httpRequest) {
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.ok(commentService.createComment(postId, request, userDetails)));
+                .body(ApiResponse.ok(commentService.createComment(postId, request, userDetails, httpRequest)));
     }
 
     @Operation(summary = "댓글 수정", description = "작성자(회원) 또는 비회원(guestPassword 검증)이 댓글 내용을 수정합니다.")

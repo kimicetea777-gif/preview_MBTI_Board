@@ -1,10 +1,10 @@
 package com.board.kimicetea.global.image.service;
 
+import com.board.kimicetea.global.common.util.TiptapContentParser;
+import com.board.kimicetea.global.image.ImageConstants;
 import com.board.kimicetea.global.image.entity.DeletedImage;
 import com.board.kimicetea.global.image.entity.DeletedImageStatus;
 import com.board.kimicetea.global.image.repository.DeletedImageRepository;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,7 +12,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsResponse;
+import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -32,7 +36,6 @@ public class ImageCleanupService {
 
     private final DeletedImageRepository deletedImageRepository;
     private final S3Client r2Client;
-    private final ObjectMapper objectMapper;
 
     @Value("${r2.bucket}")
     private String bucket;
@@ -58,7 +61,8 @@ public class ImageCleanupService {
      * 주의: caller(PostService) 트랜잭션 안에서 실행되어야 롤백이 함께 적용됨
      */
     public void commitImages(final Set<String> urls) {
-        if (urls.isEmpty()) return;
+        if (urls.isEmpty())
+            return;
         deletedImageRepository.deleteByUrlsAndStatus(new ArrayList<>(urls), DeletedImageStatus.PENDING);
     }
 
@@ -68,9 +72,11 @@ public class ImageCleanupService {
      */
     @Transactional
     public void cancelImages(final List<String> urls) {
-        if (urls.isEmpty()) return;
+        if (urls.isEmpty())
+            return;
         final List<DeletedImage> records = deletedImageRepository.findAllByUrlIn(urls);
-        if (records.isEmpty()) return;
+        if (records.isEmpty())
+            return;
 
         final List<DeletedImage> deleted = new ArrayList<>();
         for (final DeletedImage record : records) {
@@ -95,84 +101,86 @@ public class ImageCleanupService {
      * 주의: caller(PostService)의 트랜잭션 안에서 실행되어야 롤백이 함께 적용됨
      */
     public void markRemovedImages(final String oldContent, final String newContent) {
-        final Set<String> removed = extractImageUrls(oldContent);
-        if (removed.isEmpty()) return;
-        removed.removeAll(extractImageUrls(newContent));
-        if (removed.isEmpty()) return;
+        final Set<String> removed = TiptapContentParser.extractImageUrls(oldContent, r2PublicUrl);
+        if (removed.isEmpty())
+            return;
+        removed.removeAll(TiptapContentParser.extractImageUrls(newContent, r2PublicUrl));
+        if (removed.isEmpty())
+            return;
 
         deletedImageRepository.saveAll(
                 removed.stream()
                         .map(DeletedImage::markedForCleanup)
-                        .toList()
-        );
+                        .toList());
     }
 
+    /*--------------------------------------------cleanup()-------------------------------------------------- */
     /**
      * 매일 오전 3시
      * - PENDING > 24h : 게시글 저장 없이 방치된 이미지 삭제
      * - DELETE_REQUESTED : 즉시 삭제 실패 건 재시도
+     * 주의: R2 삭제 성공한 건만 DB에서 제거 — 실패 시 다음 날 재시도
      */
     @Scheduled(cron = "0 0 3 * * *")
     @Transactional
     public void cleanup() {
+        final List<DeletedImage> targets = collectCleanupTargets();
+        if (targets.isEmpty())
+            return;
+
+        final Set<String> failedKeys = deleteFromR2(targets);
+
+        final List<DeletedImage> succeeded = targets.stream()
+                .filter(image -> !failedKeys.contains(keyFromUrl(image.getUrl())))
+                .toList();
+
+        if (!succeeded.isEmpty())
+            deletedImageRepository.deleteAll(succeeded);
+        log.info("이미지 배치 정리 완료 — 삭제 성공: {}/{}", succeeded.size(), targets.size());
+    }
+
+    private List<DeletedImage> collectCleanupTargets() {
         final Instant cutoff = Instant.now().minus(24, ChronoUnit.HOURS);
         final List<DeletedImage> targets = new ArrayList<>();
         targets.addAll(deletedImageRepository.findAllByStatusAndMarkedAtBefore(DeletedImageStatus.PENDING, cutoff));
         targets.addAll(deletedImageRepository.findAllByStatus(DeletedImageStatus.DELETE_REQUESTED));
-
-        if (targets.isEmpty()) return;
-
-        int deleted = 0;
-        for (final DeletedImage image : targets) {
-            try {
-                r2Client.deleteObject(DeleteObjectRequest.builder()
-                        .bucket(bucket)
-                        .key(keyFromUrl(image.getUrl()))
-                        .build());
-                deleted++;
-            } catch (Exception e) {
-                log.warn("R2 이미지 삭제 실패 — url={}", image.getUrl(), e);
-            }
-        }
-        deletedImageRepository.deleteAll(targets);
-        log.info("이미지 배치 정리 완료 — 삭제 성공: {}/{}", deleted, targets.size());
+        return targets;
     }
 
-    /** Tiptap JSON에서 자체 R2 이미지 URL만 추출 */
-    public Set<String> extractImageUrls(final String jsonContent) {
-        if (jsonContent == null || jsonContent.isBlank()) return Set.of();
+    private Set<String> deleteFromR2(final List<DeletedImage> targets) {
+        final Set<String> failedKeys = new HashSet<>();
+        for (int i = 0; i < targets.size(); i += ImageConstants.DELETE_OBJECTS_BATCH_SIZE) {
+            final List<DeletedImage> chunk = targets.subList(i,
+                    Math.min(i + ImageConstants.DELETE_OBJECTS_BATCH_SIZE, targets.size()));
+            deleteChunk(chunk, failedKeys);
+        }
+        return failedKeys;
+    }
+
+    private void deleteChunk(final List<DeletedImage> chunk, final Set<String> failedKeys) {
+        final List<ObjectIdentifier> identifiers = chunk.stream()
+                .map(image -> ObjectIdentifier.builder().key(keyFromUrl(image.getUrl())).build())
+                .toList();
         try {
-            final Set<String> urls = new HashSet<>();
-            collectImageUrls(objectMapper.readTree(jsonContent), urls, 0);
-            return urls;
-        } catch (Exception e) {
-            return Set.of();
-        }
-    }
+            final DeleteObjectsResponse response = r2Client.deleteObjects(
+                    DeleteObjectsRequest.builder()
+                            .bucket(bucket)
+                            .delete(Delete.builder().objects(identifiers).build())
+                            .build());
 
-    private void collectImageUrls(final JsonNode node, final Set<String> urls, final int depth) {
-        if (depth > 20) return;
-        if (node.isObject()) {
-            if ("image".equals(node.path("type").asText())) {
-                final String src = node.path("attrs").path("src").asText(null);
-                // 자체 R2 URL 또는 {public-url}/ 플레이스홀더 이미지만 수집
-                if (src != null && (src.startsWith(r2PublicUrl) || src.startsWith("{public-url}/"))) {
-                    urls.add(src);
-                }
-            }
-            if (node.has("content")) {
-                collectImageUrls(node.path("content"), urls, depth + 1);
-            }
-        } else if (node.isArray()) {
-            for (final JsonNode child : node) {
-                collectImageUrls(child, urls, depth + 1);
-            }
+            response.errors().forEach(error -> {
+                log.warn("R2 이미지 삭제 실패 — key={}, code={}", error.key(), error.code());
+                failedKeys.add(error.key());
+            });
+        } catch (Exception e) {
+            log.warn("R2 배치 삭제 요청 실패 — chunk size={}", chunk.size(), e);
+            chunk.forEach(image -> failedKeys.add(keyFromUrl(image.getUrl())));
         }
     }
 
     private String keyFromUrl(final String url) {
-        if (url.startsWith("{public-url}/")) {
-            return url.substring("{public-url}/".length());
+        if (url.startsWith(TiptapContentParser.PLACEHOLDER_PREFIX)) {
+            return url.substring(TiptapContentParser.PLACEHOLDER_PREFIX.length());
         }
         final String prefix = r2PublicUrl + "/";
         if (!url.startsWith(prefix)) {

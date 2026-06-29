@@ -166,34 +166,42 @@ public class TokenRedisService {
 
     // ── 키 생성 헬퍼 ──────────────────────────────────────────────
 
+    /** RT:{userId}:{deviceId} — 기기별 Refresh Token */
     private String rtKey(final String userId, final String deviceId) {
         return RT_PREFIX + userId + ":" + deviceId;
     }
 
+    /** BL:{accessToken} — 로그아웃된 Access Token 블랙리스트 */
     private String blKey(final String accessToken) {
         return BL_PREFIX + accessToken;
     }
 
+    /** WD:{userId} — 탈퇴 진행 중 OTP */
     private String wdKey(final String userId) {
         return WD_PREFIX + userId;
     }
 
+    /** WD:CNT:{userId} — 탈퇴 OTP 실패 횟수 */
     private String wdCntKey(final String userId) {
         return WD_CNT_PREFIX + userId;
     }
 
+    /** EV:TOKEN:{token} — 회원가입 이메일 인증 토큰 → email */
     private String evTokenKey(final String token) {
         return EV_TOKEN_PREFIX + token;
     }
 
+    /** EV:DONE:{email} — 이메일 인증 완료 여부 (회원가입 전 인증 확인용) */
     private String evDoneKey(final String email) {
         return EV_DONE_PREFIX + email;
     }
 
+    /** PW:RESET:{token} — 비밀번호 재설정 토큰 → email */
     private String pwResetKey(final String token) {
         return PW_RESET_PREFIX + token;
     }
 
+    /** PW:RESET:EMAIL:{email} — 비밀번호 재설정 토큰 역방향 조회 (email → token, 중복 발급 방지) */
     private String pwResetEmailKey(final String email) {
         return PW_RESET_EMAIL_PREFIX + email;
     }

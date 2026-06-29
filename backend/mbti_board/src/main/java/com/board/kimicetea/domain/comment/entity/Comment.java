@@ -41,6 +41,9 @@ public class Comment {
     @Column(name = "guest_password")
     private String guestPassword;
 
+    @Column(name = "author_ip", length = 45)
+    private String authorIp;
+
     // DB 트리거가 관리 — JPA 직접 수정 금지
     @Builder.Default
     @Column(name = "like_count", nullable = false, insertable = false, updatable = false)

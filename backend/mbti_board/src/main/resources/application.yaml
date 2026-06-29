@@ -2,11 +2,19 @@ spring:
   application:
     name: kimicetea
 
+  threads:
+    virtual:
+      enabled: true
+
   datasource:
     url: jdbc:postgresql://localhost:5432/${POSTGRES_DB}
     username: ${POSTGRES_USER}
     password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 3000
+      keepalive-time: 30000
 
   jpa:
     hibernate:
@@ -76,9 +84,13 @@ jwt:
   refresh-expiry: 604800000 # 7일 (ms)
 
 frontend:
-  url: ${FRONTEND_URL:http://localhost:3000}
+  url: ${FRONTEND_URL:http://localhost:4000}
+
+site:
+  url: ${SITE_URL:http://localhost:4000}
 
 app:
+  name: ${APP_NAME:MBTI Board}
   cookie:
     secure: ${APP_COOKIE_SECURE:true} # 로컬 개발 시 환경변수 APP_COOKIE_SECURE=false 설정
 
@@ -92,5 +104,12 @@ r2:
 internal:
   api-key: ${INTERNAL_API_KEY}
 
+rate-limit:
+  ip-salt: ${RATE_LIMIT_IP_SALT}
+
 phone:
   hmac-secret: ${PHONE_HMAC_SECRET}
+
+alert:
+  mail:
+    to: ${ALERT_MAIL_TO}

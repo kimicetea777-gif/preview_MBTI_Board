@@ -79,7 +79,7 @@ export function GardenProgress({ currentIndex, totalQuestions }: Props) {
   const idx = currentIndex >= totalQuestions - 1 ? totalQuestions : currentIndex;
 
   return (
-    <div className="relative left-1/2 -translate-x-1/2 w-140 select-none h-45 overflow-hidden mt-0">
+    <div className="relative mx-auto w-80 h-26 md:w-140 md:h-45 select-none overflow-hidden mt-0">
       {LAYERS.map((layer) => (
         <div
           key={layer.src}

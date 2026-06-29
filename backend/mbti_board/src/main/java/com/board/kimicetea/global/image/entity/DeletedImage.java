@@ -11,6 +11,7 @@ import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.lang.NonNull;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
@@ -42,8 +43,9 @@ public class DeletedImage {
     @Column(name = "marked_at", nullable = false, updatable = false)
     private Instant markedAt;
 
+    /*---------------------------------편의--------------------------------- */
     /** 업로드 직후 PENDING 레코드 생성 */
-    public static DeletedImage pending(final String url) {
+    public static @NonNull DeletedImage pending(final String url) {
         final DeletedImage record = new DeletedImage();
         record.url = url;
         record.status = DeletedImageStatus.PENDING;
@@ -51,7 +53,7 @@ public class DeletedImage {
     }
 
     /** 게시글 수정/삭제로 제거된 이미지 — 24h 후 스케줄러 삭제 */
-    public static DeletedImage markedForCleanup(final String url) {
+    public static @NonNull DeletedImage markedForCleanup(final String url) {
         final DeletedImage record = new DeletedImage();
         record.url = url;
         record.status = DeletedImageStatus.PENDING;

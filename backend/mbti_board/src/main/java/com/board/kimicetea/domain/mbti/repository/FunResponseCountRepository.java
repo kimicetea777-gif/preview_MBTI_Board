@@ -15,10 +15,10 @@ public interface FunResponseCountRepository extends JpaRepository<FunResponseCou
 
     @Modifying
     @Query(value = """
-            INSERT INTO fun_response_counts (option_id, mbti_id, count)
+            INSERT INTO fun_response_counts (option_id, mbti_id, total_count)
             VALUES (:optionId, :mbtiId, 1)
             ON CONFLICT (option_id, mbti_id) DO UPDATE
-                SET count = fun_response_counts.count + 1
+                SET total_count = fun_response_counts.total_count + 1
             """, nativeQuery = true)
     void upsertCount(@Param("optionId") Long optionId, @Param("mbtiId") String mbtiId);
 }

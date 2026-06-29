@@ -39,7 +39,7 @@ export default function Header() {
             <MdMenu size={24} />
           </button>
           <Link href={ROUTES.board.all} className="flex items-center gap-2.5 shrink-0">
-            <Logo size="lg" asLink={false}/>
+            <Logo size="md" asLink={false}/>
           </Link>
         </div>
 

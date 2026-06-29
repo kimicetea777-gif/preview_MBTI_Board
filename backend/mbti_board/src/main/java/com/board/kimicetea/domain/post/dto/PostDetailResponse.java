@@ -5,6 +5,7 @@ import com.board.kimicetea.domain.post.entity.Post;
 import com.board.kimicetea.domain.post.entity.VotePost;
 import com.board.kimicetea.domain.post.entity.VotePostHistory;
 import com.board.kimicetea.domain.user.enums.MbtiVerified;
+import com.board.kimicetea.global.common.util.TiptapContentParser;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -30,6 +31,16 @@ public record PostDetailResponse(
                 Instant updatedAt,
                 VoteResultResponse voteResult,
                 DebateSummaryResponse debateResult) {
+
+        /** {public-url}/ 플레이스홀더를 실제 R2 URL로 복원한 새 인스턴스 반환 */
+        public PostDetailResponse resolveImageUrls(final String r2PublicUrl) {
+                return new PostDetailResponse(
+                                id, typeCode, title,
+                                TiptapContentParser.resolveForResponse(content, r2PublicUrl),
+                                authorNickname, authorMbtiId, mbtiVerified, targetMbtiId,
+                                viewCount, commentCount, isOwner, isGuest, createdAt, updatedAt,
+                                voteResult, debateResult);
+        }
 
         /**
          * FREE 게시글용 팩토리
@@ -92,7 +103,7 @@ public record PostDetailResponse(
 
                 return new PostDetailResponse(
                                 post.getId(),
-                                post.getPostType().getCode(),
+                                post.getPostType().name(),
                                 post.getTitle(),
                                 post.getContent(),
                                 hasUser ? post.getUser().getNickname() : "(비회원)",

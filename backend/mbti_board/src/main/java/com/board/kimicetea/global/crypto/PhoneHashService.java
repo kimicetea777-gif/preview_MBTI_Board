@@ -2,6 +2,7 @@ package com.board.kimicetea.global.crypto;
 
 import com.board.kimicetea.global.common.exception.CustomException;
 import com.board.kimicetea.global.common.exception.ErrorCode;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -14,6 +15,7 @@ import java.util.HexFormat;
  * 전화번호 HMAC-SHA256 해싱 서비스 — DB 조회 키로 사용 가능한 결정적 해시 생성
  * 주의: 시크릿 키 없이는 역추적 불가. 키 노출 시 phone_hash 전체 재해시 필요
  */
+@Slf4j
 @Service
 public class PhoneHashService {
 
@@ -33,6 +35,7 @@ public class PhoneHashService {
             final byte[] digest = mac.doFinal(normalize(phone).getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(digest);
         } catch (Exception e) {
+            log.error("핸드폰 번호: HMAC-SHA256 해싱 실패", e);
             throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
     }

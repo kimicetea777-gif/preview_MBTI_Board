@@ -2,7 +2,10 @@
 |---|---|---|
 | `ValidationConstants` | `global/common` | 비밀번호·전화번호 정책 등 공통 검증 상수 모음 (PASSWORD_REGEXP, PHONE_REGEXP 등) |
 | `PhoneHashService` | `global/crypto` | 전화번호 HMAC-SHA256 해싱 서비스 — DB 조회 키용 결정적 해시 생성 (시크릿 키로 역추적 방지, 최소 32자 검증) |
-| `RateLimitService` | `global/ratelimit` | Redis INCR 기반 IP별 Rate Limiting — 엔드포인트·최대 횟수·시간 창 지정 가능 (Cloudflare X-Forwarded-For 지원) |
+| `RateLimitService` | `global/ratelimit` | Redis INCR 기반 Rate Limiting — IP별(check)·이메일별(checkByEmail) 두 방식 지원, 엔드포인트·최대 횟수·시간 창 지정 가능 (Cloudflare X-Forwarded-For 지원) |
+| `RateLimit` | `global/ratelimit` | IP 기반 Rate Limit 선언 어노테이션 — endpoint·max·windowSecs 지정, RateLimitAspect가 메서드 진입 전 자동 처리 |
+| `RateLimitAspect` | `global/ratelimit` | @RateLimit 어노테이션 AOP 처리기 — RequestContextHolder로 HttpServletRequest 획득 후 RateLimitService.check() 호출 |
+| `RequestUtils` | `global/common/util` | HTTP 요청 유틸 — Cloudflare Tunnel 환경 클라이언트 IP 추출(extractClientIp), salt 기반 SHA-256 IP 해싱(hashIp) |
 | `OAuth2AuthenticationFailureHandler` | `global/security/oauth2` | OAuth2 인증 실패 시 에러 코드를 쿼리 파라미터로 담아 프론트 콜백 페이지로 리다이렉트 |
 | `EmailVerifySendRequest` | `domain/auth/dto` | 이메일 인증 발송 요청 DTO (이메일 주소) |
 | `EmailVerifyConfirmRequest` | `domain/auth/dto` | 이메일 인증 토큰 확인 요청 DTO (UUID 토큰) |
@@ -27,7 +30,7 @@
 | `MbtiTestResultResponse` | `domain/mbti/dto` | MBTI 검사 결과 응답 DTO (서버 판정 mbtiId + 4개 점수) |
 | `MbtiTestHistoryResponse` | `domain/mbti/dto` | MBTI 검사 이력 응답 DTO (id·mbtiId·4개 점수·testVersion·createdAt) |
 | `JpaConfig` | `global/config` | QueryDSL JPAQueryFactory 빈 등록 |
-| `CacheConfig` | `global/config` | 인메모리 캐시 설정 — 참조 테이블(postTypes 등) 전용 ConcurrentMapCacheManager |
+| `AsyncConfig` | `global/config` | @EnableAsync 활성화 + 비동기 예외 로깅 핸들러 — 가상 스레드 기반 메일 발송 비동기 처리 |
 | `UserCleanupService` | `domain/user/service` | 탈퇴 유저(WITHDRAWN) 배치 삭제 스케줄러 — 매일 04:00 실행, findAllByState → deleteAll |
 | `AdminUserStatsResponse` | `domain/user/dto` | 유저 통계 응답 DTO — totalUsers·inactiveCount·소셜/로컬 수·상태/역할/MBTI 분포·30일 가입 추이 |
 | `AdminUserStatsService` | `domain/user/service` | 어드민 유저 통계 집계 서비스 — 상태·역할·MBTI 분포, 장기 미접속 수, 가입 추이(읽기 전용) |
@@ -38,7 +41,6 @@
 | `AdminMbtiTestStatsResponse` | `domain/mbti/dto` | MBTI 검사 통계 응답 DTO — totalTests·지표별 평균·결과 분포·재검사 빈도·30일 검사 추이 |
 | `AdminMbtiTestStatsService` | `domain/mbti/service` | 어드민 MBTI 검사 통계 집계 서비스 — 결과 분포·지표 평균·재검사 빈도·추이(읽기 전용) |
 | `AdminMbtiController` | `domain/mbti/controller` | 어드민 MBTI 검사 통계 API 컨트롤러 (GET /api/admin/mbti/stats — ADMIN 전용) |
-| `PostTypeRepository` | `domain/post/repository` | 게시판 유형 조회 레포지토리 (code 기준 단건 조회) |
 | `PostRepositoryCustom` | `domain/post/repository` | 게시글 목록 QueryDSL 커스텀 조회 인터페이스 (findPosts·findAllPostsForAdmin·findMyPosts) |
 | `PostRepositoryImpl` | `domain/post/repository` | 게시글 목록 QueryDSL 구현체 (유형·정렬·MBTI 필터 조합, 내 게시글 userId 필터 포함) |
 | `PostRepository` | `domain/post/repository` | 게시글 기본 CRUD + viewCount 원자적 증가 (@Modifying) |
@@ -142,3 +144,10 @@
 | `AdminFunQuestionResponse` | `domain/mbti/dto` | 어드민 FUN 문항 응답 DTO (id·title·optionCount·isVisible·updatedAt, 공개 엔드포인트 사용 금지) |
 | `AdminFunQuestionVisibilityRequest` | `domain/mbti/dto` | 어드민 FUN 문항 노출 여부 변경 요청 DTO (Boolean 박싱 타입, visible 필수) |
 | `AdminFunQuestionService` | `domain/mbti/service` | 어드민 FUN 문항 전체 조회·노출 변경 서비스 — options JOIN FETCH, is_visible 무관 전체 반환 |
+| `RequestIdFilter` | `global/common/filter` | 요청마다 8자리 UUID를 MDC requestId에 심어 로그 추적 가능하게 하는 서블릿 필터 — finally에서 반드시 제거 |
+| `EmailAlertFlag` | `global/alert` | 이메일 에러 알림 전송 여부 static AtomicBoolean 플래그 — Logback은 Spring 컨텍스트 밖이므로 static 관리, 서버 재시작 시 true로 초기화 |
+| `AlertingSmtpAppender` | `global/alert` | SMTPAppender 확장 — sendBuffer 오버라이드로 EmailAlertFlag mute 시 이메일 전송 건너뜀 |
+| `AlertController` | `global/alert` | 이메일 에러 알림 제어 API (POST /api/admin/alerts/mute·/unmute, GET /api/admin/alerts/status — ADMIN 전용) |
+| `InternalOnly` | `global/internal` | Next.js 서버 등 내부 호출 전용 엔드포인트 선언 어노테이션 — X-Internal-Key 헤더 검증을 InternalOnlyAspect가 자동 처리 |
+| `InternalOnlyAspect` | `global/internal` | @InternalOnly 어노테이션 AOP 처리기 — RequestContextHolder로 HttpServletRequest 획득 후 X-Internal-Key 헤더 검증 |
+| `InternalApiConstants` | `global/internal` | 내부 API 프로토콜 상수 모음 — INTERNAL_KEY_HEADER("X-Internal-Key") |

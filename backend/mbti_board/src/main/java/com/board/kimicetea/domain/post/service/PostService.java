@@ -5,6 +5,7 @@ import com.board.kimicetea.domain.mbti.repository.MbtiMetadataRepository;
 import com.board.kimicetea.domain.mbti.MbtiConstants;
 import com.board.kimicetea.domain.post.PostConstants;
 import com.board.kimicetea.global.common.util.GuestPasswordHelper;
+import com.board.kimicetea.global.common.util.RequestUtils;
 import com.board.kimicetea.global.common.util.TiptapContentParser;
 import com.board.kimicetea.global.image.service.ImageCleanupService;
 import com.board.kimicetea.domain.post.PostSortType;
@@ -23,12 +24,12 @@ import com.board.kimicetea.domain.post.entity.DebateStanceHistory;
 import com.board.kimicetea.domain.post.entity.Post;
 import com.board.kimicetea.domain.post.entity.PostType;
 import com.board.kimicetea.domain.post.entity.VotePost;
+
 import com.board.kimicetea.domain.post.entity.VotePostHistory;
 import com.board.kimicetea.domain.post.entity.VotePostOption;
 import com.board.kimicetea.domain.post.repository.DebatePostRepository;
 import com.board.kimicetea.domain.post.repository.DebateStanceHistoryRepository;
 import com.board.kimicetea.domain.post.repository.PostRepository;
-import com.board.kimicetea.domain.post.repository.PostTypeRepository;
 import com.board.kimicetea.domain.post.repository.VotePostHistoryRepository;
 import com.board.kimicetea.domain.post.repository.VotePostOptionRepository;
 import com.board.kimicetea.domain.post.repository.VotePostRepository;
@@ -39,6 +40,7 @@ import com.board.kimicetea.global.common.exception.CustomException;
 import com.board.kimicetea.global.common.exception.ErrorCode;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -48,10 +50,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 게시글 도메인 비즈니스 로직 (목록·단건 조회, 작성·수정·삭제)
@@ -62,7 +68,6 @@ import java.util.UUID;
 public class PostService {
 
     private final PostRepository postRepository;
-    private final PostTypeRepository postTypeRepository;
     private final MbtiMetadataRepository mbtiMetadataRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -114,9 +119,9 @@ public class PostService {
             return null;
         }
         final String upper = typeCode.toUpperCase();
-        if (!PostConstants.TYPE_FREE.equals(upper)
-                && !PostConstants.TYPE_VOTE.equals(upper)
-                && !PostConstants.TYPE_DEBATE.equals(upper)) {
+        try {
+            PostType.valueOf(upper);
+        } catch (IllegalArgumentException e) {
             throw new CustomException(ErrorCode.POST_TYPE_NOT_FOUND);
         }
         return upper;
@@ -133,25 +138,27 @@ public class PostService {
         final Post post = findPostOrThrow(id);
         postRepository.increaseViewCount(id);
 
-        if (PostConstants.TYPE_VOTE.equals(post.getPostType().getCode())) {
+        if (post.getPostType() == PostType.VOTE) {
             final VotePost votePost = votePostRepository.findWithOptionsById(id)
                     .orElseThrow(() -> new CustomException(ErrorCode.VOTE_POST_NOT_FOUND));
             final VotePostHistory history = (currentUserId != null)
                     ? votePostHistoryRepository.findByVotePost_IdAndUser_Id(id, currentUserId).orElse(null)
                     : null;
-            return PostDetailResponse.from(post, currentUserId, votePost, history);
+            return PostDetailResponse.from(post, currentUserId, votePost, history)
+                    .resolveImageUrls(r2PublicUrl);
         }
 
-        if (PostConstants.TYPE_DEBATE.equals(post.getPostType().getCode())) {
+        if (post.getPostType() == PostType.DEBATE) {
             final DebatePost debatePost = debatePostRepository.findById(id)
                     .orElseThrow(() -> new CustomException(ErrorCode.DEBATE_POST_NOT_FOUND));
             final Short myStance = (currentUserId != null)
                     ? debateStanceHistoryRepository.findStanceByUserIdAndPostId(currentUserId, id).orElse(null)
                     : null;
-            return PostDetailResponse.from(post, currentUserId, debatePost, myStance);
+            return PostDetailResponse.from(post, currentUserId, debatePost, myStance)
+                    .resolveImageUrls(r2PublicUrl);
         }
 
-        return PostDetailResponse.from(post, currentUserId);
+        return PostDetailResponse.from(post, currentUserId).resolveImageUrls(r2PublicUrl);
     }
 
     /**
@@ -179,8 +186,7 @@ public class PostService {
                 .ifPresentOrElse(
                         history -> history.changeStance(request.stance()),
                         () -> debateStanceHistoryRepository.save(
-                                DebateStanceHistory.create(userRef, debatePost, request.stance()))
-                );
+                                DebateStanceHistory.create(userRef, debatePost, request.stance())));
     }
 
     /**
@@ -193,12 +199,17 @@ public class PostService {
 
     @Transactional
     public PostDetailResponse createPost(final PostCreateRequest request,
-            final CustomUserDetails userDetails) {
+            final CustomUserDetails userDetails, final HttpServletRequest httpRequest) {
         // VOTE·DEBATE는 전용 엔드포인트를 사용해야 함
-        if (PostConstants.TYPE_VOTE.equals(request.type()) || PostConstants.TYPE_DEBATE.equals(request.type())) {
+        final PostType postType;
+        try {
+            postType = PostType.valueOf(request.type());
+        } catch (IllegalArgumentException e) {
+            throw new CustomException(ErrorCode.POST_TYPE_NOT_FOUND);
+        }
+        if (postType == PostType.VOTE || postType == PostType.DEBATE) {
             throw new CustomException(ErrorCode.POST_TYPE_NOT_ALLOWED);
         }
-        final PostType postType = findPostTypeOrThrow(request.type());
 
         final User user;
         final MbtiMetadata authorMbti;
@@ -214,16 +225,20 @@ public class PostService {
         }
 
         final MbtiMetadata targetMbti = resolveTargetMbti(request.targetMbti());
-        if (TiptapContentParser.countImages(request.content()) > PostConstants.MAX_IMAGE_COUNT) {
+        final Set<String> realUrls = TiptapContentParser.extractImageUrls(request.content(), r2PublicUrl);
+        final String normalizedContent = TiptapContentParser.normalizeForStorage(request.content(), r2PublicUrl);
+        if (TiptapContentParser.countImages(normalizedContent) > PostConstants.MAX_IMAGE_COUNT) {
             throw new CustomException(ErrorCode.IMAGE_COUNT_EXCEEDED);
         }
-        final String preview = TiptapContentParser.extractTextPreview(request.content(), 300);
-        final String[] imageKeys = TiptapContentParser.extractImageKeys(request.content(), PostConstants.MAX_IMAGE_COUNT, r2PublicUrl);
+        final String preview = TiptapContentParser.extractTextPreview(normalizedContent, 300);
+        final String[] imageKeys = TiptapContentParser.extractImageKeys(normalizedContent,
+                PostConstants.MAX_IMAGE_COUNT);
 
         final Post post = Post.builder()
                 .title(request.title().strip())
-                .content(request.content())
+                .content(normalizedContent)
                 .guestPassword(GuestPasswordHelper.encode(user, request.guestPassword(), passwordEncoder))
+                .authorIp(RequestUtils.extractClientIp(httpRequest))
                 .user(user)
                 .authorMbti(authorMbti)
                 .targetMbti(targetMbti)
@@ -233,8 +248,9 @@ public class PostService {
                 .build();
 
         final Post saved = postRepository.save(post);
-        imageCleanupService.commitImages(imageCleanupService.extractImageUrls(request.content()));
-        return PostDetailResponse.from(saved, (userDetails != null) ? userDetails.userId() : null);
+        imageCleanupService.commitImages(realUrls);
+        return PostDetailResponse.from(saved, (userDetails != null) ? userDetails.userId() : null)
+                .resolveImageUrls(r2PublicUrl);
     }
 
     /**
@@ -243,32 +259,36 @@ public class PostService {
      */
     @Transactional
     public PostDetailResponse createDebatePost(final DebatePostCreateRequest request,
-            final CustomUserDetails userDetails) {
-        final PostType postType = findPostTypeOrThrow(PostConstants.TYPE_DEBATE);
+            final CustomUserDetails userDetails, final HttpServletRequest httpRequest) {
         final User user = findUserOrThrow(userDetails.userId());
         final MbtiMetadata authorMbti = user.getMbti();
         final MbtiMetadata targetMbti = resolveTargetMbti(request.targetMbti());
-        if (TiptapContentParser.countImages(request.content()) > PostConstants.MAX_IMAGE_COUNT) {
+        final Set<String> realUrls = TiptapContentParser.extractImageUrls(request.content(), r2PublicUrl);
+        final String normalizedContent = TiptapContentParser.normalizeForStorage(request.content(), r2PublicUrl);
+        if (TiptapContentParser.countImages(normalizedContent) > PostConstants.MAX_IMAGE_COUNT) {
             throw new CustomException(ErrorCode.IMAGE_COUNT_EXCEEDED);
         }
-        final String preview = TiptapContentParser.extractTextPreview(request.content(), 300);
-        final String[] imageKeys = TiptapContentParser.extractImageKeys(request.content(), PostConstants.MAX_IMAGE_COUNT, r2PublicUrl);
+        final String preview = TiptapContentParser.extractTextPreview(normalizedContent, 300);
+        final String[] imageKeys = TiptapContentParser.extractImageKeys(normalizedContent,
+                PostConstants.MAX_IMAGE_COUNT);
 
         final Post post = Post.builder()
                 .title(request.title().strip())
-                .content(request.content())
+                .content(normalizedContent)
+                .authorIp(RequestUtils.extractClientIp(httpRequest))
                 .user(user)
                 .authorMbti(authorMbti)
                 .targetMbti(targetMbti)
-                .postType(postType)
+                .postType(PostType.DEBATE)
                 .contentPreview(preview)
                 .imageUrls(imageKeys)
                 .build();
 
         final Post saved = postRepository.save(post);
-        imageCleanupService.commitImages(imageCleanupService.extractImageUrls(request.content()));
+        imageCleanupService.commitImages(realUrls);
         final DebatePost debatePost = createDebatePostMeta(saved, request);
-        return PostDetailResponse.from(saved, userDetails.userId(), debatePost);
+        return PostDetailResponse.from(saved, userDetails.userId(), debatePost)
+                .resolveImageUrls(r2PublicUrl);
     }
 
     /**
@@ -277,31 +297,35 @@ public class PostService {
      */
     @Transactional
     public PostDetailResponse createVotePost(final VotePostCreateRequest request,
-            final CustomUserDetails userDetails) {
-        final PostType postType = findPostTypeOrThrow(PostConstants.TYPE_VOTE);
+            final CustomUserDetails userDetails, final HttpServletRequest httpRequest) {
         final User user = findUserOrThrow(userDetails.userId());
         final MbtiMetadata targetMbti = resolveTargetMbti(request.targetMbti());
-        if (TiptapContentParser.countImages(request.content()) > PostConstants.MAX_IMAGE_COUNT) {
+        final Set<String> realUrls = TiptapContentParser.extractImageUrls(request.content(), r2PublicUrl);
+        final String normalizedContent = TiptapContentParser.normalizeForStorage(request.content(), r2PublicUrl);
+        if (TiptapContentParser.countImages(normalizedContent) > PostConstants.MAX_IMAGE_COUNT) {
             throw new CustomException(ErrorCode.IMAGE_COUNT_EXCEEDED);
         }
-        final String preview = TiptapContentParser.extractTextPreview(request.content(), 300);
-        final String[] imageKeys = TiptapContentParser.extractImageKeys(request.content(), PostConstants.MAX_IMAGE_COUNT, r2PublicUrl);
+        final String preview = TiptapContentParser.extractTextPreview(normalizedContent, 300);
+        final String[] imageKeys = TiptapContentParser.extractImageKeys(normalizedContent,
+                PostConstants.MAX_IMAGE_COUNT);
 
         final Post post = Post.builder()
                 .title(request.title().strip())
-                .content(request.content())
+                .content(normalizedContent)
+                .authorIp(RequestUtils.extractClientIp(httpRequest))
                 .user(user)
                 .authorMbti(user.getMbti())
                 .targetMbti(targetMbti)
-                .postType(postType)
+                .postType(PostType.VOTE)
                 .contentPreview(preview)
                 .imageUrls(imageKeys)
                 .build();
 
         final Post saved = postRepository.save(post);
-        imageCleanupService.commitImages(imageCleanupService.extractImageUrls(request.content()));
+        imageCleanupService.commitImages(realUrls);
         final VotePost votePost = createVotePostMeta(saved, request);
-        return PostDetailResponse.from(saved, userDetails.userId(), votePost, null);
+        return PostDetailResponse.from(saved, userDetails.userId(), votePost, null)
+                .resolveImageUrls(r2PublicUrl);
     }
 
     /**
@@ -315,6 +339,9 @@ public class PostService {
         if (optionRequests == null || optionRequests.size() < 2) {
             throw new CustomException(ErrorCode.VOTE_OPTIONS_REQUIRED);
         }
+        if (optionRequests.size() > PostConstants.VOTE_OPTION_MAX) {
+            throw new CustomException(ErrorCode.VOTE_OPTIONS_EXCEEDED);
+        }
 
         // endsAt이 과거 시각이면 즉시 마감 투표가 생성되므로 차단
         if (request.endsAt() != null && request.endsAt().isBefore(Instant.now())) {
@@ -324,18 +351,23 @@ public class PostService {
         // DB flush 전에는 이전 저장 옵션을 existsByVotePost_Id... 쿼리가 인식 못 하므로
         // 요청 리스트 내 MBTI 중복을 인메모리에서 먼저 검증
         // 또한 MBTI 투표(mbtiTarget 있음)와 자유 투표(null)가 혼합되지 않도록 검증
-        final boolean hasMbti    = optionRequests.stream().anyMatch(VoteOptionRequest::hasMbtiTarget);
+        final boolean hasMbti = optionRequests.stream().anyMatch(VoteOptionRequest::hasMbtiTarget);
         final boolean hasNonMbti = optionRequests.stream().anyMatch(o -> !o.hasMbtiTarget());
         if (hasMbti && hasNonMbti) {
             throw new CustomException(ErrorCode.VOTE_MBTI_MODE_MIXED);
         }
 
         final Set<String> seenMbti = new HashSet<>();
+        final Set<String> seenText = new HashSet<>();
         for (final VoteOptionRequest optReq : optionRequests) {
             if (optReq.hasMbtiTarget()) {
                 if (!seenMbti.add(optReq.mbtiTarget())) {
                     throw new CustomException(ErrorCode.VOTE_MBTI_DUPLICATE);
                 }
+            } else if (optReq.optionText() == null || optReq.optionText().isBlank()) {
+                throw new CustomException(ErrorCode.VOTE_OPTION_TEXT_REQUIRED);
+            } else if (!seenText.add(optReq.optionText())) {
+                throw new CustomException(ErrorCode.VOTE_OPTION_TEXT_DUPLICATE);
             }
         }
 
@@ -345,23 +377,27 @@ public class PostService {
                 .build();
         votePostRepository.save(votePost);
 
+        // MBTI 투표인 경우 옵션 수만큼 개별 SELECT 방지 — 한 번에 일괄 조회
+        final Map<String, MbtiMetadata> mbtiMap = hasMbti
+                ? mbtiMetadataRepository.findAllById(seenMbti).stream()
+                        .collect(Collectors.toMap(MbtiMetadata::getId, Function.identity()))
+                : Map.of();
+
+        if (hasMbti && mbtiMap.size() != seenMbti.size()) {
+            throw new CustomException(ErrorCode.MBTI_NOT_FOUND);
+        }
+
+        final List<VotePostOption> options = new ArrayList<>();
         for (int i = 0; i < optionRequests.size(); i++) {
             final VoteOptionRequest optReq = optionRequests.get(i);
-            MbtiMetadata mbtiTarget = null;
-
-            if (optReq.hasMbtiTarget()) {
-                mbtiTarget = mbtiMetadataRepository.findById(optReq.mbtiTarget())
-                        .orElseThrow(() -> new CustomException(ErrorCode.MBTI_NOT_FOUND));
-            }
-
-            final VotePostOption option = VotePostOption.builder()
+            options.add(VotePostOption.builder()
                     .votePost(votePost)
                     .optionText(optReq.optionText())
                     .displayOrder((short) i)
-                    .mbtiTarget(mbtiTarget)
-                    .build();
-            votePostOptionRepository.save(option);
+                    .mbtiTarget(hasMbti ? mbtiMap.get(optReq.mbtiTarget()) : null)
+                    .build());
         }
+        votePostOptionRepository.saveAll(options);
 
         // votePost가 1차 캐시에 options=[]로 올라가 있어 JOIN FETCH가 캐시를 우선함
         // detach 후 재조회해야 DB에서 options를 올바르게 가져옴
@@ -383,9 +419,11 @@ public class PostService {
         final DebatePost debatePost = DebatePost.builder()
                 .post(post)
                 .proLabel(request.proLabel() != null && !request.proLabel().isBlank()
-                        ? request.proLabel().strip() : "찬성")
+                        ? request.proLabel().strip()
+                        : "찬성")
                 .conLabel(request.conLabel() != null && !request.conLabel().isBlank()
-                        ? request.conLabel().strip() : "반대")
+                        ? request.conLabel().strip()
+                        : "반대")
                 .endsAt(request.endsAt())
                 .build();
 
@@ -397,33 +435,36 @@ public class PostService {
             final CustomUserDetails userDetails) {
         final Post post = findPostOrThrow(id);
         verifyOwnership(post, userDetails, request.guestPassword());
-        imageCleanupService.markRemovedImages(post.getContent(), request.content());
-        if (TiptapContentParser.countImages(request.content()) > PostConstants.MAX_IMAGE_COUNT) {
+        final String normalizedContent = TiptapContentParser.normalizeForStorage(request.content(), r2PublicUrl);
+        imageCleanupService.markRemovedImages(post.getContent(), normalizedContent);
+        if (TiptapContentParser.countImages(normalizedContent) > PostConstants.MAX_IMAGE_COUNT) {
             throw new CustomException(ErrorCode.IMAGE_COUNT_EXCEEDED);
         }
-        final String preview = TiptapContentParser.extractTextPreview(request.content(), 300);
-        final String[] imageKeys = TiptapContentParser.extractImageKeys(request.content(), PostConstants.MAX_IMAGE_COUNT, r2PublicUrl);
-        post.update(request.title().strip(), request.content(), preview, imageKeys);
+        final String preview = TiptapContentParser.extractTextPreview(normalizedContent, 300);
+        final String[] imageKeys = TiptapContentParser.extractImageKeys(normalizedContent,
+                PostConstants.MAX_IMAGE_COUNT);
+        post.update(request.title().strip(), normalizedContent, preview, imageKeys);
 
         final UUID currentUserId = userDetails != null ? userDetails.userId() : null;
-        final String typeCode = post.getPostType().getCode();
 
-        if (PostConstants.TYPE_VOTE.equals(typeCode)) {
+        if (post.getPostType() == PostType.VOTE) {
             final VotePost votePost = votePostRepository.findWithOptionsById(id)
                     .orElseThrow(() -> new CustomException(ErrorCode.VOTE_POST_NOT_FOUND));
             final VotePostHistory history = (currentUserId != null)
                     ? votePostHistoryRepository.findByVotePost_IdAndUser_Id(id, currentUserId).orElse(null)
                     : null;
-            return PostDetailResponse.from(post, currentUserId, votePost, history);
+            return PostDetailResponse.from(post, currentUserId, votePost, history)
+                    .resolveImageUrls(r2PublicUrl);
         }
 
-        if (PostConstants.TYPE_DEBATE.equals(typeCode)) {
+        if (post.getPostType() == PostType.DEBATE) {
             final DebatePost debatePost = debatePostRepository.findById(id)
                     .orElseThrow(() -> new CustomException(ErrorCode.DEBATE_POST_NOT_FOUND));
-            return PostDetailResponse.from(post, currentUserId, debatePost);
+            return PostDetailResponse.from(post, currentUserId, debatePost)
+                    .resolveImageUrls(r2PublicUrl);
         }
 
-        return PostDetailResponse.from(post, currentUserId);
+        return PostDetailResponse.from(post, currentUserId).resolveImageUrls(r2PublicUrl);
     }
 
     @Transactional
@@ -462,11 +503,6 @@ public class PostService {
     private Post findPostOrThrow(final Long id) {
         return postRepository.findWithDetailsById(id)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
-    }
-
-    private PostType findPostTypeOrThrow(final String code) {
-        return postTypeRepository.findByCode(code)
-                .orElseThrow(() -> new CustomException(ErrorCode.POST_TYPE_NOT_FOUND));
     }
 
     private User findUserOrThrow(final UUID userId) {

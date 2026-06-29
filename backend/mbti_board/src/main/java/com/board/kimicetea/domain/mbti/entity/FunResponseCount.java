@@ -21,6 +21,6 @@ public class FunResponseCount {
     @EmbeddedId
     private FunResponseCountId id;
 
-    @Column(name = "count", nullable = false)
-    private Long count;
+    @Column(name = "total_count", nullable = false)
+    private Long totalCount;
 }

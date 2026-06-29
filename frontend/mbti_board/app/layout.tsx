@@ -11,7 +11,7 @@ const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 const plusJakarta = Plus_Jakarta_Sans({subsets:['latin'],variable:'--font-jakarta',weight:['400','500','600','700','800']});
 
 export const metadata: Metadata = {
-  title: "MBTI Board",
+  title: process.env.NEXT_PUBLIC_APP_NAME ?? "MBTI Board",
   description: "MBTI 기반 커뮤니티 플랫폼",
 };
 

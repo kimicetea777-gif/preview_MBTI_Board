@@ -20,7 +20,7 @@ export default memo(function Logo({ size = "md", asLink = true }: Props) {
   const content = (
     <Image
       src="/images/logo.png"
-      alt="MBTI Board"
+      alt={process.env.NEXT_PUBLIC_APP_NAME ?? "MBTI Board"}
       width={s.width}
       height={s.height}
       style={{ width: "auto" }}

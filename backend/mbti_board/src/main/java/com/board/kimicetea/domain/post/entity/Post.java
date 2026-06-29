@@ -4,6 +4,8 @@ import com.board.kimicetea.domain.mbti.entity.MbtiMetadata;
 import com.board.kimicetea.domain.user.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -54,6 +56,9 @@ public class Post {
     @Column(name = "guest_password")
     private String guestPassword;
 
+    @Column(name = "author_ip", length = 45)
+    private String authorIp;
+
     // PostRepository.increaseViewCount(@Modifying 쿼리)로 원자적 증가 — JPA 직접 수정 금지
     @Builder.Default
     @Column(name = "view_count", nullable = false, insertable = false, updatable = false)
@@ -90,8 +95,8 @@ public class Post {
     @JoinColumn(name = "target_mbti")
     private MbtiMetadata targetMbti;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "type_id", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "post_type", nullable = false, length = 20)
     private PostType postType;
 
     @OneToOne(mappedBy = "post", fetch = FetchType.LAZY)

@@ -3,6 +3,7 @@
 import { LuSprout, LuArrowLeft, LuArrowRight } from "react-icons/lu";
 import type { TotalQuestion } from "@/types/mbti";
 import { GardenProgress } from "./GardenProgress";
+import { OptionButton } from "./OptionButton";
 
 export const ANSWER_OPTIONS = [
   { label: "매우 그렇다", subLabel: "Strongly Agree",    score:  2 },
@@ -60,98 +61,59 @@ export function MbtiTestingPhase({
         </div>
       </header>
 
-      <div className="bg-card rounded-2xl border border-border shadow-[0_4px_12px_rgba(0,0,0,0.05)] p-8 pb-0">
-
-        <div className="mb-8">
-          <p className="text-lg font-medium h-20 text-card-foreground leading-relaxed text-center">
-            {currentQuestion.title}
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-3">
-          {isFun
-            ? currentQuestion.options.map((opt) => {
-                const isSelected = funAnswers[currentQuestion.id] === opt.id;
-                return (
-                  <button
-                    key={opt.id}
-                    onClick={() => onAnswer(opt.id)}
-                    className="group w-full text-left"
-                  >
-                    <div className={`flex items-center gap-4 p-5 rounded-lg border-2 transition-all duration-200 hover:-translate-y-0.5 ${
-                      isSelected
-                        ? "border-primary bg-primary/10"
-                        : "border-border bg-card hover:border-primary/50"
-                    }`}>
-                      <div className={`size-6 shrink-0 rounded-full border-2 flex items-center justify-center transition-colors ${
-                        isSelected ? "border-primary" : "border-muted-foreground group-hover:border-primary/70"
-                      }`}>
-                        <div className={`size-2 rounded-full bg-primary transition-transform duration-150 ${
-                          isSelected ? "scale-100" : "scale-0"
-                        }`} />
-                      </div>
-                      <span className="text-sm font-medium text-card-foreground">
-                        {opt.optionText}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })
-            : ANSWER_OPTIONS.map((opt) => {
-                const isSelected = answers[currentQuestion.id] === opt.score;
-                return (
-                  <button
-                    key={opt.label}
-                    onClick={() => onAnswer(opt.score)}
-                    className="group w-full text-left"
-                  >
-                    <div className={`flex items-center gap-4 p-5 rounded-lg border-2 transition-all duration-200 hover:-translate-y-0.5 ${
-                      isSelected
-                        ? "border-primary bg-primary/10"
-                        : "border-border bg-card hover:border-primary/50"
-                    }`}>
-                      <div className={`size-6 shrink-0 rounded-full border-2 flex items-center justify-center transition-colors ${
-                        isSelected ? "border-primary" : "border-muted-foreground group-hover:border-primary/70"
-                      }`}>
-                        <div className={`size-2 rounded-full bg-primary transition-transform duration-150 ${
-                          isSelected ? "scale-100" : "scale-0"
-                        }`} />
-                      </div>
-                      <span className="text-sm font-medium text-card-foreground">
-                        {opt.label}
-                        <span className="ml-1.5 text-xs font-normal text-muted-foreground">({opt.subLabel})</span>
-                      </span>
-                    </div>
-                  </button>
-                );
-              })
-          }
-        </div>
-
-        <div className="mt-3 h-10 flex justify-between items-center">
-          {currentIndex > 0 ? (
-            <button
-              onClick={onPrev}
-              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-all hover:-translate-x-1"
-            >
-              <LuArrowLeft /> 이전 문항
-            </button>
-          ) : <span />}
-          {currentAnswered && (
-            <button
-              onClick={onNext}
-              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-all hover:translate-x-1"
-            >
-              다음 문항 <LuArrowRight />
-            </button>
-          )}
-        </div>
-
-        <div className="-mt-12 pointer-events-none">
-          <GardenProgress currentIndex={currentIndex} totalQuestions={totalQuestions} />
-        </div>
-
+      {/* Garden IMAGE */}
+      <div className="-mt-8 pointer-events-none">
+        <GardenProgress currentIndex={currentIndex} totalQuestions={totalQuestions} />
       </div>
+
+      <div className="relative px-8 py-10 w-full bg-card border-2 border-outline-variant storybook-border shadow-sm mt-3 text-center">
+        <h2 className="font-heading text-lg md:text-lg text-on-surface leading-tight text-balance">
+          {currentQuestion.title}
+        </h2>
+      </div>
+
+      <div className="mt-3 h-10 flex justify-between items-center">
+        {currentIndex > 0 ? (
+          <button
+            onClick={onPrev}
+            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-all hover:-translate-x-1"
+          >
+            <LuArrowLeft /> 이전 문항
+          </button>
+        ) : <span />}
+        {currentAnswered && (
+          <button
+            onClick={onNext}
+            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-all hover:translate-x-1"
+          >
+            다음 문항 <LuArrowRight />
+          </button>
+        )}
+      </div>
+      
+      <div className="flex flex-col gap-3">
+          {isFun
+            ? currentQuestion.options.map((opt) => (
+                <OptionButton
+                  key={opt.id}
+                  isSelected={funAnswers[currentQuestion.id] === opt.id}
+                  onClick={() => onAnswer(opt.id)}
+                >
+                  {opt.optionText}
+                </OptionButton>
+              ))
+            : ANSWER_OPTIONS.map((opt) => (
+                <OptionButton
+                  key={opt.label}
+                  isSelected={answers[currentQuestion.id] === opt.score}
+                  onClick={() => onAnswer(opt.score)}
+                >
+                  {opt.label}
+                  <span className="ml-1.5 text-xs font-normal text-muted-foreground">({opt.subLabel})</span>
+                </OptionButton>
+              ))
+          }
+        </div> 
     </section>
   );
 }

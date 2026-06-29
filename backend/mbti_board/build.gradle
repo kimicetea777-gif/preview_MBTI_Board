@@ -18,6 +18,11 @@ repositories {
 	mavenCentral()
 }
 
+ext {
+    set('httpclient5.version', '5.4.1')
+    set('httpcore5.version', '5.4.1')
+}
+
 dependencies {
 	
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -27,6 +32,7 @@ dependencies {
 
 	// 1. Core & Web
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-aop'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
 
@@ -61,8 +67,9 @@ dependencies {
 	annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
 
 	// 7. AWS SDK v2 (Cloudflare R2 — S3 호환)
-	implementation platform('software.amazon.awssdk:bom:2.26.0')
+	implementation platform('software.amazon.awssdk:bom:2.46.0')
 	implementation 'software.amazon.awssdk:s3'
+	implementation 'software.amazon.awssdk:apache5-client'
 
 	// 8. Flyway
 	implementation 'org.flywaydb:flyway-core'
@@ -73,6 +80,7 @@ dependencies {
 }
 
 tasks.named('bootRun') {
+	jvmArgs '-Djdk.tracePinnedThreads=short'
 	def envFile = rootProject.file('../../.env')
 	if (envFile.exists()) {
 		envFile.readLines().each { line ->
@@ -96,3 +104,6 @@ tasks.named('test') {
 	        '-Dstdout.encoding=UTF-8',
 	        '-Dstderr.encoding=UTF-8'
 }
+
+
+

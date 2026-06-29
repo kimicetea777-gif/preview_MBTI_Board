@@ -1,15 +1,15 @@
 package com.board.kimicetea.domain.post.dto;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /**
  * 투표 선택지 작성 요청 DTO
- * 주의: mbtiTarget은 MBTI 투표일 때만 전달 — 자유 투표는 null
+ * 주의: optionText와 mbtiTarget 중 하나는 반드시 존재해야 함
+ * - MBTI 투표: mbtiTarget 설정, optionText null 가능
+ * - 자유 투표: optionText 설정, mbtiTarget null
  */
 public record VoteOptionRequest(
 
-        @NotBlank
         @Size(max = 100)
         String optionText,
 

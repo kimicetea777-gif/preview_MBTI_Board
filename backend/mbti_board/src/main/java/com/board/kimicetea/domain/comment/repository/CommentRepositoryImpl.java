@@ -2,7 +2,6 @@ package com.board.kimicetea.domain.comment.repository;
 
 import com.board.kimicetea.domain.comment.entity.Comment;
 import com.board.kimicetea.domain.comment.entity.QComment;
-import com.board.kimicetea.domain.post.entity.QPostType;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -26,7 +25,6 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
     public Page<Comment> findAllCommentsForAdmin(final Long postId, final Boolean isVisible,
             final String authorNickname, final String sortDir, final Pageable pageable) {
         final QComment comment = QComment.comment;
-        final QPostType postType = QPostType.postType;
         final BooleanBuilder builder = new BooleanBuilder();
 
         if (postId != null) {
@@ -47,7 +45,6 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                 .selectFrom(comment)
                 .join(comment.authorMbti).fetchJoin()
                 .join(comment.post).fetchJoin()
-                .join(comment.post.postType, postType).fetchJoin()
                 .leftJoin(comment.user).fetchJoin()
                 .leftJoin(comment.parent).fetchJoin()
                 .where(builder)

@@ -10,9 +10,10 @@ import com.board.kimicetea.domain.comment.repository.CommentRepository;
 import com.board.kimicetea.domain.mbti.MbtiConstants;
 import com.board.kimicetea.domain.mbti.entity.MbtiMetadata;
 import com.board.kimicetea.domain.mbti.repository.MbtiMetadataRepository;
-import com.board.kimicetea.domain.post.PostConstants;
 import com.board.kimicetea.global.common.util.GuestPasswordHelper;
+import com.board.kimicetea.global.common.util.RequestUtils;
 import com.board.kimicetea.domain.post.entity.Post;
+import com.board.kimicetea.domain.post.entity.PostType;
 import com.board.kimicetea.domain.post.repository.PostRepository;
 import com.board.kimicetea.domain.post.repository.VotePostHistoryRepository;
 import com.board.kimicetea.domain.user.entity.User;
@@ -20,6 +21,7 @@ import com.board.kimicetea.domain.user.repository.UserRepository;
 import com.board.kimicetea.domain.user.security.CustomUserDetails;
 import com.board.kimicetea.global.common.exception.CustomException;
 import com.board.kimicetea.global.common.exception.ErrorCode;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -79,7 +81,7 @@ public class CommentService {
      * 주의: VOTE 게시글이 아니거나 로그인 댓글이 없으면 빈 맵 반환
      */
     private Map<UUID, String> buildVoteOptionMap(final Long postId, final Post post, final List<Comment> comments) {
-        if (!PostConstants.TYPE_VOTE.equals(post.getPostType().getCode())) {
+        if (post.getPostType() != PostType.VOTE) {
             return Map.of();
         }
         final List<UUID> userIds = comments.stream()
@@ -122,7 +124,7 @@ public class CommentService {
      */
     @Transactional
     public CommentResponse createComment(final Long postId, final CommentCreateRequest request,
-            final CustomUserDetails userDetails) {
+            final CustomUserDetails userDetails, final HttpServletRequest httpRequest) {
 
         final Post post = findPostOrThrow(postId);
 
@@ -152,6 +154,7 @@ public class CommentService {
                 .parent(parent)
                 .debateStance(request.debateStance())
                 .guestPassword(GuestPasswordHelper.encode(user, request.guestPassword(), passwordEncoder))
+                .authorIp(RequestUtils.extractClientIp(httpRequest))
                 .build();
 
         final UUID requestUserId = userDetails != null ? userDetails.userId() : null;
@@ -189,7 +192,7 @@ public class CommentService {
      * DEBATE 게시글은 stance(1/-1) 필수, 나머지 게시글은 null이어야 함
      */
     private void validateDebateStance(final Post post, final Short debateStance) {
-        final boolean isDebate = PostConstants.TYPE_DEBATE.equals(post.getPostType().getCode());
+        final boolean isDebate = post.getPostType() == PostType.DEBATE;
 
         if (isDebate) {
             if (debateStance == null || (debateStance != 1 && debateStance != -1)) {

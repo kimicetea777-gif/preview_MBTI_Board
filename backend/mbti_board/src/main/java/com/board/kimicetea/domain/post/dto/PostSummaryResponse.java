@@ -47,7 +47,7 @@ public record PostSummaryResponse(
 
         return new PostSummaryResponse(
                 post.getId(),
-                post.getPostType().getCode(),
+                post.getPostType().name(),
                 post.getTitle(),
                 post.getContentPreview(),
                 imageUrls,

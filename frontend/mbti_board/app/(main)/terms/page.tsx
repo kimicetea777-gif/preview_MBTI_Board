@@ -1,0 +1,84 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: `이용약관 | ${process.env.NEXT_PUBLIC_APP_NAME ?? "MBTI Board"}`,
+};
+
+export default function TermsPage() {
+  return (
+    <article className="max-w-3xl mx-auto px-6 py-12 text-on-surface">
+      <h1 className="text-2xl font-bold mb-2">이용약관</h1>
+      <p className="text-sm text-on-surface-variant mb-10">시행일: 2025년 1월 1일</p>
+
+      <section className="mb-10">
+        <h2 className="text-lg font-semibold mb-3">제1조 (목적)</h2>
+        <p className="text-sm leading-relaxed text-on-surface-variant">
+          이 약관은 {process.env.NEXT_PUBLIC_APP_NAME}(이하 &ldquo;서비스&rdquo;)의 이용 조건 및 절차, 회원과 서비스 운영자의 권리·의무 및 책임 사항을 규정함을 목적으로 합니다.
+        </p>
+      </section>
+
+      <section className="mb-10">
+        <h2 className="text-lg font-semibold mb-3">제2조 (서비스 소개)</h2>
+        <p className="text-sm leading-relaxed text-on-surface-variant">
+          {process.env.NEXT_PUBLIC_APP_NAME}는 MBTI 유형 기반 커뮤니티 플랫폼으로, 자유글·투표·토론 게시판을 제공합니다.
+          회원 및 비회원 모두 게시글·댓글 작성이 가능하며, 투표 및 댓글 반응 기능은 회원 전용입니다.
+        </p>
+      </section>
+
+      <section className="mb-10">
+        <h2 className="text-lg font-semibold mb-3">제3조 (이용 규칙)</h2>
+        <ul className="text-sm leading-relaxed text-on-surface-variant list-disc pl-5 space-y-2">
+          <li>타인을 비방·모욕하거나 명예를 훼손하는 게시물을 작성해서는 안 됩니다.</li>
+          <li>음란물, 폭력적 내용, 불법 정보를 게시해서는 안 됩니다.</li>
+          <li>광고·홍보성 도배 게시물 작성을 금지합니다.</li>
+          <li>타인의 개인정보를 무단으로 수집·게시해서는 안 됩니다.</li>
+          <li>서비스의 정상적인 운영을 방해하는 행위를 해서는 안 됩니다.</li>
+        </ul>
+      </section>
+
+      <section className="mb-10">
+        <h2 className="text-lg font-semibold mb-3">제4조 (게시물 정책)</h2>
+        <p className="text-sm leading-relaxed text-on-surface-variant">
+          게시물의 저작권은 작성자 본인에게 있습니다. 단, 서비스 운영자는 서비스 품질 유지를 위해
+          이용 규칙에 위반되는 게시물을 사전 고지 없이 삭제하거나 접근을 제한할 수 있습니다.
+          탈퇴 회원의 게시글·댓글은 삭제되지 않고 익명으로 보존됩니다.
+        </p>
+      </section>
+
+      <section className="mb-10">
+        <h2 className="text-lg font-semibold mb-3">제5조 (제재 및 이용 제한)</h2>
+        <p className="text-sm leading-relaxed text-on-surface-variant">
+          이용 규칙을 위반한 경우 서비스 운영자는 경고, 일시 정지, 영구 이용 정지 등의 제재를
+          가할 수 있습니다. 제재 사유는 가능한 범위에서 이용자에게 안내합니다.
+        </p>
+      </section>
+
+      <section className="mb-10">
+        <h2 className="text-lg font-semibold mb-3">제6조 (면책 조항)</h2>
+        <p className="text-sm leading-relaxed text-on-surface-variant">
+          서비스 운영자는 천재지변, 시스템 장애 등 불가항력적 사유로 발생한 서비스 중단에 대해
+          책임을 지지 않습니다. 또한 이용자가 게시한 정보·게시물로 인해 발생한 이용자 간의 분쟁,
+          명예훼손 등 법적 책임은 해당 게시물 작성자에게 있습니다. 서비스는 운영상 필요에 따라
+          사전 공지 후 내용이 변경되거나 일시 중단될 수 있습니다.
+        </p>
+      </section>
+
+      <section className="mb-10">
+        <h2 className="text-lg font-semibold mb-3">제7조 (약관 변경)</h2>
+        <p className="text-sm leading-relaxed text-on-surface-variant">
+          약관이 변경될 경우 서비스 내 공지를 통해 사전 안내합니다. 변경된 약관에 동의하지 않을 경우
+          회원 탈퇴를 통해 서비스 이용을 종료할 수 있습니다.
+        </p>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold mb-3">제8조 (운영자 정보)</h2>
+        <ul className="text-sm leading-relaxed text-on-surface-variant space-y-1">
+          <li>서비스명: {process.env.NEXT_PUBLIC_APP_NAME}</li>
+          <li>운영 형태: 개인 운영</li>
+          <li>문의: kimicetea777@gmail.com</li>
+        </ul>
+      </section>
+    </article>
+  );
+}

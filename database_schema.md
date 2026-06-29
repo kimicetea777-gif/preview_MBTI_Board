@@ -111,6 +111,7 @@ CREATE TABLE posts (
     title VARCHAR(150) NOT NULL,
     content JSONB NOT NULL, -- RichContentEditor 구조화 데이터 저장용
     guest_password VARCHAR(255), -- 비회원용 BCrypt 해시
+    author_ip VARCHAR(45),       -- 작성자 IP (회원·비회원 모두 저장, 어뷰징 방지 및 수사 협조)
     view_count INT DEFAULT 0 NOT NULL,
     comment_count INT DEFAULT 0 NOT NULL,
     is_visible BOOLEAN DEFAULT TRUE NOT NULL,
@@ -171,6 +172,7 @@ CREATE TABLE comments (
     parent_id BIGINT REFERENCES comments(id) ON DELETE CASCADE, -- 대댓글 1단계 깊이 제한용 self-reference
     content TEXT NOT NULL,
     guest_password VARCHAR(255), -- 비회원 댓글 비밀번호 (BCrypt 해시)
+    author_ip VARCHAR(45),       -- 작성자 IP (회원·비회원 모두 저장, 어뷰징 방지 및 수사 협조)
     like_count INT DEFAULT 0 NOT NULL,
     dislike_count INT DEFAULT 0 NOT NULL,
     debate_stance SMALLINT CHECK (debate_stance IN (1, -1)), -- 1: 찬성, -1: 반대, 일반글은 NULL

@@ -3,6 +3,7 @@ package com.board.kimicetea.domain.post.repository;
 import com.board.kimicetea.domain.post.PostConstants;
 import com.board.kimicetea.domain.post.PostSortType;
 import com.board.kimicetea.domain.post.entity.Post;
+import com.board.kimicetea.domain.post.entity.PostType;
 import com.board.kimicetea.domain.post.entity.QPost;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.OrderSpecifier;
@@ -33,7 +34,7 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
         builder.and(post.isVisible.isTrue());
 
         if (typeCode != null && !typeCode.isBlank()) {
-            builder.and(post.postType.code.eq(typeCode));
+            builder.and(post.postType.eq(PostType.valueOf(typeCode)));
         }
 
         if (authorMbti != null && !authorMbti.isBlank()) {
@@ -53,7 +54,6 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
 
         final List<Post> content = queryFactory
                 .selectFrom(post)
-                .join(post.postType).fetchJoin()
                 .join(post.authorMbti).fetchJoin()
                 .leftJoin(post.user).fetchJoin()
                 .leftJoin(post.targetMbti).fetchJoin()
@@ -81,7 +81,7 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
         final BooleanBuilder builder = new BooleanBuilder();
 
         if (typeCode != null && !typeCode.isBlank()) {
-            builder.and(post.postType.code.eq(typeCode));
+            builder.and(post.postType.eq(PostType.valueOf(typeCode)));
         }
         if (isVisible != null) {
             builder.and(post.isVisible.eq(isVisible));
@@ -96,7 +96,6 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
 
         final List<Post> content = queryFactory
                 .selectFrom(post)
-                .join(post.postType).fetchJoin()
                 .join(post.authorMbti).fetchJoin()
                 .leftJoin(post.user).fetchJoin()
                 .leftJoin(post.targetMbti).fetchJoin()
@@ -131,7 +130,7 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
         builder.and(post.isVisible.isTrue());
 
         if (typeCode != null && !typeCode.isBlank()) {
-            builder.and(post.postType.code.eq(typeCode));
+            builder.and(post.postType.eq(PostType.valueOf(typeCode)));
         }
 
         final OrderSpecifier<?> order = switch (sort) {
@@ -142,7 +141,6 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
 
         final List<Post> content = queryFactory
                 .selectFrom(post)
-                .join(post.postType).fetchJoin()
                 .join(post.authorMbti).fetchJoin()
                 .leftJoin(post.user).fetchJoin()
                 .leftJoin(post.targetMbti).fetchJoin()
@@ -169,7 +167,6 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
 
         return queryFactory
                 .selectFrom(post)
-                .join(post.postType).fetchJoin()
                 .where(post.user.id.eq(userId).and(post.isVisible.isTrue()))
                 .orderBy(post.createdAt.desc())
                 .limit(4)

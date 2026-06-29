@@ -1,8 +1,10 @@
 package com.board.kimicetea.global.common.exception;
 
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 
 @Getter
 @RequiredArgsConstructor
@@ -60,8 +62,11 @@ public enum ErrorCode {
     VOTE_OPTION_NOT_BELONGS(HttpStatus.BAD_REQUEST, "선택지가 해당 투표 게시글에 속하지 않습니다."),
     VOTE_ENDED(HttpStatus.BAD_REQUEST, "이미 마감된 투표입니다."),
     VOTE_OPTIONS_REQUIRED(HttpStatus.BAD_REQUEST, "투표 게시글은 최소 2개 이상의 선택지가 필요합니다."),
+    VOTE_OPTIONS_EXCEEDED(HttpStatus.BAD_REQUEST, "투표 선택지는 최대 10개까지 등록할 수 있습니다."),
     VOTE_MBTI_DUPLICATE(HttpStatus.BAD_REQUEST, "같은 투표에 동일한 MBTI 선택지를 중복 등록할 수 없습니다."),
     VOTE_MBTI_MODE_MIXED(HttpStatus.BAD_REQUEST, "MBTI 선택지와 일반 선택지를 혼합할 수 없습니다."),
+    VOTE_OPTION_TEXT_REQUIRED(HttpStatus.BAD_REQUEST, "자유 투표 선택지는 텍스트가 필수입니다."),
+    VOTE_OPTION_TEXT_DUPLICATE(HttpStatus.BAD_REQUEST, "같은 투표에 동일한 텍스트 선택지를 중복 등록할 수 없습니다."),
     VOTE_ENDS_AT_INVALID(HttpStatus.BAD_REQUEST, "마감일은 현재 시각보다 이후여야 합니다."),
 
     // Comment
@@ -89,6 +94,6 @@ public enum ErrorCode {
     RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
 
-    private final HttpStatus httpStatus;
+    private final HttpStatusCode httpStatus;
     private final String message;
 }

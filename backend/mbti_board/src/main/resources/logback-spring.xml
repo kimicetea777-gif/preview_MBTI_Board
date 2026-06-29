@@ -1,15 +1,20 @@
 <configuration>
 
-  <!-- 콘솔 appender (공통) -->
+  <!-- CONSOLE appender (공통) -->
   <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
-      <pattern>%d{HH:mm:ss} %-5level %logger{36} - %msg%n</pattern>
+      <pattern>%d{HH:mm:ss} %-5level [%X{requestId}] %logger{36} - %msg%n</pattern>
     </encoder>
   </appender>
 
   <!-- 파일 appender (prod 전용) -->
   <springProfile name="prod">
     <springProperty name="LOG_PATH" source="logging.file.path"/>
+    <springProperty name="MAIL_HOST" source="spring.mail.host"/>
+    <springProperty name="MAIL_USERNAME" source="spring.mail.username"/>
+    <springProperty name="MAIL_PASSWORD" source="spring.mail.password"/>
+    <springProperty name="ALERT_MAIL_TO" source="alert.mail.to"/>
+
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
       <file>${LOG_PATH}/app.log</file>
       <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
@@ -20,21 +25,51 @@
         <totalSizeCap>2GB</totalSizeCap> <!-- 전체 상한 초과 시 오래된 것부터 삭제 -->
       </rollingPolicy>
       <encoder>
-        <pattern>%d{yyyy-MM-dd HH:mm:ss} %-5level [%thread] %logger{36} - %msg%n</pattern>
+        <pattern>%d{yyyy-MM-dd HH:mm:ss} %-5level [%thread] [%X{requestId}] %logger{36} - %msg%n</pattern>
       </encoder>
     </appender>
 
-    <root level="INFO">
+    <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
       <appender-ref ref="FILE"/>
+      <queueSize>256</queueSize>
+      <!-- <discardingThreshold>0</discardingThreshold> 큐가 차도 INFO 이하 버리지 않음 -->
+    </appender>
+
+    <!-- 이메일 에러 알림 appender — ERROR 발생 시 최근 5개 이벤트와 함께 발송 -->
+    <appender name="SMTP" class="com.board.kimicetea.global.alert.AlertingSmtpAppender">
+      <smtpHost>${MAIL_HOST}</smtpHost>
+      <smtpPort>587</smtpPort>
+      <STARTTLS>true</STARTTLS>
+      <username>${MAIL_USERNAME}</username>
+      <password>${MAIL_PASSWORD}</password>
+      <to>${ALERT_MAIL_TO}</to>
+      <from>${MAIL_USERNAME}</from>
+      <subject>[MBTI Board] ERROR - %logger{20}</subject>
+      <cyclicBufferTracker class="ch.qos.logback.core.spi.CyclicBufferTrackerImpl">
+        <bufferSize>5</bufferSize>
+      </cyclicBufferTracker>
+      <layout class="ch.qos.logback.classic.PatternLayout">
+        <pattern>%d{yyyy-MM-dd HH:mm:ss} %-5level [%thread] [%X{requestId}] %logger{36} - %msg%n%ex{full}</pattern>
+      </layout>
+    </appender>
+
+    <!-- SMTP는 네트워크 I/O가 있으므로 AsyncAppender로 감싸 로깅 스레드 블로킹 방지 -->
+    <appender name="ASYNC_SMTP" class="ch.qos.logback.classic.AsyncAppender">
+      <appender-ref ref="SMTP"/>
+      <queueSize>64</queueSize>
+    </appender>
+
+    <root level="WARN">
+      <appender-ref ref="ASYNC_FILE"/>
+      <appender-ref ref="ASYNC_SMTP"/>
     </root>
   </springProfile>
 
   <!-- 개발 환경: 콘솔만 출력 -->
   <springProfile name="!prod">
-    <root level="DEBUG">
+    <root level="INFO">
       <appender-ref ref="CONSOLE"/>
     </root>
   </springProfile>
 
 </configuration>
-
