@@ -19,7 +19,7 @@ public interface PostRepository extends JpaRepository<Post, Long>, PostRepositor
 
     boolean existsByIdAndIsVisibleTrue(Long id);
 
-    @Query("SELECT p FROM Post p JOIN FETCH p.postType JOIN FETCH p.authorMbti LEFT JOIN FETCH p.user LEFT JOIN FETCH p.targetMbti WHERE p.id = :id AND p.isVisible = true")
+    @Query("SELECT p FROM Post p JOIN FETCH p.authorMbti LEFT JOIN FETCH p.user LEFT JOIN FETCH p.targetMbti WHERE p.id = :id AND p.isVisible = true")
     Optional<Post> findWithDetailsById(@Param("id") Long id);
 
     @Modifying
@@ -36,7 +36,7 @@ public interface PostRepository extends JpaRepository<Post, Long>, PostRepositor
     long countHidden();
 
     /** 타입 코드별 게시글 수 */
-    @Query(value = "SELECT pt.code AS name, COUNT(*) AS value FROM posts p JOIN post_types pt ON p.type_id = pt.id GROUP BY pt.code ORDER BY value DESC", nativeQuery = true)
+    @Query(value = "SELECT post_type AS name, COUNT(*) AS value FROM posts GROUP BY post_type ORDER BY value DESC", nativeQuery = true)
     List<Object[]> countGroupByTypeRaw();
 
     /** MBTI별 게시글 수 */

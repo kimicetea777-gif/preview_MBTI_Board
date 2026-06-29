@@ -1,5 +1,6 @@
 package com.board.kimicetea.global.image.dto;
 
+import com.board.kimicetea.global.image.ImageConstants;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 
@@ -10,5 +11,5 @@ import java.util.List;
  * 주의: PENDING 상태인 레코드만 처리하므로 이미 저장된 게시글 이미지는 영향받지 않음
  */
 public record ImageCancelRequest(
-        @NotEmpty @Size(max = 20) List<String> urls
+        @NotEmpty @Size(max = ImageConstants.IMAGE_MAX_SIZE) List<String> urls
 ) {}

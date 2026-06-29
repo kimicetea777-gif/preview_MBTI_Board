@@ -2,6 +2,7 @@ package com.board.kimicetea.global.image.service;
 
 import com.board.kimicetea.global.common.exception.CustomException;
 import com.board.kimicetea.global.common.exception.ErrorCode;
+import com.board.kimicetea.global.image.ImageConstants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -13,7 +14,6 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -22,11 +22,6 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class ImageService {
-
-    private static final Set<String> ALLOWED_TYPES = Set.of(
-            "image/jpeg", "image/png", "image/webp", "image/bmp"
-    );
-    private static final long MAX_SIZE = 10L * 1024 * 1024;
 
     // 각 포맷의 파일 시그니처(magic bytes) — 클라이언트 Content-Type 스푸핑 방어
     private static final Map<String, byte[]> MAGIC_BYTES = Map.of(
@@ -75,10 +70,10 @@ public class ImageService {
             throw new CustomException(ErrorCode.IMAGE_UPLOAD_FAILED);
         }
         final String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_TYPES.contains(contentType)) {
+        if (contentType == null || !ImageConstants.ALLOWED_MIME_TYPES.contains(contentType)) {
             throw new CustomException(ErrorCode.INVALID_IMAGE_TYPE);
         }
-        if (file.getSize() > MAX_SIZE) {
+        if (file.getSize() > ImageConstants.MAX_FILE_BYTES) {
             throw new CustomException(ErrorCode.IMAGE_TOO_LARGE);
         }
         if (!matchesMagicBytes(file, contentType)) {

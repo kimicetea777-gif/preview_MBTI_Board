@@ -1,4 +1,5 @@
 import Logo from "@/components/common/Logo";
+import Footer from "@/components/common/Footer";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -16,6 +17,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <main className="flex flex-1 flex-col items-center justify-center px-4 py-12">
         {children}
       </main>
+      <Footer />
     </div>
   );
 }

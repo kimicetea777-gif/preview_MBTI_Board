@@ -12,6 +12,7 @@ import com.board.kimicetea.domain.auth.dto.SignupRequest;
 import com.board.kimicetea.domain.user.enums.UserState;
 import com.board.kimicetea.global.crypto.PhoneHashService;
 import com.board.kimicetea.global.mail.EmailService;
+import com.board.kimicetea.global.ratelimit.RateLimitService;
 import com.board.kimicetea.domain.user.entity.User;
 import com.board.kimicetea.domain.user.repository.UserRepository;
 import com.board.kimicetea.domain.user.service.UserService;
@@ -52,9 +53,13 @@ public class AuthService {
     private final CookieUtils cookieUtils;
     private final TokenIssuerService tokenIssuerService;
     private final EmailService emailService;
+    private final RateLimitService rateLimitService;
 
     @Value("${frontend.url}")
     private String frontendUrl;
+
+    @Value("${site.url}")
+    private String siteUrl;
 
     /**
      * 전화번호로 이메일 찾기 — WITHDRAWN 계정은 존재하지 않는 것으로 처리
@@ -91,6 +96,7 @@ public class AuthService {
      */
     @Transactional(readOnly = true)
     public void requestPasswordReset(final PasswordResetRequestBody request) {
+        rateLimitService.checkByEmail("pw-reset", request.email(), 1, 60);
         final Optional<User> optionalUser = userRepository.findByEmail(request.email());
         if (optionalUser.isEmpty()) return;
 
@@ -109,7 +115,7 @@ public class AuthService {
         tokenRedisService.savePasswordResetToken(newToken, request.email());
         emailService.sendPasswordResetEmail(
                 request.email(),
-                frontendUrl + "/account/reset-password?token=" + newToken);
+                siteUrl + "/account/reset-password?token=" + newToken);
     }
 
     /**
@@ -141,9 +147,10 @@ public class AuthService {
         if (userRepository.existsByEmail(request.email())) {
             throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
         }
+        rateLimitService.checkByEmail("email-verify", request.email(), 1, 60);
         final String token = UUID.randomUUID().toString();
         tokenRedisService.saveEmailVerifyToken(token, request.email());
-        emailService.sendEmailVerification(request.email(), frontendUrl + "/signup/verify?token=" + token);
+        emailService.sendEmailVerification(request.email(), siteUrl + "/signup/verify?token=" + token);
     }
 
     /**

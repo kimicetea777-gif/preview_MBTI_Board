@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.NonNull;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 /**
@@ -22,9 +23,13 @@ public class EmailService {
     @Value("${spring.mail.username}")
     private String from;
 
+    @Value("${app.name}")
+    private String appName;
+
     /** 회원가입 이메일 인증 링크 발송 */
+    @Async
     public void sendEmailVerification(@NonNull final String to, @NonNull final String verificationLink) {
-        send(to, "[MBTI Board] 이메일 인증", buildLinkEmail(
+        send(to, "[" + appName + "] 이메일 인증", buildLinkEmail(
                 "이메일 인증",
                 "아래 버튼을 클릭해 이메일 인증을 완료하세요.",
                 "10분 이내에 완료해야 합니다.",
@@ -34,8 +39,9 @@ public class EmailService {
     }
 
     /** 비밀번호 재설정 링크 발송 */
+    @Async
     public void sendPasswordResetEmail(@NonNull final String to, @NonNull final String resetLink) {
-        send(to, "[MBTI Board] 비밀번호 재설정", buildLinkEmail(
+        send(to, "[" + appName + "] 비밀번호 재설정", buildLinkEmail(
                 "비밀번호 재설정",
                 "아래 버튼을 클릭해 비밀번호를 재설정하세요.",
                 "30분 이내에 완료해야 합니다.",
@@ -44,9 +50,9 @@ public class EmailService {
         ));
     }
 
-    /** 회원 탈퇴 OTP 발송 */
+    /** 회원 탈퇴 OTP 발송 — 동기 처리: 실패 즉시 HTTP 500 반환, 레이스 컨디션 방지 */
     public void sendWithdrawalOtp(@NonNull final String to, @NonNull final String otp) {
-        send(to, "[MBTI Board] 회원 탈퇴 인증 코드", buildOtpEmail(otp));
+        send(to, "[" + appName + "] 회원 탈퇴 인증 코드", buildOtpEmail(otp));
     }
 
     // ── private helpers ───────────────────────────────────────────────────────
@@ -75,9 +81,10 @@ public class EmailService {
                     버튼이 동작하지 않으면 아래 링크를 복사해 브라우저에 붙여넣으세요.<br>
                     <a href="%s" style="color:#2E5C40;word-break:break-all;">%s</a>
                   </p>
+                  <p style="color:#999;font-size:12px;">보낸 사람이 <strong>%s</strong>가 맞는지 꼭 확인하세요.</p>
                   <p style="color:#999;font-size:12px;">요청하지 않은 경우 이 메일을 무시하세요.</p>
                 </div>
-                """.formatted(title, description, caution, link, buttonLabel, link, link);
+                """.formatted(title, description, caution, link, buttonLabel, link, link, from);
     }
 
     /** OTP 인증 코드 HTML 템플릿 */
@@ -92,9 +99,10 @@ public class EmailService {
                               padding:20px;background:#fff;border:2px solid #e0e0e0;border-radius:6px;color:#333;">
                     %s
                   </div>
-                  <p style="color:#999;font-size:12px;margin-top:24px;">요청하지 않은 경우 이 메일을 무시하세요.</p>
+                  <p style="color:#999;font-size:12px;margin-top:24px;">보낸 사람이 <strong>%s</strong>가 맞는지 꼭 확인하세요.</p>
+                  <p style="color:#999;font-size:12px;">요청하지 않은 경우 이 메일을 무시하세요.</p>
                 </div>
-                """.formatted(otp);
+                """.formatted(otp, from);
     }
 
     /** HTML 메일 발송 공통 처리 */

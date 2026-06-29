@@ -529,3 +529,15 @@
 - `app/(admin)/admin/posts/stats/page.tsx` — `/admin/posts/stats` 게시글 통계 페이지
 - `app/(admin)/admin/comments/stats/page.tsx` — `/admin/comments/stats` 댓글 통계 페이지
 - `app/(admin)/admin/mbti/stats/page.tsx` — `/admin/mbti/stats` MBTI 검사 통계 페이지
+
+## Legal Pages
+
+- `components/common/Footer.tsx` — 사이트 하단 푸터; 이용약관·개인정보처리방침 링크 포함, 모든 레이아웃에서 공유
+- `app/(main)/terms/page.tsx` — `/terms` 이용약관 정적 페이지
+- `app/(main)/privacy/page.tsx` — `/privacy` 개인정보처리방침 정적 페이지
+
+---
+
+## Refactor — MBTI 검사 선택지 버튼 분리
+
+- `components/mbti/OptionButton.tsx` — 라디오 스타일 선택지 버튼 공용 컴포넌트; `isSelected`·`onClick`·`children` prop, FUN 문항(optionText)과 일반 문항(label+subLabel) 모두 공유

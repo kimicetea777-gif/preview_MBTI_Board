@@ -28,7 +28,7 @@ public record AdminCommentSummaryResponse(
         return new AdminCommentSummaryResponse(
                 comment.getId(),
                 comment.getPost().getId(),
-                comment.getPost().getPostType().getCode(),
+                comment.getPost().getPostType().name(),
                 comment.getParent() != null ? comment.getParent().getId() : null,
                 comment.getContent(),
                 hasUser ? comment.getUser().getNickname() : "(비회원)",

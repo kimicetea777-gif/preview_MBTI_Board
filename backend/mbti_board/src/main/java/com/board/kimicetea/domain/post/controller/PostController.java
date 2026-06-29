@@ -26,6 +26,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -90,10 +91,11 @@ public class PostController {
         @PostMapping
         public ResponseEntity<ApiResponse<PostDetailResponse>> createPost(
                         @Valid @RequestBody final PostCreateRequest request,
-                        @AuthenticationPrincipal final CustomUserDetails userDetails) {
+                        @AuthenticationPrincipal final CustomUserDetails userDetails,
+                        final HttpServletRequest httpRequest) {
 
                 return ResponseEntity.status(HttpStatus.CREATED)
-                                .body(ApiResponse.ok(postService.createPost(request, userDetails)));
+                                .body(ApiResponse.ok(postService.createPost(request, userDetails, httpRequest)));
         }
 
         @Operation(summary = "토론 게시글 작성", description = "회원 또는 비회원(guestPassword 필수)이 토론(DEBATE) 게시글을 작성합니다.")
@@ -104,10 +106,11 @@ public class PostController {
         @PostMapping("/debate")
         public ResponseEntity<ApiResponse<PostDetailResponse>> createDebatePost(
                         @Valid @RequestBody final DebatePostCreateRequest request,
-                        @AuthenticationPrincipal final CustomUserDetails userDetails) {
+                        @AuthenticationPrincipal final CustomUserDetails userDetails,
+                        final HttpServletRequest httpRequest) {
 
                 return ResponseEntity.status(HttpStatus.CREATED)
-                                .body(ApiResponse.ok(postService.createDebatePost(request, userDetails)));
+                                .body(ApiResponse.ok(postService.createDebatePost(request, userDetails, httpRequest)));
         }
 
         @Operation(summary = "투표 게시글 작성", description = "회원이 투표(VOTE) 게시글을 작성합니다. 선택지는 최소 2개 이상 필요합니다.")
@@ -119,10 +122,11 @@ public class PostController {
         @PostMapping("/vote")
         public ResponseEntity<ApiResponse<PostDetailResponse>> createVotePost(
                         @Valid @RequestBody final VotePostCreateRequest request,
-                        @AuthenticationPrincipal final CustomUserDetails userDetails) {
+                        @AuthenticationPrincipal final CustomUserDetails userDetails,
+                        final HttpServletRequest httpRequest) {
 
                 return ResponseEntity.status(HttpStatus.CREATED)
-                                .body(ApiResponse.ok(postService.createVotePost(request, userDetails)));
+                                .body(ApiResponse.ok(postService.createVotePost(request, userDetails, httpRequest)));
         }
 
         @Operation(summary = "토론 진영 투표", description = "회원이 토론 게시글에 찬성(1) 또는 반대(-1) 의견을 선택합니다. 이미 선택한 경우 변경됩니다.")

@@ -4,7 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -15,64 +18,112 @@ public final class TiptapContentParser {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final int MAX_DEPTH = 20;
-    private static final String PLACEHOLDER_PREFIX = "{public-url}/";
+    public static final String PLACEHOLDER_PREFIX = "{public-url}/";
     // 업로드 엔드포인트가 생성하는 key 패턴만 허용 — 위조된 임의 경로 차단
-    private static final Pattern VALID_IMAGE_KEY =
-            Pattern.compile("^images/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.webp$");
+    private static final Pattern VALID_IMAGE_KEY = Pattern
+            .compile("^images/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.webp$");
 
-    private TiptapContentParser() {}
+    private TiptapContentParser() {
+    }
 
     /** Tiptap JSON에서 text 노드만 수집해 maxLength 자로 잘라 반환 */
     public static String extractTextPreview(final String jsonContent, final int maxLength) {
-        if (jsonContent == null || jsonContent.isBlank()) return "";
-        try {
-            final StringBuilder sb = new StringBuilder();
-            collectText(MAPPER.readTree(jsonContent), sb, 0, maxLength);
-            final String text = sb.toString().trim();
-            return text.length() > maxLength ? text.substring(0, maxLength - 1) + "…" : text;
-        } catch (Exception e) {
+        if (isBlankContent(jsonContent))
             return "";
-        }
+
+        return parseJson(jsonContent)
+                .map(root -> {
+                    final StringBuilder sb = new StringBuilder();
+                    collectText(root, sb, 0, maxLength);
+                    return sb.toString().trim();
+                })
+                .map(text -> text.length() > maxLength ? text.substring(0, maxLength - 1) + "…" : text)
+                .orElse("");
     }
 
-    /**
-     * Tiptap JSON에서 이미지 key를 문서 순서대로 최대 maxCount개 추출
-     * {public-url}/ 또는 실제 r2PublicUrl/ prefix 모두 처리 (저장 방식 호환)
-     * 이미지가 없으면 null 반환
-     */
-    public static String[] extractImageKeys(final String jsonContent, final int maxCount, final String r2PublicUrl) {
-        if (jsonContent == null || jsonContent.isBlank()) return null;
-        try {
-            final List<String> keys = new ArrayList<>();
-            collectImageKeys(MAPPER.readTree(jsonContent), keys, 0, maxCount, r2PublicUrl);
-            return keys.isEmpty() ? null : keys.toArray(new String[0]);
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    /** r2PublicUrl 없이 호출하는 기존 경로 — {public-url}/ prefix만 처리 */
+    /** Tiptap JSON에서 이미지 key를 문서 순서대로 최대 maxCount개 추출. 이미지가 없으면 null 반환 */
     public static String[] extractImageKeys(final String jsonContent, final int maxCount) {
-        return extractImageKeys(jsonContent, maxCount, null);
+        if (isBlankContent(jsonContent))
+            return null;
+
+        return parseJson(jsonContent)
+                .map(root -> {
+                    final List<String> keys = new ArrayList<>();
+                    collectImageKeys(root, keys, 0, maxCount);
+                    return keys;
+                })
+                .filter(keys -> !keys.isEmpty())
+                .map(keys -> keys.toArray(new String[0]))
+                .orElse(null);
     }
 
     /** Tiptap JSON에 포함된 이미지 노드 수를 반환 — 개수 초과 여부 검증에 사용 */
     public static int countImages(final String jsonContent) {
-        if (jsonContent == null || jsonContent.isBlank()) return 0;
-        try {
-            final int[] count = {0};
-            countImageNodes(MAPPER.readTree(jsonContent), count, 0);
-            return count[0];
-        } catch (Exception e) {
-            // 파싱 실패 = 유효하지 않은 content → 항상 한도 초과로 처리해 저장 차단
-            return Integer.MAX_VALUE;
+        if (isBlankContent(jsonContent))
+            return 0;
+        // 파싱 실패 = 유효하지 않은 content → 항상 한도 초과로 처리해 저장 차단
+        return parseJson(jsonContent)
+                .map(root -> {
+                    final int[] count = { 0 };
+                    countImageNodes(root, count, 0);
+                    return count[0];
+                })
+                .orElse(Integer.MAX_VALUE);
+    }
+
+    // -----------------------------------------------------------------------------------------
+    /** DB 저장 전 — 실제 R2 URL을 {public-url}/ 플레이스홀더로 치환 */
+    public static String normalizeForStorage(final String content, final String r2PublicUrl) {
+        if (content == null || r2PublicUrl == null || r2PublicUrl.isBlank())
+            return content;
+        return content.replace(r2PublicUrl + "/", PLACEHOLDER_PREFIX);
+    }
+
+    /** API 응답 전 — {public-url}/ 플레이스홀더를 실제 R2 URL로 복원 */
+    public static String resolveForResponse(final String content, final String r2PublicUrl) {
+        if (content == null || r2PublicUrl == null || r2PublicUrl.isBlank())
+            return content;
+        return content.replace(PLACEHOLDER_PREFIX, r2PublicUrl + "/");
+    }
+
+    /** Tiptap JSON에서 자체 R2 이미지 URL만 추출 — content diff 기반 삭제 대상 파악에 사용 */
+    public static Set<String> extractImageUrls(final String jsonContent, final String r2PublicUrl) {
+        if (isBlankContent(jsonContent)) return Set.of();
+        return parseJson(jsonContent)
+                .map(root -> {
+                    final Set<String> urls = new HashSet<>();
+                    collectImageUrls(root, urls, 0, r2PublicUrl);
+                    return urls;
+                })
+                .orElse(Set.of());
+    }
+
+    private static void collectImageUrls(final JsonNode node, final Set<String> urls,
+            final int depth, final String r2PublicUrl) {
+        if (depth > MAX_DEPTH) return;
+        if (node.isObject()) {
+            if (isNodeType(node, "image")) {
+                final String src = node.path("attrs").path("src").asText(null);
+                if (src != null && (src.startsWith(r2PublicUrl) || src.startsWith(PLACEHOLDER_PREFIX))) {
+                    urls.add(src);
+                }
+            }
+            if (node.has("content")) {
+                collectImageUrls(node.path("content"), urls, depth + 1, r2PublicUrl);
+            }
+        } else if (node.isArray()) {
+            for (final JsonNode child : node) {
+                collectImageUrls(child, urls, depth + 1, r2PublicUrl);
+            }
         }
     }
 
+    // ---------------------------------------------(private)_재귀_순회--------------------------------------------
     private static void countImageNodes(final JsonNode node, final int[] count, final int depth) {
-        if (depth > MAX_DEPTH) return;
+        if (depth > MAX_DEPTH)
+            return;
         if (node.isObject()) {
-            if ("image".equals(node.path("type").asText())) {
+            if (isNodeType(node, "image")) {
                 count[0]++;
                 return;
             }
@@ -87,9 +138,10 @@ public final class TiptapContentParser {
     }
 
     private static void collectText(final JsonNode node, final StringBuilder sb, final int depth, final int maxLength) {
-        if (depth > MAX_DEPTH || sb.length() > maxLength) return;
+        if (depth > MAX_DEPTH || sb.length() > maxLength)
+            return;
         if (node.isObject()) {
-            if ("text".equals(node.path("type").asText()) && node.has("text")) {
+            if (isNodeType(node, "text") && node.has("text")) {
                 sb.append(node.path("text").asText());
             }
             if (node.has("content")) {
@@ -106,32 +158,54 @@ public final class TiptapContentParser {
     }
 
     private static void collectImageKeys(final JsonNode node, final List<String> keys,
-            final int depth, final int maxCount, final String r2PublicUrl) {
-        if (depth > MAX_DEPTH || keys.size() >= maxCount) return;
-        if (node.isObject()) {
-            if ("image".equals(node.path("type").asText())) {
-                final String src = node.path("attrs").path("src").asText(null);
-                if (src != null) {
-                    String key = null;
-                    if (src.startsWith(PLACEHOLDER_PREFIX)) {
-                        key = src.substring(PLACEHOLDER_PREFIX.length());
-                    } else if (r2PublicUrl != null && src.startsWith(r2PublicUrl + "/")) {
-                        key = src.substring(r2PublicUrl.length() + 1);
-                    }
-                    if (key != null && VALID_IMAGE_KEY.matcher(key).matches()) {
-                        keys.add(key);
-                    }
-                }
-                return;
-            }
-            if (node.has("content")) {
-                collectImageKeys(node.path("content"), keys, depth + 1, maxCount, r2PublicUrl);
-            }
-        } else if (node.isArray()) {
+            final int depth, final int maxCount) {
+        if (depth > MAX_DEPTH || keys.size() >= maxCount)
+            return;
+
+        if (node.isArray()) {
             for (final JsonNode child : node) {
-                if (keys.size() >= maxCount) break;
-                collectImageKeys(child, keys, depth + 1, maxCount, r2PublicUrl);
+                if (keys.size() >= maxCount)
+                    break;
+                collectImageKeys(child, keys, depth + 1, maxCount);
             }
+            return;
         }
+
+        if (!node.isObject())
+            return;
+
+        if (isNodeType(node, "image")) {
+            extractValidKey(node).ifPresent(keys::add);
+            return;
+        }
+
+        if (node.has("content")) {
+            collectImageKeys(node.path("content"), keys, depth + 1, maxCount);
+        }
+    }
+
+    // ------------------------------------(private)_Helper-----------------------------------------
+    private static Optional<JsonNode> parseJson(final String jsonContent) {
+        try {
+            return Optional.of(MAPPER.readTree(jsonContent));
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+    }
+
+    private static Optional<String> extractValidKey(final JsonNode imageNode) {
+        final String src = imageNode.path("attrs").path("src").asText(null);
+        if (src == null || !src.startsWith(PLACEHOLDER_PREFIX))
+            return Optional.empty();
+        final String key = src.substring(PLACEHOLDER_PREFIX.length());
+        return VALID_IMAGE_KEY.matcher(key).matches() ? Optional.of(key) : Optional.empty();
+    }
+
+    private static boolean isNodeType(final JsonNode node, final String type) {
+        return type.equals(node.path("type").asText());
+    }
+
+    private static boolean isBlankContent(final String jsonContent) {
+        return jsonContent == null || jsonContent.isBlank();
     }
 }

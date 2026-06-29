@@ -18,7 +18,7 @@ public record MyPostPreviewResponse(
     public static MyPostPreviewResponse from(final Post post) {
         return new MyPostPreviewResponse(
                 post.getId(),
-                post.getPostType().getCode(),
+                post.getPostType().name(),
                 post.getTitle(),
                 post.getCommentCount(),
                 post.getViewCount(),

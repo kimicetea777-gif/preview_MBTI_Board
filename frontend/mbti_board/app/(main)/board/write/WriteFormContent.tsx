@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import Link from "next/link";
 import { POST_TYPE, POST_TYPE_LABELS, GUEST_PASSWORD_MIN_LENGTH, GUEST_PASSWORD_MAX_LENGTH, MAX_POST_IMAGES } from "@/types/post";
 import type { PostType } from "@/types/post";
 import { useWriteForm } from "@/hooks/useWriteForm";
@@ -9,12 +11,17 @@ import FloatingLabelInput from "@/components/common/FloatingLabelInput";
 import { ALLOWED_IMAGE_TYPES_LABEL, MAX_IMAGE_BYTES_LABEL } from "@/lib/imageUtils";
 import VoteOptionsField from "@/components/post/VoteOptionsField";
 import DebateLabelsField from "@/components/post/DebateLabelsField";
+import { ROUTES } from "@/constants/routes";
+import { toast } from "@/components/common/Toast";
 
 interface Props {
   initialType: PostType;
 }
 
 export default function WriteFormContent({ initialType }: Props) {
+  const [termsAgreed, setTermsAgreed] = useState(false);
+  const [privacyAgreed, setPrivacyAgreed] = useState(false);
+
   const {
     postType, title, targetMbti, guestPassword, isMbtiMode, options,
     endsAt, isNoDeadline, proLabel, conLabel, mbtiList, isLoggedIn,
@@ -62,7 +69,14 @@ export default function WriteFormContent({ initialType }: Props) {
       <PostWriteForm
         isPending={isPending}
         isUploading={uploadingCount > 0}
-        onSubmit={handleSubmit}
+        onSubmit={(e) => {
+          if (!isLoggedIn && postType === POST_TYPE.FREE && (!termsAgreed || !privacyAgreed)) {
+            e.preventDefault();
+            toast.warning("약관 동의를 읽고 체크해주세요.");
+            return;
+          }
+          handleSubmit(e);
+        }}
         title={title}
         onTitleChange={setTitle}
         targetMbti={targetMbti}
@@ -87,17 +101,45 @@ export default function WriteFormContent({ initialType }: Props) {
         )}
 
         {postType === POST_TYPE.FREE && !isLoggedIn && (
-          <FloatingLabelInput
-            id="guestPassword"
-            label="비회원 비밀번호 (4~72자)"
-            type="password"
-            value={guestPassword}
-            onChange={(e) => setGuestPassword(e.target.value)}
-            minLength={GUEST_PASSWORD_MIN_LENGTH}
-            maxLength={GUEST_PASSWORD_MAX_LENGTH}
-            autoComplete="off"
-            disabled={isPending}
-          />
+          <div className="space-y-3">
+            <FloatingLabelInput
+              id="guestPassword"
+              label="비회원 비밀번호 (4~72자)"
+              type="password"
+              value={guestPassword}
+              onChange={(e) => setGuestPassword(e.target.value)}
+              minLength={GUEST_PASSWORD_MIN_LENGTH}
+              maxLength={GUEST_PASSWORD_MAX_LENGTH}
+              autoComplete="off"
+              disabled={isPending}
+            />
+            <div className="space-y-2">
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={termsAgreed}
+                  onChange={(e) => setTermsAgreed(e.target.checked)}
+                  disabled={isPending}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+                />
+                <span className="text-xs text-on-surface-variant leading-relaxed">
+                  <Link href={ROUTES.terms} target="_blank" className="font-medium text-primary underline underline-offset-2 hover:opacity-80">이용약관</Link>에 동의합니다. <span className="text-red-500">*</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={privacyAgreed}
+                  onChange={(e) => setPrivacyAgreed(e.target.checked)}
+                  disabled={isPending}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+                />
+                <span className="text-xs text-on-surface-variant leading-relaxed">
+                  <Link href={ROUTES.privacy} target="_blank" className="font-medium text-primary underline underline-offset-2 hover:opacity-80">개인정보처리방침</Link>에 동의합니다. <span className="text-red-500">*</span>
+                </span>
+              </label>
+            </div>
+          </div>
         )}
 
         {postType === POST_TYPE.VOTE && (

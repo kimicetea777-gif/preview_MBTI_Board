@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +14,8 @@ import { GUEST_PASSWORD_MIN_LENGTH, GUEST_PASSWORD_MAX_LENGTH } from "@/types/po
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ErrorMessage from "@/components/common/ErrorMessage";
+import { ROUTES } from "@/constants/routes";
+import { toast } from "@/components/common/Toast";
 
 export const MODAL_ACTION = { CREATE: "create", UPDATE: "update", DELETE: "delete" } as const;
 export type ModalAction = (typeof MODAL_ACTION)[keyof typeof MODAL_ACTION];
@@ -49,12 +52,17 @@ export default function GuestPasswordModal({
   description,
 }: Props) {
   const [password, setPassword] = useState("");
+  const [termsAgreed, setTermsAgreed] = useState(false);
+  const [privacyAgreed, setPrivacyAgreed] = useState(false);
 
+  const isCreate = action === MODAL_ACTION.CREATE;
   const isPasswordValid = password.length >= GUEST_PASSWORD_MIN_LENGTH;
 
   const handleOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
       setPassword("");
+      setTermsAgreed(false);
+      setPrivacyAgreed(false);
       onClose();
     }
   };
@@ -73,6 +81,10 @@ export default function GuestPasswordModal({
           onSubmit={(e) => {
             e.preventDefault();
             if (!isPasswordValid) return;
+            if (isCreate && (!termsAgreed || !privacyAgreed)) {
+              toast.warning("약관 동의를 읽고 체크해주세요.");
+              return;
+            }
             onConfirm(password);
           }}
           className="space-y-3"
@@ -87,6 +99,34 @@ export default function GuestPasswordModal({
             maxLength={GUEST_PASSWORD_MAX_LENGTH}
             disabled={isPending}
           />
+          {isCreate && (
+            <div className="space-y-2 pt-1">
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={termsAgreed}
+                  onChange={(e) => setTermsAgreed(e.target.checked)}
+                  disabled={isPending}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+                />
+                <span className="text-xs text-on-surface-variant leading-relaxed">
+                  <Link href={ROUTES.terms} target="_blank" className="font-medium text-primary underline underline-offset-2 hover:opacity-80">이용약관</Link>에 동의합니다. <span className="text-red-500">*</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={privacyAgreed}
+                  onChange={(e) => setPrivacyAgreed(e.target.checked)}
+                  disabled={isPending}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+                />
+                <span className="text-xs text-on-surface-variant leading-relaxed">
+                  <Link href={ROUTES.privacy} target="_blank" className="font-medium text-primary underline underline-offset-2 hover:opacity-80">개인정보처리방침</Link>에 동의합니다. <span className="text-red-500">*</span>
+                </span>
+              </label>
+            </div>
+          )}
           <ErrorMessage message={error} />
 
           <DialogFooter>

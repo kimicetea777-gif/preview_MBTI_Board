@@ -40,7 +40,7 @@ public interface FunQuestionRepository extends JpaRepository<FunQuestion, Long> 
                 fqo.option_text  AS optionText,
                 fqo.display_order AS displayOrder,
                 frc.mbti_id      AS mbtiId,
-                frc.count        AS count
+                frc.total_count  AS count
             FROM fun_questions fq
             JOIN fun_question_options fqo ON fq.id = fqo.question_id
             LEFT JOIN fun_response_counts frc ON fqo.id = frc.option_id
