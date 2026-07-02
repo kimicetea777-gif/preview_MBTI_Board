@@ -36,7 +36,7 @@ function CommentItem({ comment, postId, isReply = false, debateStance, proLabel,
   const [modalError, setModalError] = useState<string | undefined>();
 
   const menuRef = useRef<HTMLDivElement>(null);
-  const isLoggedIn = !!useAuthStore((s) => s.accessToken);
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn());
   const queryClient = useQueryClient();
 
   const showMenuButton = comment.isMine || (!isLoggedIn && comment.isGuest);

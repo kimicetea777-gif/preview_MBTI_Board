@@ -18,13 +18,15 @@ public enum ErrorCode {
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 토큰입니다."),
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "만료된 토큰입니다."),
     BLACKLISTED_TOKEN(HttpStatus.UNAUTHORIZED, "로그아웃된 토큰입니다."),
-    REFRESH_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "Refresh Token이 존재하지 않습니다."),
+    REFRESH_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "세션이 만료되었습니다. 다시 로그인해 주세요."),
     REFRESH_TOKEN_MISMATCH(HttpStatus.UNAUTHORIZED, "Refresh Token이 일치하지 않습니다."),
     REUSE_DETECTED(HttpStatus.UNAUTHORIZED, "토큰 재사용이 감지되었습니다. 모든 기기에서 로그아웃됩니다."),
     SOCIAL_ONLY_ACCOUNT(HttpStatus.BAD_REQUEST, "소셜 로그인 전용 계정입니다."),
     UNSUPPORTED_PROVIDER(HttpStatus.BAD_REQUEST, "지원하지 않는 OAuth2 Provider입니다."),
     OAUTH2_EMAIL_REQUIRED(HttpStatus.BAD_REQUEST, "이메일 제공에 동의해야 소셜 로그인이 가능합니다."),
-    MISSING_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "Refresh Token 쿠키가 없습니다."),
+    OAUTH2_SIGNUP_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "유효하지 않거나 만료된 가입 요청입니다. 소셜 로그인을 다시 시도해 주세요."),
+    TERMS_NOT_AGREED(HttpStatus.BAD_REQUEST, "이용약관과 개인정보처리방침에 모두 동의해야 가입할 수 있습니다."),
+    MISSING_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."),
 
     // User
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 사용자입니다."),
@@ -76,6 +78,9 @@ public enum ErrorCode {
     DEBATE_STANCE_REQUIRED(HttpStatus.BAD_REQUEST, "토론 게시글 댓글은 찬반 입장(1 또는 -1)을 선택해야 합니다."),
     DEBATE_STANCE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "일반·투표 게시글 댓글에는 찬반 입장을 설정할 수 없습니다."),
     INVALID_REACTION_TYPE(HttpStatus.BAD_REQUEST, "리액션 타입은 1(좋아요) 또는 -1(싫어요)이어야 합니다."),
+
+    // Notice
+    NOTICE_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 공지사항입니다."),
 
     // Admin
     ADMIN_CANNOT_MODIFY_SELF(HttpStatus.BAD_REQUEST, "자기 자신의 상태/역할은 변경할 수 없습니다."),

@@ -30,7 +30,7 @@ export function useImageUpload() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ urls }),
         keepalive: true,
-        credentials: "include",
+        // credentials: "include", // same-origin이라 불필요 + cross-origin 전환 시 쿠키 유출 방지 위해 비활성화
       });
     };
   }, []);

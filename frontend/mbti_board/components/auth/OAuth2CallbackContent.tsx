@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useAuthStore } from "@/store/authStore";
 import { ROUTES } from "@/constants/routes";
 import { toSafeRedirect } from "@/lib/safeRedirect";
-import { setLastLoginMethod, PENDING_SOCIAL_PROVIDER_KEY, type LoginMethod } from "@/lib/lastLoginMethod";
+import { setLastLoginMethod, PENDING_SOCIAL_PROVIDER_KEY, type LoginMethod } from "@/lib/loginUtils";
 
 export const OAUTH2_REDIRECT_KEY = "oauth2_redirect";
 
@@ -17,16 +17,28 @@ const ERROR_MESSAGES: Record<string, string> = {
 };
 
 interface Props {
-  accessToken: string | null;
   error: string | null;
 }
 
-export default function OAuth2CallbackContent({ accessToken, error }: Props) {
+export default function OAuth2CallbackContent({ error }: Props) {
   const router = useRouter();
   const setAccessToken = useAuthStore((s) => s.setAccessToken);
 
   useEffect(() => {
-    if (error || !accessToken) return;
+    if (error) return;
+
+    const params = new URLSearchParams(window.location.hash.slice(1));
+
+    // 신규 소셜 가입 — 계정이 아직 없으므로 약관 동의 페이지로 이동.
+    // OAUTH2_REDIRECT_KEY/PENDING_SOCIAL_PROVIDER_KEY는 여기서 지우지 않고 동의 완료 페이지가 이어받아 처리
+    const signupToken = params.get("signupToken");
+    if (signupToken) {
+      router.replace(`${ROUTES.termsAgree}#signupToken=${signupToken}`);
+      return;
+    }
+
+    const accessToken = params.get("accessToken");
+    if (!accessToken) return;
 
     setAccessToken(accessToken);
     const raw = sessionStorage.getItem(OAUTH2_REDIRECT_KEY) ?? ROUTES.home;

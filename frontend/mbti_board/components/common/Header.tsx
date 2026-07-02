@@ -28,7 +28,6 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-outline-variant bg-background">
       <div className="mx-auto flex h-16 max-w-300 items-center justify-between px-8 gap-4">
-
         {/* Brand */}
         <div className="flex-1 flex items-center gap-3 min-w-0">
           <button

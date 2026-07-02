@@ -4,7 +4,11 @@ import com.board.kimicetea.domain.comment.dto.AdminCommentStatsResponse;
 import com.board.kimicetea.domain.comment.dto.AdminCommentStatsResponse.CountEntry;
 import com.board.kimicetea.domain.comment.dto.AdminCommentStatsResponse.DailyCountEntry;
 import com.board.kimicetea.domain.comment.repository.CommentRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,22 +17,49 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
- * 어드민 댓글 통계 조회 서비스 — MBTI 분포, 리액션 현황, 작성 추이, 숨김 현황 집계
- * 주의: 모든 쿼리는 읽기 전용 트랜잭션으로 실행됨
+ * 어드민 댓글 통계 서비스 — 계산 결과를 Redis에 캐싱하여 HTTP 응답을 즉시 반환
+ * 주의: computeAndCache()는 AdminCommentStatsScheduler가 10분마다 호출 — HTTP 요청 스레드에서 DB 집계 없음
+ * 주의: Redis 미스(최초 기동·캐시 만료) 시 getCachedStats()가 직접 호출 — 드문 경우
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class AdminCommentStatsService {
 
     private static final long TREND_DAYS = 30L;
+    private static final String STATS_CACHE_KEY = "ADMIN:COMMENT:STATS";
+    private static final long STATS_CACHE_TTL_HOURS = 1L;
 
     private final CommentRepository commentRepository;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
 
-    /** 댓글 전체 통계 집계 */
-    public AdminCommentStatsResponse getStats() {
+    /**
+     * Redis에서 캐시된 통계 반환 — 미스 시 computeAndCache() 직접 호출(자기 호출이므로 트랜잭션 미적용)
+     * 주의: 미스는 최초 기동 또는 Redis 초기화 시에만 발생 — 정상 운영 중엔 캐시 히트
+     */
+    public AdminCommentStatsResponse getCachedStats() {
+        final String json = redisTemplate.opsForValue().get(STATS_CACHE_KEY);
+        if (json != null) {
+            try {
+                return objectMapper.readValue(json, AdminCommentStatsResponse.class);
+            } catch (JsonProcessingException e) {
+                log.warn("댓글 통계 캐시 역직렬화 실패 — 재계산", e);
+            }
+        }
+        return computeAndCache();
+    }
+
+    /**
+     * 댓글 통계 계산 후 Redis에 저장 — AdminCommentStatsScheduler(10분) 및 캐시 미스 시 호출
+     * 주의: 스케줄러에서 호출 시 Spring 프록시 경유 → @Transactional 정상 적용 (단일 커넥션)
+     * 주의: TTL 1시간은 스케줄러 장애 시 안전망 — 정상 운영 중엔 10분마다 갱신됨
+     */
+    @Transactional(readOnly = true)
+    public AdminCommentStatsResponse computeAndCache() {
         final long totalComments = commentRepository.count();
         final long hiddenCount = commentRepository.countHidden();
 
@@ -38,19 +69,25 @@ public class AdminCommentStatsService {
         final long thisMonthNewComments = commentRepository.countByCreatedAtBetween(thisMonthStart, Instant.now());
         final long lastMonthNewComments = commentRepository.countByCreatedAtBetween(lastMonthStart, thisMonthStart);
 
-        final List<Object[]> reactionRows = commentRepository.sumReactions();
-        final Object[] reactionRow = reactionRows.isEmpty() ? new Object[]{null, null} : reactionRows.get(0);
-        final long totalLikes    = reactionRow[0] == null ? 0L : ((Number) reactionRow[0]).longValue();
-        final long totalDislikes = reactionRow[1] == null ? 0L : ((Number) reactionRow[1]).longValue();
-
         final List<CountEntry> byMbti = toCountEntries(commentRepository.countGroupByMbtiRaw());
 
         final Instant since = Instant.now().minus(TREND_DAYS, ChronoUnit.DAYS);
         final List<DailyCountEntry> commentTrend = toDailyEntries(commentRepository.findCommentTrendRaw(since));
 
-        return new AdminCommentStatsResponse(
+        final AdminCommentStatsResponse stats = new AdminCommentStatsResponse(
                 totalComments, hiddenCount, thisMonthNewComments, lastMonthNewComments,
-                totalLikes, totalDislikes, byMbti, commentTrend);
+                byMbti, commentTrend);
+
+        try {
+            redisTemplate.opsForValue().set(
+                    STATS_CACHE_KEY,
+                    objectMapper.writeValueAsString(stats),
+                    STATS_CACHE_TTL_HOURS, TimeUnit.HOURS);
+        } catch (JsonProcessingException e) {
+            log.error("댓글 통계 캐시 직렬화 실패", e);
+        }
+
+        return stats;
     }
 
     private List<CountEntry> toCountEntries(final List<Object[]> rows) {

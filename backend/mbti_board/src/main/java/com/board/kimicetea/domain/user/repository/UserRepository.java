@@ -4,6 +4,7 @@ import com.board.kimicetea.domain.user.entity.User;
 import com.board.kimicetea.domain.user.enums.UserState;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -30,7 +31,11 @@ public interface UserRepository extends JpaRepository<User, UUID>, UserRepositor
     @EntityGraph(attributePaths = { "mbti" })
     Optional<User> findWithMbtiById(UUID id);
 
-    List<User> findAllByState(UserState state);
+    long countByState(UserState state);
+
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM User u WHERE u.state = :state")
+    void bulkDeleteByState(@Param("state") UserState state);
 
     // ── 통계 쿼리 ─────────────────────────────────────────────────────────────
 

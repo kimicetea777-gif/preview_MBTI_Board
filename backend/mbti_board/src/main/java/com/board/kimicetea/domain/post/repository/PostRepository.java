@@ -1,6 +1,7 @@
 package com.board.kimicetea.domain.post.repository;
 
 import com.board.kimicetea.domain.post.entity.Post;
+import com.board.kimicetea.domain.post.entity.PostType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -21,6 +22,10 @@ public interface PostRepository extends JpaRepository<Post, Long>, PostRepositor
 
     @Query("SELECT p FROM Post p JOIN FETCH p.authorMbti LEFT JOIN FETCH p.user LEFT JOIN FETCH p.targetMbti WHERE p.id = :id AND p.isVisible = true")
     Optional<Post> findWithDetailsById(@Param("id") Long id);
+
+    /** 댓글 목록 조회 전용 — PostType 스칼라만 조회해 불필요한 JOIN 제거 */
+    @Query("SELECT p.postType FROM Post p WHERE p.id = :id AND p.isVisible = true")
+    Optional<PostType> findPostTypeById(@Param("id") Long id);
 
     @Modifying
     @Query("UPDATE Post p SET p.viewCount = p.viewCount + 1 WHERE p.id = :id")

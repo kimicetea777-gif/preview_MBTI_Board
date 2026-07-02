@@ -1,12 +1,17 @@
+"use client";
+
 import { Suspense } from "react";
-import AdminMbtiTestStatsContent from "@/components/admin/AdminMbtiTestStatsContent";
+import dynamic from "next/dynamic";
 import ApiErrorBoundary from "@/components/common/ApiErrorBoundary";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
+
+const AdminMbtiTestStatsContent = dynamic(() => import("@/components/admin/AdminMbtiTestStatsContent"), { ssr: false });
 
 export default function AdminMbtiStatsPage() {
   return (
     <div className="p-6">
       <ApiErrorBoundary>
-        <Suspense fallback={<p className="py-8 text-center text-gray-500">불러오는 중...</p>}>
+        <Suspense fallback={<LoadingIndicator />}>
           <AdminMbtiTestStatsContent />
         </Suspense>
       </ApiErrorBoundary>

@@ -1,6 +1,20 @@
 import type { UserRole, UserState, MbtiVerified } from "./user";
 import type { PostType } from "./post";
 
+// GET /api/admin/alerts/status
+export const ALERT_TYPE = {
+  JWT_TAMPER:           "JWT_TAMPER",
+  UNHANDLED_ERROR:      "UNHANDLED_ERROR",
+  DB_QUERY_SLOW:        "DB_QUERY_SLOW",
+  BRUTE_FORCE_LOGIN:    "BRUTE_FORCE_LOGIN",
+  PASSWORD_RESET_ABUSE: "PASSWORD_RESET_ABUSE",
+  ACCOUNT_LOCKED:       "ACCOUNT_LOCKED",
+  RATE_LIMIT_EXCEEDED:  "RATE_LIMIT_EXCEEDED",
+  REDIS_CONNECTION_FAIL:"REDIS_CONNECTION_FAIL",
+} as const;
+export type AlertType = typeof ALERT_TYPE[keyof typeof ALERT_TYPE];
+export type AlertStatusResponse = Record<AlertType, boolean>;
+
 // GET /api/admin/users 응답
 export interface AdminUserSummaryResponse {
   id: string;
@@ -129,8 +143,6 @@ export interface AdminCommentStatsResponse {
   hiddenCount: number;
   thisMonthNewComments: number;
   lastMonthNewComments: number;
-  totalLikes: number;
-  totalDislikes: number;
   byMbti: CountEntry[];
   commentTrend: DailyCountEntry[];
 }
@@ -147,6 +159,9 @@ export interface AdminMbtiTestStatsResponse {
   byRetakeCount: CountEntry[];
   testTrend: DailyCountEntry[];
 }
+
+// GET /api/admin/notices 응답
+export type { AdminNoticeResponse, NoticeCreateRequest, NoticeUpdateRequest } from "./notice";
 
 export const USER_SORT_FIELD = {
   CREATED_AT: "CREATED_AT",

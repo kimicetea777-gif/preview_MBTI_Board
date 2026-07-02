@@ -2,7 +2,7 @@
 
 import { LuTrash2, LuCirclePlus } from "react-icons/lu";
 import { VOTE_OPTION_MIN, VOTE_OPTION_MAX } from "@/types/post";
-import type { OptionRow } from "@/hooks/useWriteForm";
+import type { OptionRow } from "@/hooks/useVoteOptionsForm";
 import DeadlineField from "./DeadlineField";
 
 interface MbtiItem {

@@ -1,15 +1,18 @@
+"use client";
+
 import { Suspense } from "react";
-import AdminCommentStatsContent from "@/components/admin/AdminCommentStatsContent";
+import dynamic from "next/dynamic";
 import ApiErrorBoundary from "@/components/common/ApiErrorBoundary";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
+
+const AdminCommentStatsContent = dynamic(() => import("@/components/admin/AdminCommentStatsContent"), { ssr: false });
 
 export default function AdminCommentStatsPage() {
   return (
-    <div className="p-6">
-      <ApiErrorBoundary>
-        <Suspense fallback={<p className="py-8 text-center text-gray-500">불러오는 중...</p>}>
-          <AdminCommentStatsContent />
-        </Suspense>
-      </ApiErrorBoundary>
-    </div>
+    <ApiErrorBoundary>
+      <Suspense fallback={<LoadingIndicator />}>
+        <AdminCommentStatsContent />
+      </Suspense>
+    </ApiErrorBoundary>
   );
 }

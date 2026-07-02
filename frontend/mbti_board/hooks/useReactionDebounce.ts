@@ -9,6 +9,10 @@ import type { Comment, CommentReactionState, ReactionType } from "@/types/commen
 
 const DEBOUNCE_MS = 500;
 
+/**
+ * 좋아요/싫어요 토글 시 로컬 카운트를 낙관적으로 재계산
+ * 같은 타입을 다시 누르면 취소(null), 다른 타입을 누르면 이전 리액션 카운트를 내리고 새 타입 카운트를 올림
+ */
 function computeOptimisticPatch(
   current: CommentReactionState,
   target: ReactionType
@@ -22,6 +26,7 @@ function computeOptimisticPatch(
   return { myReactionType, likeCount, dislikeCount };
 }
 
+/** 댓글 목록 캐시(1단계 대댓글 포함)에서 id가 일치하는 댓글/대댓글 하나에만 patch를 병합 */
 function applyPatch(list: Comment[], id: number, patch: Partial<Comment>): Comment[] {
   return list.map((c) => {
     if (c.id === id) return { ...c, ...patch };
@@ -32,6 +37,11 @@ function applyPatch(list: Comment[], id: number, patch: Partial<Comment>): Comme
   });
 }
 
+/**
+ * 좋아요/싫어요 클릭 디바운스 훅
+ * 주의: 클릭할 때마다 즉시 요청을 보내지 않고 500ms 뒤 "최종 상태"만 서버에 1번 전송 —
+ *       연타 시 요청 폭증 방지, 최종 상태가 최초 상태와 같으면(예: 좋아요→싫어요→좋아요) 요청 자체를 생략
+ */
 export function useReactionDebounce(comment: Comment, postId: number) {
   const queryClient = useQueryClient();
 
@@ -48,6 +58,7 @@ export function useReactionDebounce(comment: Comment, postId: number) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isPendingRef = useRef(false);
 
+  /** 디바운스 시퀀스 종료 — 다음 클릭이 새 시퀀스로 인식되도록 pending 플래그·초기 상태 초기화 */
   const resetPending = () => {
     isPendingRef.current = false;
     initialReactionRef.current = undefined;
@@ -70,7 +81,9 @@ export function useReactionDebounce(comment: Comment, postId: number) {
     mutationFn: (reactionType: ReactionType) =>
       toggleReaction(comment.id, { reactionType }),
 
+    // 실제 요청 전송 시점(디바운스 종료 시)에 댓글 목록 캐시를 낙관적으로 갱신
     onMutate: async (reactionType) => {
+      // 진행 중인 refetch가 낙관적 갱신을 덮어쓰지 않도록 취소
       await queryClient.cancelQueries({ queryKey: commentKeys.byPost(postId) });
       const snapshot = queryClient.getQueryData<Comment[]>(commentKeys.byPost(postId));
 
@@ -89,28 +102,20 @@ export function useReactionDebounce(comment: Comment, postId: number) {
       return { snapshot };
     },
 
+    // 요청 실패 시 onMutate에서 저장해둔 스냅샷으로 캐시 롤백
+    // → 캐시 변경이 comment prop으로 흘러들어오면 idle 동기화 effect(line 68)가 localState도 자동으로 맞춰줌
     onError: (_err, _vars, context) => {
       if (context?.snapshot) {
         queryClient.setQueryData(commentKeys.byPost(postId), context.snapshot);
-        const original =
-          context.snapshot.find((c) => c.id === comment.id) ??
-          context.snapshot.flatMap((c) => c.replies).find((r) => r.id === comment.id);
-        if (original) {
-          const rollback: CommentReactionState = {
-            myReactionType: original.myReactionType,
-            likeCount: original.likeCount,
-            dislikeCount: original.dislikeCount,
-          };
-          localStateRef.current = rollback;
-          setLocalState(rollback);
-        }
       }
-      resetPending();
+      // 예약된 타이머(= 아직 안 보낸 후속 클릭)가 있으면 그 타이머가 스스로 pending을 정리하도록 둠
+      if (!timerRef.current) resetPending();
     },
 
+    // 성공 시엔 낙관적 패치가 이미 서버와 동일한 증감 로직이라 재검증 없이 그대로 신뢰.
+    // pending 해제는 후속 클릭 타이머가 없을 때만(있으면 그 타이머가 처리)
     onSettled: () => {
-      resetPending();
-      queryClient.invalidateQueries({ queryKey: commentKeys.byPost(postId) });
+      if (!timerRef.current) resetPending();
     },
   });
 
@@ -147,6 +152,7 @@ export function useReactionDebounce(comment: Comment, postId: number) {
     };
   }, [fireRequest]);
 
+  /** 좋아요/싫어요 버튼 클릭 핸들러 — 화면은 즉시 갱신하고 실제 요청은 디바운스 타이머로 지연 전송 */
   const handleClick = (type: ReactionType) => {
     // 디바운스 시퀀스 시작 시점의 상태 캡처
     if (!isPendingRef.current) {

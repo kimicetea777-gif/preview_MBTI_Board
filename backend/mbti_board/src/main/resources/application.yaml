@@ -82,6 +82,7 @@ jwt:
   secret: ${JWT_SECRET}
   access-expiry: 1800000 # 30분 (ms)
   refresh-expiry: 604800000 # 7일 (ms)
+  signup-expiry: 600000 # 10분 (ms) — OAuth2 신규 가입 약관 동의 대기용
 
 frontend:
   url: ${FRONTEND_URL:http://localhost:4000}
@@ -110,6 +111,15 @@ rate-limit:
 phone:
   hmac-secret: ${PHONE_HMAC_SECRET}
 
+retention:
+  encryption: #수사 협조 데이터 암호화
+    password: ${RETENTION_ENCRYPTION_PASSWORD}
+    salt: ${RETENTION_ENCRYPTION_SALT}
+
 alert:
   mail:
     to: ${ALERT_MAIL_TO}
+
+admin:
+  stats:
+    cache-refresh-delay-ms: ${ADMIN_STATS_CACHE_REFRESH_DELAY_MS:7200000} # 2시간

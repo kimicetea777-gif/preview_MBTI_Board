@@ -3,8 +3,8 @@ import OAuth2CallbackContent from "@/components/auth/OAuth2CallbackContent";
 export default async function OAuth2CallbackPage({
   searchParams,
 }: {
-  searchParams: Promise<{ accessToken?: string; error?: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
-  const { accessToken, error } = await searchParams;
-  return <OAuth2CallbackContent accessToken={accessToken ?? null} error={error ?? null} />;
+  const { error } = await searchParams;
+  return <OAuth2CallbackContent error={error ?? null} />;
 }

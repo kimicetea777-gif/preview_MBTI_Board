@@ -1,6 +1,5 @@
 "use client";
 
-import { getAllMbti } from "@/constants/mbtiData";
 import { POST_SORT } from "@/types/post";
 import MbtiSelect from "@/components/common/MbtiSelect";
 import LabeledFilterBox from "@/components/common/LabeledFilterBox";
@@ -30,8 +29,6 @@ export default function PostListFilter({
   onAuthorMbtiChange,
   onTargetMbtiChange,
 }: Props) {
-  const mbtiList = getAllMbti();
-
   return (
     <nav className="flex flex-col gap-2 py-3">
       <BoardTypeNav />
@@ -59,7 +56,6 @@ export default function PostListFilter({
             <MbtiSelect
               value={authorMbti}
               onChange={onAuthorMbtiChange}
-              mbtiList={mbtiList}
               placeholder="전체"
               className="border-0 rounded-none flex-1 py-1.5"
             />
@@ -69,7 +65,6 @@ export default function PostListFilter({
             <MbtiSelect
               value={targetMbti}
               onChange={onTargetMbtiChange}
-              mbtiList={mbtiList}
               placeholder="전체"
               className="border-0 rounded-none flex-1 py-1.5"
             />

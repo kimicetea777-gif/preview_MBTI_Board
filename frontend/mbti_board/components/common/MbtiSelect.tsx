@@ -2,17 +2,12 @@
 
 import * as Select from "@radix-ui/react-select";
 import { HiCheck, HiChevronDown, HiChevronUp } from "react-icons/hi";
-import { MBTI_GROUPS, UNKNOWN_MBTI_ID } from "@/types/mbti";
+import { MBTI_GROUPS, MBTI_ID } from "@/types/mbti";
 import { cn } from "@/lib/utils";
-
-interface MbtiItem {
-  id: string;
-}
 
 interface Props {
   value: string | undefined;
   onChange: (value: string | undefined) => void;
-  mbtiList: MbtiItem[];
   disabled?: boolean;
   className?: string;
   placeholder?: string;
@@ -20,9 +15,7 @@ interface Props {
 
 const ALL = "__ALL__";
 
-export default function MbtiSelect({ value, onChange, mbtiList, disabled, className, placeholder }: Props) {
-  const hasUnknown = mbtiList.some((m) => m.id === UNKNOWN_MBTI_ID);
-
+export default function MbtiSelect({ value, onChange, disabled, className, placeholder }: Props) {
   const radixValue = value ?? ALL;
   const handleChange = (v: string) => onChange(v === ALL ? undefined : v);
 
@@ -37,7 +30,7 @@ export default function MbtiSelect({ value, onChange, mbtiList, disabled, classN
         )}
       >
         <Select.Value>
-          {radixValue === ALL ? placeholder : radixValue === UNKNOWN_MBTI_ID ? "미설정" : radixValue}
+          {radixValue === ALL ? placeholder : radixValue === MBTI_ID.NONE ? "미설정" : radixValue}
         </Select.Value>
         <Select.Icon asChild>
           <HiChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -61,13 +54,6 @@ export default function MbtiSelect({ value, onChange, mbtiList, disabled, classN
                 <Select.Separator className="my-1 h-px bg-border" />
               </>
             )}
-            {hasUnknown && (
-              <>
-                <MbtiOption value={UNKNOWN_MBTI_ID} label="미설정" />
-                <Select.Separator className="my-1 h-px bg-border" />
-              </>
-            )}
-
             {MBTI_GROUPS.map((group) => (
               <Select.Group key={group.label} className="grid grid-cols-2">
                 <Select.Label className="col-span-2 px-2 py-1 text-xs font-medium text-muted-foreground">

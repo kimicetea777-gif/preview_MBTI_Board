@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import { ROUTES } from "@/constants/routes";
-import { getLastLoginMethod, LOGIN_METHOD_LABEL } from "@/lib/lastLoginMethod";
+import { getLastLoginMethod, LOGIN_METHOD_LABEL } from "@/lib/loginUtils";
 import EmailInput from "@/components/common/EmailInput";
 import ErrorMessage from "@/components/common/ErrorMessage";
 import SocialLoginButtons from "@/components/auth/SocialLoginButtons";

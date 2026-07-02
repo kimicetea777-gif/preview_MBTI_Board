@@ -56,6 +56,7 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
         final Long total = queryFactory
                 .select(comment.count())
                 .from(comment)
+                .leftJoin(comment.user)
                 .where(builder)
                 .fetchOne();
 

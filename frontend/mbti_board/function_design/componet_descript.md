@@ -8,6 +8,7 @@
 ## My Page
 
 - `components/my/MyPostsPreview.tsx` — 마이페이지 내 게시글 프리뷰 (최근 5개, QueryResetErrorBoundary + Suspense + useSuspenseQuery 패턴)
+- `components/admin/AdminAlertContent.tsx` — 어드민 이메일 알림 설정 페이지 — AlertType별 활성화/음소거 상태 조회 및 토글
 
 ## Types
 
@@ -391,7 +392,7 @@
 - `components/common/FloatingLabelInput.tsx` — 플로팅 라벨 input 베이스 컴포넌트; `rightSlot` prop으로 우측 버튼 주입, `hint` prop으로 포커스 시 힌트 텍스트 표시 지원
 - `components/common/EmailInput.tsx` — FloatingLabelInput 기반 이메일 전용 래퍼; 메일 아이콘·type email·autoComplete email 고정, 자동완성 기능 확장 예정
 - `components/common/PasswordInput.tsx` — FloatingLabelInput 기반 비밀번호 전용 래퍼; show/hide 토글 상태 내장
-- `components/common/MbtiSelect.tsx` — `@radix-ui/react-select` 기반 MBTI 선택 드롭다운; MBTI_GROUPS 그룹화·UNKNOWN→"미설정" 변환·체크 아이콘 표시 지원; `value·onChange·mbtiList·disabled` prop
+- `components/common/MbtiSelect.tsx` — `@radix-ui/react-select` 기반 MBTI 선택 드롭다운; MBTI_GROUPS 그룹화·NONE→"미설정" 변환·체크 아이콘 표시 지원; `value·onChange·disabled` prop
 - `components/common/LabeledFilterBox.tsx` — 좌측 라벨 + 우측 children을 테두리로 감싸는 필터 래퍼 컴포넌트; `label·children` prop
 - `components/common/ErrorMessage.tsx` — 폼 에러 메시지 공통 컴포넌트; 빨간 테두리·반투명 배경·아이콘 포함, `message` null/undefined 시 렌더링 안 함
 - `components/post/BoardTypeNav.tsx` — 전체·자유글·투표글·토론글 탭 링크; usePathname으로 현재 경로에 따라 활성 탭 강조
@@ -467,7 +468,9 @@
 
 ## Hooks
 
-- `hooks/useWriteForm.ts` — 통합 작성 폼 커스텀 훅; 자유글·투표·토론 전용 state·mutation·handler 통합 관리, `OptionRow` 타입 export
+- `hooks/useWriteForm.ts` — 통합 작성 폼 커스텀 훅; 공통 필드(title/content/postType)·타입별 mutation 3종·`handleSubmit` 분기를 관리하고 아래 두 sub-hook을 조합
+- `hooks/useVoteOptionsForm.ts` — 투표 선택지 입력 상태(직접 입력/MBTI 모드 토글); `OptionRow` 타입 export (VOTE 전용, useWriteForm에서 분리)
+- `hooks/useDeadlineForm.ts` — VOTE/DEBATE 공용 마감일 입력 상태("기한 없음" 토글 + 유효성 검증); useWriteForm에서 분리
 
 ## Components (Write 전용)
 
@@ -541,3 +544,37 @@
 ## Refactor — MBTI 검사 선택지 버튼 분리
 
 - `components/mbti/OptionButton.tsx` — 라디오 스타일 선택지 버튼 공용 컴포넌트; `isSelected`·`onClick`·`children` prop, FUN 문항(optionText)과 일반 문항(label+subLabel) 모두 공유
+
+## Admin Stats 캐시 갱신 버튼 컴포넌트
+
+- `components/admin/StatsRefreshButton.tsx` — 어드민 통계 캐시 수동 갱신 버튼; `isRefreshing`·`onRefresh` prop, 갱신 중 스피너+비활성화 처리, 4개 StatsContent에서 공유
+
+## Refactor — Admin Stats 4개 컴포넌트 중복 제거
+
+- `lib/adminStatsUtils.ts` — `formatTrendDate`(일별/주별 날짜 포맷)·`chunkWeekly`(7일 단위 주별 집계)·`computeGrowth`(전월 대비 증감률)·`withPercentLabel`(항목별 비율 라벨 부착) 공용 유틸 + `CHART_AXIS_COLOR`/`CHART_GRID_COLOR` 차트 색상 상수; 4개 Admin StatsContent에서 중복 정의되던 로직 통합
+- `components/admin/GrowthBadge.tsx` — 전월 대비 증감 배지(▲▼ 아이콘 + 퍼센트); `diff`·`pct` prop, pct null이면 미표시
+- `components/admin/TrendAreaChart.tsx` — 일별/주별 토글 + Recharts AreaChart 카드 공용 컴포넌트; `title`·`data`·`trendMode`·`onTrendModeChange`·`color`·`gradientId`·`unitLabel` prop (Comment/Post/MbtiTest 통계에서 공유)
+- `components/admin/MbtiDistributionChart.tsx` — MBTI별 분포 Recharts BarChart 카드 공용 컴포넌트; `title`·`data`(`{name,value,label}[]`)·`unitLabel` prop, data 비어있으면 렌더링 안 함 (4개 StatsContent 전체에서 공유)
+
+## 공지사항 기능
+
+- `types/notice.ts` — `NoticeResponse`·`AdminNoticeResponse`·`NoticeCreateRequest`·`NoticeUpdateRequest` 타입 + `NOTICE_HIDDEN_KEY` 상수
+- `lib/api/notice.ts` — `fetchActiveNotices`(공개)·`fetchAdminNotices`·`createAdminNotice`·`updateAdminNotice`·`deleteAdminNotice` API 함수
+- `hooks/useNotice.ts` — localStorage `notice_hidden_until` 판별 + useQuery 조합 훅; `isVisible`·`close`·`hideFor24Hours` 반환
+- `components/common/NoticeModal.tsx` — 공지사항 캐러셀 팝업 모달; 좌우 화살표·dot indicator·"24시간 동안 보지 않기" 버튼; (main)/layout에서 마운트
+- `components/admin/AdminNoticeContent.tsx` — 어드민 공지사항 CRUD 관리 페이지; 목록 조회·등록·수정(인라인 폼 모달)·삭제(확인 버튼) 포함
+
+## Refactor — Suspense fallback 로딩 텍스트 공용화
+
+- `components/common/LoadingIndicator.tsx` — Suspense fallback 공용 로딩 텍스트; "..." 점 3개 순차 bounce 애니메이션, `message`·`className` prop으로 커스터마이즈, 반복되던 "불러오는 중..." p 태그 12곳 대체
+
+## 소셜 로그인 약관 동의 게이트 (dev_phase.md)
+
+- `constants/routes.ts` — `ROUTES.termsAgree: "/terms/agree"` 추가
+- `constants/apiEndpoints.ts` — `API.auth.oauth2Signup: "/api/auth/oauth2/signup"` 추가
+- `types/auth.ts` — `SignupRequest`에 `termsAgreed`·`privacyAgreed` 추가, `OAuth2SignupConfirmRequest` 타입 신설
+- `lib/api/auth.ts` — `confirmOAuth2Signup` API 함수 추가
+- `components/auth/TermsAgreementCheckboxes.tsx` — 이용약관/개인정보처리방침 동의 체크박스 쌍 공용 컴포넌트; `FormStep.tsx`·`WriteFormContent.tsx`(비회원 글쓰기) 중복 제거
+- `components/auth/TermsAgreementContent.tsx` — 약관 동의 페이지(라우트/이름을 "소셜 가입" 대신 범용화, 향후 재동의 흐름과 공유 목적); `useSyncExternalStore`로 URL fragment의 `signupToken`을 SSR 안전하게 읽음, 동의 완료 시 AT 저장+`setLastLoginMethod`+원래 목적지 리다이렉트
+- `app/(auth)/terms/agree/page.tsx` — `/terms/agree` 서버 컴포넌트; `TermsAgreementContent` 렌더링
+- `components/auth/OAuth2CallbackContent.tsx` — `signupToken` 분기 추가; 있으면 sessionStorage 정리 없이 `/terms/agree`로 이동(정리는 동의 완료 페이지가 이어받음)

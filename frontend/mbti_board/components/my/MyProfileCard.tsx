@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { getAllMbti, getMbtiById } from "@/constants/mbtiData";
+import { getMbtiById } from "@/constants/mbtiData";
 import MbtiAvatar from "@/components/common/MbtiAvatar";
 import { userKeys, useMyProfileSuspense } from "@/hooks/useUser";
 import { isAxiosError } from "axios";
@@ -38,7 +38,6 @@ function MyProfileCardInner() {
   const [nicknameError, setNicknameError] = useState("");
 
   const { data: profile } = useMyProfileSuspense();
-  const mbtiList = getAllMbti();
 
   const mutation = useMutation({
     mutationFn: updateMyProfile,
@@ -231,7 +230,7 @@ function MyProfileCardInner() {
               <div className="mb-8 space-y-2">
                 <div className="flex items-center gap-3">
                   <label className="shrink-0 text-sm font-semibold text-primary">직접 선택 : </label>
-                  <MbtiSelect value={mbtiId} onChange={(v) => setMbtiId(v ?? "")} mbtiList={mbtiList} />
+                  <MbtiSelect value={mbtiId} onChange={(v) => setMbtiId(v ?? "")} />
                 </div>
                 {mbtiId && mbtiId !== profile.mbtiId && (
                   <InfoBanner items={[

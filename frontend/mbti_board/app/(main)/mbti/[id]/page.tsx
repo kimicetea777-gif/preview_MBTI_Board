@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import MbtiDetailContent from "./MbtiDetailContent";
 import QueryResetErrorBoundary from "@/components/common/QueryResetErrorBoundary";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -11,7 +12,7 @@ export default async function MbtiDetailPage({ params }: Props) {
 
   return (
     <QueryResetErrorBoundary>
-      <Suspense fallback={<div className="flex justify-center py-20 text-sm text-muted-foreground">불러오는 중...</div>}>
+      <Suspense fallback={<LoadingIndicator className="flex justify-center py-20 text-sm text-muted-foreground" />}>
         <MbtiDetailContent id={id} />
       </Suspense>
     </QueryResetErrorBoundary>

@@ -2,19 +2,24 @@
 
 import { useState } from "react";
 import {
-  Tooltip, Cell,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, XAxis, YAxis, CartesianGrid,
   LineChart, Line, Legend,
   ResponsiveContainer,
 } from "recharts";
-import { getMbtiColor } from "@/constants/mbtiData";
 import {
   MdGroup, MdTimerOff, MdTrendingUp, MdTrendingDown,
   MdPhoneAndroid, MdPendingActions,
 } from "react-icons/md";
-import { useAdminUserStats } from "@/hooks/useAdmin";
+import StatsRefreshButton from "@/components/admin/StatsRefreshButton";
+import GrowthBadge from "@/components/admin/GrowthBadge";
+import MbtiDistributionChart from "@/components/admin/MbtiDistributionChart";
+import { useAdminUserStats, useRefreshAdminUserStats } from "@/hooks/useAdmin";
 import { USER_STATE_LABELS, USER_STATE_COLORS, USER_ROLE_COLORS } from "@/types/admin";
 import type { UserState } from "@/types/user";
+import {
+  CHART_AXIS_COLOR, CHART_GRID_COLOR, chunkWeekly, computeGrowth, formatTrendDate, withPercentLabel,
+  type TrendMode,
+} from "@/lib/adminStatsUtils";
 
 const MBTI_VERIFIED_LABELS: Record<string, string> = {
   TESTED:  "검사 완료",
@@ -27,22 +32,9 @@ const MBTI_VERIFIED_COLORS: Record<string, string> = {
   DEFAULT: "#d4c3bc",
 };
 
-function formatTrendDate(date: string, mode: "daily" | "weekly") {
-  const toKorean = (mmdd: string) => {
-    const [m, d] = mmdd.split("-");
-    return `${m}월 ${d}일`;
-  };
-  if (mode === "weekly") {
-    const [start, end] = date.split("~");
-    const [, ed] = end.split("-");
-    return `${toKorean(start)}~${ed}일`;
-  }
-  return toKorean(date);
-}
-
-
 export default function AdminUserStatsContent() {
   const { data } = useAdminUserStats();
+  const { refresh, isRefreshing } = useRefreshAdminUserStats();
 
   const stateData = data.byState.map((e) => ({
     name: USER_STATE_LABELS[e.name as UserState] ?? e.name,
@@ -70,16 +62,13 @@ export default function AdminUserStatsContent() {
 
   const inactiveDiff = data.inactiveCount - data.lastMonthInactiveCount;
 
-  const growthDiff = data.thisMonthNewUsers - data.lastMonthNewUsers;
-  const growthPct = data.lastMonthNewUsers > 0
-    ? ((Math.abs(growthDiff) / data.lastMonthNewUsers) * 100).toFixed(1)
-    : null;
+  const { diff: growthDiff, pct: growthPct } = computeGrowth(data.thisMonthNewUsers, data.lastMonthNewUsers);
 
   const phonePct = data.totalUsers > 0
     ? ((data.phoneVerifiedCount / data.totalUsers) * 100).toFixed(1)
     : "0.0";
 
-  const [trendMode, setTrendMode] = useState<"daily" | "weekly">("daily");
+  const [trendMode, setTrendMode] = useState<TrendMode>("daily");
 
   // 가입·탈퇴 날짜 합집합으로 병합
   const signupMap = new Map(data.signupTrend.map((e) => [e.date, e.value]));
@@ -93,34 +82,25 @@ export default function AdminUserStatsContent() {
     withdrawals: withdrawalMap.get(date) ?? 0,
   }));
 
-  const weeklyMerged = (() => {
-    const result = [];
-    for (let i = 0; i < mergedTrend.length; i += 7) {
-      const chunk = mergedTrend.slice(i, i + 7);
-      result.push({
-        date: `${chunk[0].date}~${chunk[chunk.length - 1].date}`,
-        signups: chunk.reduce((sum, d) => sum + d.signups, 0),
-        withdrawals: chunk.reduce((sum, d) => sum + d.withdrawals, 0),
-      });
-    }
-    return result;
-  })();
+  const weeklyMerged = chunkWeekly(mergedTrend, (chunk) => ({
+    signups: chunk.reduce((sum, d) => sum + d.signups, 0),
+    withdrawals: chunk.reduce((sum, d) => sum + d.withdrawals, 0),
+  }));
 
   const trendData = trendMode === "weekly" ? weeklyMerged : mergedTrend;
 
-  const mbtiTotal = data.byMbti.reduce((s, e) => s + e.value, 0);
-  const mbtiDataWithLabel = data.byMbti.map((e) => ({
-    ...e,
-    label: mbtiTotal > 0 ? `${e.name} (${((e.value / mbtiTotal) * 100).toFixed(1)}%)` : e.name,
-  }));
+  const mbtiDataWithLabel = withPercentLabel(data.byMbti);
 
   return (
     <div className="p-6 max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">사용자 통계 데이터</h1>
-        <p className="text-sm text-on-surface-variant mt-1">
-          플랫폼 사용자 성장세와 활동 패턴을 분석합니다.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">사용자 통계 데이터</h1>
+          <p className="text-sm text-on-surface-variant mt-1">
+            플랫폼 사용자 성장세와 활동 패턴을 분석합니다.
+          </p>
+        </div>
+        <StatsRefreshButton isRefreshing={isRefreshing} onRefresh={refresh} />
       </div>
 
       <div className="grid grid-cols-12 gap-5">
@@ -143,14 +123,7 @@ export default function AdminUserStatsContent() {
                 <span className="text-xl font-semibold text-foreground">
                   {data.thisMonthNewUsers.toLocaleString()}
                 </span>
-                {growthPct !== null && (
-                  <span className={`inline-flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded-full ${
-                    growthDiff >= 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                  }`}>
-                    {growthDiff >= 0 ? <MdTrendingUp size={12} /> : <MdTrendingDown size={12} />}
-                    {growthPct}%
-                  </span>
-                )}
+                <GrowthBadge diff={growthDiff} pct={growthPct} />
               </div>
             </div>
             <div className="pl-4">
@@ -241,20 +214,20 @@ export default function AdminUserStatsContent() {
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={trendData} margin={{ left: 0, right: 16, top: 4, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e4e2de" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} vertical={false} />
                 <XAxis
                   dataKey="date"
                   tick={{ fontSize: 11 }}
                   interval={trendMode === "weekly" ? 0 : 5}
                   tickFormatter={(v) => formatTrendDate(v, trendMode)}
-                  stroke="#82746e"
+                  stroke={CHART_AXIS_COLOR}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
                   allowDecimals={false}
                   tick={{ fontSize: 11 }}
-                  stroke="#82746e"
+                  stroke={CHART_AXIS_COLOR}
                   axisLine={false}
                   tickLine={false}
                 />
@@ -343,20 +316,20 @@ export default function AdminUserStatsContent() {
           ) : (
             <ResponsiveContainer width="100%" height={130}>
               <LineChart data={data.roleTrend} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e4e2de" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} vertical={false} />
                 <XAxis
                   dataKey="date"
                   tick={{ fontSize: 10 }}
                   interval="preserveStartEnd"
                   tickFormatter={(v) => formatTrendDate(v, "daily")}
-                  stroke="#82746e"
+                  stroke={CHART_AXIS_COLOR}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
                   allowDecimals={false}
                   tick={{ fontSize: 10 }}
-                  stroke="#82746e"
+                  stroke={CHART_AXIS_COLOR}
                   axisLine={false}
                   tickLine={false}
                 />
@@ -448,39 +421,11 @@ export default function AdminUserStatsContent() {
       </div>
 
       {/* MBTI 유형 분포 (전체) */}
-      {data.byMbti.length > 0 && (
-        <div className="rounded-2xl border border-outline-variant bg-card p-6">
-          <p className="text-base font-semibold text-foreground mb-4">MBTI 유형 분포</p>
-          <ResponsiveContainer width="100%" height={320}>
-            <BarChart data={mbtiDataWithLabel} layout="vertical" margin={{ left: 16, right: 24 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e4e2de" />
-              <XAxis
-                type="number"
-                allowDecimals={false}
-                tick={{ fontSize: 11 }}
-                stroke="#82746e"
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                type="category"
-                dataKey="label"
-                width={110}
-                tick={{ fontSize: 11 }}
-                stroke="#82746e"
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip formatter={(v) => [typeof v === "number" ? v.toLocaleString() : v, "유저 수"]} />
-              <Bar dataKey="value" name="유저 수" radius={[0, 4, 4, 0]}>
-                {mbtiDataWithLabel.map((e) => (
-                  <Cell key={e.name} fill={getMbtiColor(e.name)} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+      <MbtiDistributionChart
+        title="MBTI 유형 분포"
+        data={mbtiDataWithLabel}
+        unitLabel="유저 수"
+      />
     </div>
   );
 }

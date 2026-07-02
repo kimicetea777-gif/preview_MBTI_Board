@@ -35,8 +35,9 @@
 
 ## 🟢 Low — 선택 사항
 
-- [ ] Swagger UI 접근 제한 (프로덕션 비활성화)
+- [x] Swagger UI 접근 제한 (프로덕션 비활성화)
       springdoc.api-docs.enabled: false 또는 IP 제한
+      → backend/mbti_board/src/main/resources/application-prod.yaml 에 springdoc.api-docs.enabled/springdoc.swagger-ui.enabled = false 추가
 
 - [ ] RateLimitService에서 CF-Connecting-IP 헤더 우선 사용
       현재: X-Forwarded-For 첫 번째 값 (클라이언트 조작 가능)

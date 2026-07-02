@@ -2,7 +2,8 @@ package com.board.kimicetea.global.image.controller;
 
 import com.board.kimicetea.global.common.exception.CustomException;
 import com.board.kimicetea.global.common.exception.ErrorCode;
-import com.board.kimicetea.global.image.ImageConstants;
+import com.board.kimicetea.global.internal.InternalApiConstants;
+import com.board.kimicetea.global.internal.InternalOnlyAspect;
 import com.board.kimicetea.global.image.service.ImageCleanupService;
 import com.board.kimicetea.global.image.service.ImageService;
 import com.board.kimicetea.global.security.handler.JwtAccessDeniedHandler;
@@ -22,6 +23,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -43,6 +46,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(ImageController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
+@Import(InternalOnlyAspect.class)
+@EnableAspectJAutoProxy
 class ImageControllerTest {
 
     @Autowired
@@ -112,7 +117,7 @@ class ImageControllerTest {
 
             mockMvc.perform(multipart(UPLOAD_URL)
                             .file(pngFile("test.png"))
-                            .header(ImageConstants.INTERNAL_KEY_HEADER, VALID_KEY))
+                            .header(InternalApiConstants.INTERNAL_KEY_HEADER, VALID_KEY))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data.url").value(UPLOADED_IMAGE_URL));
@@ -132,7 +137,7 @@ class ImageControllerTest {
         void wrongKey() throws Exception {
             mockMvc.perform(multipart(UPLOAD_URL)
                             .file(pngFile("test.png"))
-                            .header(ImageConstants.INTERNAL_KEY_HEADER, WRONG_KEY))
+                            .header(InternalApiConstants.INTERNAL_KEY_HEADER, WRONG_KEY))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -148,7 +153,7 @@ class ImageControllerTest {
 
             mockMvc.perform(multipart(UPLOAD_URL)
                             .file(gifFile)
-                            .header(ImageConstants.INTERNAL_KEY_HEADER, VALID_KEY))
+                            .header(InternalApiConstants.INTERNAL_KEY_HEADER, VALID_KEY))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -160,7 +165,7 @@ class ImageControllerTest {
 
             mockMvc.perform(multipart(UPLOAD_URL)
                             .file(pngFile("big.png"))
-                            .header(ImageConstants.INTERNAL_KEY_HEADER, VALID_KEY))
+                            .header(InternalApiConstants.INTERNAL_KEY_HEADER, VALID_KEY))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -172,7 +177,7 @@ class ImageControllerTest {
 
             mockMvc.perform(multipart(UPLOAD_URL)
                             .file(pngFile("test.png"))
-                            .header(ImageConstants.INTERNAL_KEY_HEADER, VALID_KEY))
+                            .header(InternalApiConstants.INTERNAL_KEY_HEADER, VALID_KEY))
                     .andExpect(status().isInternalServerError())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -190,7 +195,7 @@ class ImageControllerTest {
             mockMvc.perform(delete(CANCEL_URL)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(cancelBody(IMAGE_URL_A))
-                            .header(ImageConstants.INTERNAL_KEY_HEADER, VALID_KEY))
+                            .header(InternalApiConstants.INTERNAL_KEY_HEADER, VALID_KEY))
                     .andExpect(status().isNoContent());
         }
 
@@ -202,7 +207,7 @@ class ImageControllerTest {
             mockMvc.perform(delete(CANCEL_URL)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(cancelBody(IMAGE_URL_A, IMAGE_URL_B, IMAGE_URL_C))
-                            .header(ImageConstants.INTERNAL_KEY_HEADER, VALID_KEY))
+                            .header(InternalApiConstants.INTERNAL_KEY_HEADER, VALID_KEY))
                     .andExpect(status().isNoContent());
         }
 
@@ -222,7 +227,7 @@ class ImageControllerTest {
             mockMvc.perform(delete(CANCEL_URL)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(cancelBody(IMAGE_URL_A))
-                            .header(ImageConstants.INTERNAL_KEY_HEADER, WRONG_KEY))
+                            .header(InternalApiConstants.INTERNAL_KEY_HEADER, WRONG_KEY))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -233,7 +238,7 @@ class ImageControllerTest {
             mockMvc.perform(delete(CANCEL_URL)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(cancelBody())
-                            .header(ImageConstants.INTERNAL_KEY_HEADER, VALID_KEY))
+                            .header(InternalApiConstants.INTERNAL_KEY_HEADER, VALID_KEY))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -244,7 +249,7 @@ class ImageControllerTest {
             mockMvc.perform(delete(CANCEL_URL)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(cancelBody(IMAGE_URL_A, IMAGE_URL_B, IMAGE_URL_C, IMAGE_URL_D))
-                            .header(ImageConstants.INTERNAL_KEY_HEADER, VALID_KEY))
+                            .header(InternalApiConstants.INTERNAL_KEY_HEADER, VALID_KEY))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -255,7 +260,7 @@ class ImageControllerTest {
             mockMvc.perform(delete(CANCEL_URL)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{}")
-                            .header(ImageConstants.INTERNAL_KEY_HEADER, VALID_KEY))
+                            .header(InternalApiConstants.INTERNAL_KEY_HEADER, VALID_KEY))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false));
         }

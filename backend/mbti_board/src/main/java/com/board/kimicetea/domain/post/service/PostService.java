@@ -1,8 +1,8 @@
 package com.board.kimicetea.domain.post.service;
 
+import com.board.kimicetea.domain.mbti.MbtiMetadataSupport;
 import com.board.kimicetea.domain.mbti.entity.MbtiMetadata;
 import com.board.kimicetea.domain.mbti.repository.MbtiMetadataRepository;
-import com.board.kimicetea.domain.mbti.MbtiConstants;
 import com.board.kimicetea.domain.post.PostConstants;
 import com.board.kimicetea.global.common.util.GuestPasswordHelper;
 import com.board.kimicetea.global.common.util.RequestUtils;
@@ -69,6 +69,7 @@ public class PostService {
 
     private final PostRepository postRepository;
     private final MbtiMetadataRepository mbtiMetadataRepository;
+    private final MbtiMetadataSupport mbtiMetadataSupport;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final VotePostRepository votePostRepository;
@@ -118,13 +119,7 @@ public class PostService {
         if (typeCode == null || typeCode.isBlank()) {
             return null;
         }
-        final String upper = typeCode.toUpperCase();
-        try {
-            PostType.valueOf(upper);
-        } catch (IllegalArgumentException e) {
-            throw new CustomException(ErrorCode.POST_TYPE_NOT_FOUND);
-        }
-        return upper;
+        return PostType.from(typeCode).name();
     }
 
     /**
@@ -201,12 +196,7 @@ public class PostService {
     public PostDetailResponse createPost(final PostCreateRequest request,
             final CustomUserDetails userDetails, final HttpServletRequest httpRequest) {
         // VOTE·DEBATE는 전용 엔드포인트를 사용해야 함
-        final PostType postType;
-        try {
-            postType = PostType.valueOf(request.type());
-        } catch (IllegalArgumentException e) {
-            throw new CustomException(ErrorCode.POST_TYPE_NOT_FOUND);
-        }
+        final PostType postType = PostType.from(request.type());
         if (postType == PostType.VOTE || postType == PostType.DEBATE) {
             throw new CustomException(ErrorCode.POST_TYPE_NOT_ALLOWED);
         }
@@ -221,30 +211,24 @@ public class PostService {
             // 비회원
             GuestPasswordHelper.requirePassword(request.guestPassword());
             user = null;
-            authorMbti = findNoneMbtiOrThrow();
+            authorMbti = mbtiMetadataSupport.getNoneMbti();
         }
 
         final MbtiMetadata targetMbti = resolveTargetMbti(request.targetMbti());
         final Set<String> realUrls = TiptapContentParser.extractImageUrls(request.content(), r2PublicUrl);
-        final String normalizedContent = TiptapContentParser.normalizeForStorage(request.content(), r2PublicUrl);
-        if (TiptapContentParser.countImages(normalizedContent) > PostConstants.MAX_IMAGE_COUNT) {
-            throw new CustomException(ErrorCode.IMAGE_COUNT_EXCEEDED);
-        }
-        final String preview = TiptapContentParser.extractTextPreview(normalizedContent, 300);
-        final String[] imageKeys = TiptapContentParser.extractImageKeys(normalizedContent,
-                PostConstants.MAX_IMAGE_COUNT);
+        final ProcessedContent pc = processContent(request.content());
 
         final Post post = Post.builder()
                 .title(request.title().strip())
-                .content(normalizedContent)
+                .content(pc.normalized())
                 .guestPassword(GuestPasswordHelper.encode(user, request.guestPassword(), passwordEncoder))
                 .authorIp(RequestUtils.extractClientIp(httpRequest))
                 .user(user)
                 .authorMbti(authorMbti)
                 .targetMbti(targetMbti)
                 .postType(postType)
-                .contentPreview(preview)
-                .imageUrls(imageKeys)
+                .contentPreview(pc.preview())
+                .imageUrls(pc.imageKeys())
                 .build();
 
         final Post saved = postRepository.save(post);
@@ -264,24 +248,18 @@ public class PostService {
         final MbtiMetadata authorMbti = user.getMbti();
         final MbtiMetadata targetMbti = resolveTargetMbti(request.targetMbti());
         final Set<String> realUrls = TiptapContentParser.extractImageUrls(request.content(), r2PublicUrl);
-        final String normalizedContent = TiptapContentParser.normalizeForStorage(request.content(), r2PublicUrl);
-        if (TiptapContentParser.countImages(normalizedContent) > PostConstants.MAX_IMAGE_COUNT) {
-            throw new CustomException(ErrorCode.IMAGE_COUNT_EXCEEDED);
-        }
-        final String preview = TiptapContentParser.extractTextPreview(normalizedContent, 300);
-        final String[] imageKeys = TiptapContentParser.extractImageKeys(normalizedContent,
-                PostConstants.MAX_IMAGE_COUNT);
+        final ProcessedContent pc = processContent(request.content());
 
         final Post post = Post.builder()
                 .title(request.title().strip())
-                .content(normalizedContent)
+                .content(pc.normalized())
                 .authorIp(RequestUtils.extractClientIp(httpRequest))
                 .user(user)
                 .authorMbti(authorMbti)
                 .targetMbti(targetMbti)
                 .postType(PostType.DEBATE)
-                .contentPreview(preview)
-                .imageUrls(imageKeys)
+                .contentPreview(pc.preview())
+                .imageUrls(pc.imageKeys())
                 .build();
 
         final Post saved = postRepository.save(post);
@@ -301,24 +279,18 @@ public class PostService {
         final User user = findUserOrThrow(userDetails.userId());
         final MbtiMetadata targetMbti = resolveTargetMbti(request.targetMbti());
         final Set<String> realUrls = TiptapContentParser.extractImageUrls(request.content(), r2PublicUrl);
-        final String normalizedContent = TiptapContentParser.normalizeForStorage(request.content(), r2PublicUrl);
-        if (TiptapContentParser.countImages(normalizedContent) > PostConstants.MAX_IMAGE_COUNT) {
-            throw new CustomException(ErrorCode.IMAGE_COUNT_EXCEEDED);
-        }
-        final String preview = TiptapContentParser.extractTextPreview(normalizedContent, 300);
-        final String[] imageKeys = TiptapContentParser.extractImageKeys(normalizedContent,
-                PostConstants.MAX_IMAGE_COUNT);
+        final ProcessedContent pc = processContent(request.content());
 
         final Post post = Post.builder()
                 .title(request.title().strip())
-                .content(normalizedContent)
+                .content(pc.normalized())
                 .authorIp(RequestUtils.extractClientIp(httpRequest))
                 .user(user)
                 .authorMbti(user.getMbti())
                 .targetMbti(targetMbti)
                 .postType(PostType.VOTE)
-                .contentPreview(preview)
-                .imageUrls(imageKeys)
+                .contentPreview(pc.preview())
+                .imageUrls(pc.imageKeys())
                 .build();
 
         final Post saved = postRepository.save(post);
@@ -358,16 +330,21 @@ public class PostService {
         }
 
         final Set<String> seenMbti = new HashSet<>();
-        final Set<String> seenText = new HashSet<>();
-        for (final VoteOptionRequest optReq : optionRequests) {
-            if (optReq.hasMbtiTarget()) {
-                if (!seenMbti.add(optReq.mbtiTarget())) {
+        if (hasMbti) {
+            for (final VoteOptionRequest opt : optionRequests) {
+                if (!seenMbti.add(opt.mbtiTarget())) {
                     throw new CustomException(ErrorCode.VOTE_MBTI_DUPLICATE);
                 }
-            } else if (optReq.optionText() == null || optReq.optionText().isBlank()) {
-                throw new CustomException(ErrorCode.VOTE_OPTION_TEXT_REQUIRED);
-            } else if (!seenText.add(optReq.optionText())) {
-                throw new CustomException(ErrorCode.VOTE_OPTION_TEXT_DUPLICATE);
+            }
+        } else {
+            final Set<String> seenText = new HashSet<>();
+            for (final VoteOptionRequest opt : optionRequests) {
+                if (opt.optionText() == null || opt.optionText().isBlank()) {
+                    throw new CustomException(ErrorCode.VOTE_OPTION_TEXT_REQUIRED);
+                }
+                if (!seenText.add(opt.optionText())) {
+                    throw new CustomException(ErrorCode.VOTE_OPTION_TEXT_DUPLICATE);
+                }
             }
         }
 
@@ -435,15 +412,9 @@ public class PostService {
             final CustomUserDetails userDetails) {
         final Post post = findPostOrThrow(id);
         verifyOwnership(post, userDetails, request.guestPassword());
-        final String normalizedContent = TiptapContentParser.normalizeForStorage(request.content(), r2PublicUrl);
-        imageCleanupService.markRemovedImages(post.getContent(), normalizedContent);
-        if (TiptapContentParser.countImages(normalizedContent) > PostConstants.MAX_IMAGE_COUNT) {
-            throw new CustomException(ErrorCode.IMAGE_COUNT_EXCEEDED);
-        }
-        final String preview = TiptapContentParser.extractTextPreview(normalizedContent, 300);
-        final String[] imageKeys = TiptapContentParser.extractImageKeys(normalizedContent,
-                PostConstants.MAX_IMAGE_COUNT);
-        post.update(request.title().strip(), normalizedContent, preview, imageKeys);
+        final ProcessedContent pc = processContent(request.content());
+        imageCleanupService.markRemovedImages(post.getContent(), pc.normalized());
+        post.update(request.title().strip(), pc.normalized(), pc.preview(), pc.imageKeys());
 
         final UUID currentUserId = userDetails != null ? userDetails.userId() : null;
 
@@ -500,6 +471,20 @@ public class PostService {
         }
     }
 
+    private record ProcessedContent(String normalized, String preview, String[] imageKeys) {}
+
+    private ProcessedContent processContent(final String rawContent) {
+        final String normalized = TiptapContentParser.normalizeForStorage(rawContent, r2PublicUrl);
+        if (TiptapContentParser.countImages(normalized) > PostConstants.MAX_IMAGE_COUNT) {
+            throw new CustomException(ErrorCode.IMAGE_COUNT_EXCEEDED);
+        }
+        return new ProcessedContent(
+                normalized,
+                TiptapContentParser.extractTextPreview(normalized, 300),
+                TiptapContentParser.extractImageKeys(normalized, PostConstants.MAX_IMAGE_COUNT)
+        );
+    }
+
     private Post findPostOrThrow(final Long id) {
         return postRepository.findWithDetailsById(id)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
@@ -508,11 +493,6 @@ public class PostService {
     private User findUserOrThrow(final UUID userId) {
         return userRepository.findWithMbtiById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-    }
-
-    private MbtiMetadata findNoneMbtiOrThrow() {
-        return mbtiMetadataRepository.findById(MbtiConstants.NONE_MBTI_ID)
-                .orElseThrow(() -> new CustomException(ErrorCode.MBTI_NOT_FOUND));
     }
 
     /** null / "ALL" 이면 타겟 없음(null 반환), 특정 MBTI ID면 조회 후 반환 */

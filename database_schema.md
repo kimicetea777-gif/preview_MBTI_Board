@@ -1,5 +1,8 @@
 # MBTI Community Database & Architecture Specification
 
+> ⚠️ 이 문서는 초기 설계 시점의 스냅샷이며, 이후 추가된 마이그레이션이 전부 반영되어 있지 않을 수 있습니다.
+> **실제 현재 스키마의 근거(source of truth)는 `backend/mbti_board/src/main/resources/db/migration/`의 마이그레이션 파일과 각 도메인의 JPA 엔티티 클래스입니다.** 정확한 컬럼 목록이 필요하면 반드시 그쪽을 확인하세요.
+
 본 문서는 MBTI 커뮤니티 플랫폼의 PostgreSQL 데이터베이스 스키마 및 Spring Boot JPA 매핑을 위한 명세서입니다. 모든 테이블의 기본키(PK)는 객체 지향 패러다임과의 호환성을 위해 `id`로 통일합니다.
 
 ---
@@ -55,6 +58,7 @@ CREATE TABLE users (
     password VARCHAR(255), -- 소셜 로그인 고려 NULL 허용
     social_provider VARCHAR(20),
     provider_id VARCHAR(255),
+    phone_hash VARCHAR(64), -- 전화번호 HMAC-SHA256 해시 (단방향, 이메일 찾기용)
     profile_image_url TEXT,
     nickname VARCHAR(50) UNIQUE NOT NULL,
     mbti_id VARCHAR(7) NOT NULL REFERENCES mbti_metadata(id) ON DELETE RESTRICT,
@@ -65,6 +69,14 @@ CREATE TABLE users (
     state VARCHAR(20) DEFAULT 'NORMAL' NOT NULL,
 
     last_login_at TIMESTAMPTZ,
+    withdrawn_at TIMESTAMPTZ, -- 탈퇴 요청 시각
+
+    -- 약관/개인정보처리방침 동의 이력 (V15) — 동의 시점에만 기록, 버전은 재동의 필요 여부 판단용
+    terms_agreed_at TIMESTAMPTZ,
+    terms_version INT,
+    privacy_agreed_at TIMESTAMPTZ,
+    privacy_version INT,
+
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
 

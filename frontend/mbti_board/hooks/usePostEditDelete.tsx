@@ -35,6 +35,15 @@ export function usePostEditDelete({ id, post, redirectPath }: Options) {
   const [modalAction, setModalAction] = useState<ModalAction>(MODAL_ACTION.UPDATE);
   const [modalError, setModalError] = useState<string | undefined>();
 
+  // 게스트는 모달이 열려있는 채로 에러를 받으므로 모달 안에 표시, 회원은 모달 없이 바로 실행되므로 토스트로 표시
+  const handleMutationError = (err: unknown) => {
+    if (post?.isGuest) {
+      setModalError(getApiErrorMessage(err));
+    } else {
+      toast.error(getApiErrorMessage(err));
+    }
+  };
+
   const updateMutation = useMutation({
     mutationFn: (req: PostUpdateRequest) => updatePost(id, req),
     onSuccess: () => {
@@ -43,19 +52,13 @@ export function usePostEditDelete({ id, post, redirectPath }: Options) {
       queryClient.invalidateQueries({ queryKey: postKeys.detail(id) });
       toast.success("게시글이 수정되었습니다.");
     },
-    onError: (err) => {
-      if (post?.isGuest) {
-        setModalError(getApiErrorMessage(err));
-      } else {
-        toast.error(getApiErrorMessage(err));
-      }
-    },
+    onError: handleMutationError,
   });
 
   const deleteMutation = useMutation({
     mutationFn: (guestPassword: string | undefined) => deletePost(id, guestPassword),
     onSuccess: () => router.push(redirectPath),
-    onError: (err) => setModalError(getApiErrorMessage(err)),
+    onError: handleMutationError,
   });
 
   const handleEditStart = () => {

@@ -19,9 +19,6 @@ public class AsyncConfig implements AsyncConfigurer {
     @Override
     public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
         return (ex, method, params) ->
-                log.error("비동기 메일 발송 실패 [{}] to={}: {}",
-                        method.getName(),
-                        params.length > 0 ? params[0] : "unknown",
-                        ex.getMessage(), ex);
+                log.error("비동기 처리 실패 [{}]: {}", method.getName(), ex.getMessage(), ex);
     }
 }

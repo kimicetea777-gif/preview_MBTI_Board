@@ -4,6 +4,7 @@ import com.board.kimicetea.domain.post.dto.AdminPostStatsResponse;
 import com.board.kimicetea.domain.post.dto.AdminPostSummaryResponse;
 import com.board.kimicetea.domain.post.dto.AdminPostVisibilityRequest;
 import com.board.kimicetea.domain.post.service.AdminPostService;
+import com.board.kimicetea.domain.post.service.AdminPostStatsScheduler;
 import com.board.kimicetea.domain.post.service.AdminPostStatsService;
 import com.board.kimicetea.global.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -35,15 +37,27 @@ public class AdminPostController {
 
     private final AdminPostService adminPostService;
     private final AdminPostStatsService adminPostStatsService;
+    private final AdminPostStatsScheduler adminPostStatsScheduler;
 
-    @Operation(summary = "게시글 통계 조회", description = "타입·MBTI 분포, 작성 추이, 숨김 현황 등 게시글 현황 통계를 반환합니다.")
+    @Operation(summary = "게시글 통계 조회", description = "Redis 캐시에서 즉시 반환합니다. 캐시는 10분마다 자동 갱신되며 최초 기동 5초 후 선적재됩니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ADMIN 권한 없음")
     })
     @GetMapping("/stats")
     public ResponseEntity<ApiResponse<AdminPostStatsResponse>> getPostStats() {
-        return ResponseEntity.ok(ApiResponse.ok(adminPostStatsService.getStats()));
+        return ResponseEntity.ok(ApiResponse.ok(adminPostStatsService.getCachedStats()));
+    }
+
+    @Operation(summary = "게시글 통계 캐시 수동 갱신", description = "백그라운드에서 즉시 재계산 후 Redis 캐시를 업데이트합니다. 실제 적용까지 수 초 소요됩니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "202", description = "갱신 시작됨"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ADMIN 권한 없음")
+    })
+    @PostMapping("/stats/refresh")
+    public ResponseEntity<ApiResponse<Void>> refreshStats() {
+        adminPostStatsScheduler.triggerAsync();
+        return ResponseEntity.accepted().body(ApiResponse.ok("통계 캐시 갱신을 시작했습니다."));
     }
 
     @Operation(summary = "게시글 목록 조회", description = "숨겨진 게시글을 포함한 전체 목록을 조회합니다. typeCode·isVisible·authorNickname 필터, sortDir 정렬, 페이지네이션을 지원합니다.")

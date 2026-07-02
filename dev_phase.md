@@ -1,194 +1,90 @@
-# Phase 9 — Posts 미리보기 & 이미지 개선
+# 다음 개발 단계
 
-> `content_preview`와 `image_urls`를 posts 테이블에 추가한다.
-> 목록 조회 시 JSONB 파싱 없이 미리보기 텍스트와 썸네일을 바로 반환할 수 있게 한다.
-
----
-
-## 설계 결정
-
-### content_preview — 서버 레벨 처리, 300자
-
-`PostSummaryResponse`가 현재 쿼리 시점마다 `extractPreview(post.getContent())`로 JSONB를 파싱 중 (100자 제한).
-DB에 `content_preview`를 저장해두면 목록 조회 시 파싱이 없어진다.
-`TiptapContentParser.extractTextPreview()`는 기존 `PostSummaryResponse.collectText()` 로직을 그대로 이전한다 — `type === "text"` 조건을 함께 체크해야 정확하므로 `findValuesAsText("text")` 방식은 사용하지 않는다.
-
-### image_urls + content JSONB — `{public-url}` 플레이스홀더 방식
-
-`content` JSONB 안의 `image.attrs.src`와 `image_urls` 컬럼 모두 도메인 변경에 안전하게 만든다.
-
-**저장 시 (프론트 → 서버):**
-`submit` 직전 content JSON string에서 `NEXT_PUBLIC_R2_PUBLIC_URL` 값을 `{public-url}` 리터럴로 치환 후 전송.
-DB에는 `{public-url}/images/uuid.webp` 형태로 저장된다.
-
-**렌더링/수정 로드 시 (서버 → 프론트):**
-TipTap에 content를 넘기기 전 `{public-url}`을 `NEXT_PUBLIC_R2_PUBLIC_URL` 값으로 역치환.
-에디터가 실제 URL로 이미지를 표시한다.
-
-**에디터 편집 중:**
-이미지 업로드 직후 `setImage({ src: fullUrl })`로 full URL 유지 — 에디터 내부 미리보기에 필요.
-치환은 submit 시점에만 수행하므로 편집 경험에 영향 없다.
-
-**image_urls 컬럼:**
-백엔드 `TiptapContentParser`가 content에서 image src를 추출할 때 `{public-url}/` prefix를 제거하고 key만 저장.
-API 응답 시 `r2PublicUrl + "/" + key`로 조합해 반환. 조합은 `PostSummaryResponse.from(post, r2PublicUrl)` 시그니처로 처리.
-`.env`의 `R2_PUBLIC_URL`만 바꾸면 content · image_urls 모두 자동 갱신된다.
+`dev_steps.md`(완료된 로드맵) 이후 진행할 작업. Phase 단위 수직 슬라이스, 백엔드 → 프론트 순서.
 
 ---
 
-## [Backend]
+## Phase — 소셜 로그인 약관 동의 게이트
 
-### 9-1. V1 스키마 수정 (Flyway 초기화 기준)
+> 현재 문제: (1) OAuth2 신규 가입 시 약관 동의 없이 `CustomOAuth2UserService.createUser()`가 즉시 `users` row를 생성하고 토큰까지 발급함. (2) 이메일 가입도 프론트 체크박스(`FormStep.tsx`)만 강제할 뿐 동의 여부가 DB 어디에도 저장되지 않음 — 두 경로 모두 법적 동의 증빙이 없음.
+>
+> 목표: **동의를 받기 전에는 `users` 테이블에 아무 row도 생성하지 않는다.** 구글 인증은 신원 확인 용도로만 쓰고, 프로필 정보는 DB가 아니라 짧은 만료시간의 서명 토큰에 담아 프론트로 전달 → 동의 완료 시점에 비로소 계정을 생성.
+>
+> 범위: 카카오는 아직 연동 전이라 이번 Phase에서 제외 (구글만 대상). 카카오 연동 시 동일 구조(`OAuth2UserInfo` 인터페이스 공유)를 그대로 적용하되, 이메일 선택 동의 이슈는 그때 별도 검토.
 
-Flyway를 초기화하면 V2~V6가 모두 사라지므로 **V1에 전부 통합**한다.
+### [Backend]
 
-| 기존 파일 | 처리 |
-|-----------|------|
-| V1 `init_schema.sql` | 수정 — `posts`에 두 컬럼 추가, `deleted_images` 테이블 추가 |
-| V2 mbti 시드 | V1에 통합 |
-| V3 post_types 시드 | V1에 통합 |
-| V4 mbti_questions 시드 | V1에 통합 |
-| V5 더미 데이터 | 개발용 — V1에 통합하되 별도 파일 유지 여부는 선택 |
-| V6 `deleted_images` | V1에 통합 |
+#### 1. DB — 동의 시각 + 버전 컬럼 추가
 
-`posts` 테이블 생성문에 추가할 컬럼:
+- 신규 Flyway 마이그레이션 (`V15__add_user_terms_agreement.sql`)
+  ```sql
+  ALTER TABLE users ADD COLUMN terms_agreed_at TIMESTAMPTZ;
+  ALTER TABLE users ADD COLUMN terms_version INT;
+  ALTER TABLE users ADD COLUMN privacy_agreed_at TIMESTAMPTZ;
+  ALTER TABLE users ADD COLUMN privacy_version INT;
+  ```
+- 버전 관리 필요(결정됨) — 약관/개인정보처리방침 내용이 바뀌면 "몇 번째 버전에 동의했는지"를 구분해야 함
+  - 현재 버전을 상수로 관리 (예: `TermsPolicy.CURRENT_TERMS_VERSION`, `TermsPolicy.CURRENT_PRIVACY_VERSION`)
+  - 동의 시점에 이 상수값을 `terms_version`/`privacy_version`에 그대로 저장
+  - 향후 버전이 올라가면(`CURRENT_TERMS_VERSION` 증가) 로그인 시 `user.termsVersion < CURRENT_TERMS_VERSION`인 유저를 감지해 재동의를 요구하는 흐름을 추가할 수 있음 (이번 Phase 범위 밖, 컬럼만 미리 준비)
+- `User` 엔티티에 `termsAgreedAt`/`termsVersion`/`privacyAgreedAt`/`privacyVersion` 필드 + `agreeToTerms(Instant now, int termsVersion, int privacyVersion)` 메소드 추가
+- **레거시 유저(기존 가입자)는 이 컬럼들이 영구히 NULL로 남음 — 소급 동의 안 받기로 결정, 별도 마이그레이션/백필 불필요**
 
-```sql
-content_preview  VARCHAR(300),
-image_urls       TEXT[]
-    CHECK (image_urls IS NULL OR array_length(image_urls, 1) <= 3),
-```
+#### 2. OAuth2 신규 가입 — DB 저장 없이 임시 서명 토큰 발급
 
-`deleted_images` 테이블 (기존 V6 내용):
+- `CustomOAuth2UserService.loadUser()` 분기 변경
+  - 기존 회원(`provider`+`providerId` 매칭) → 지금과 동일하게 `validateAccountState()` 후 정상 로그인
+  - 신규 회원 → **`userRepository.save()` 호출하지 않음.** 이메일 null/blank 체크, `existsByEmail` 중복 체크는 기존처럼 여기서 먼저 수행(가입 불가능한 경우 동의 화면까지 보내지 않기 위함) 후, `User` 없이 프로필 정보(`provider`, `providerId`, `email`, `nickname`, `profileImageUrl`)만 담은 별도 principal(예: `PendingOAuth2SignupPrincipal`) 반환
+- `OAuth2AuthenticationSuccessHandler` 분기 변경
+  - `PendingOAuth2SignupPrincipal`인 경우: `tokenIssuerService.issue()` 호출하지 않고, 프로필 정보를 **10분 만료(확정)**의 서명 토큰(`signupToken`)으로 발급 → `/terms/agree#signupToken=...`로 리다이렉트
+  - 기존 회원인 경우: 지금과 동일하게 AT 발급 + `/oauth2/callback#accessToken=...` 리다이렉트
+- `signupToken` 발급/검증 로직 — `JwtProvider`와 동일한 서명 키 재사용 여부는 구현 시 결정 (신규 메소드 추가 vs 별도 컴포넌트)
+- **`createUser()` 위치 재구성 필요** — 현재 `CustomOAuth2UserService`의 private 메소드라 계정 생성이 이 클래스 안에서만 일어남. 검증(이메일 null/중복 체크)은 `loadUser()`에 남기고, 실제 `User` 생성·저장 로직은 3번(동의 완료 API)이 호출할 수 있는 곳으로 옮기거나 공유 서비스로 추출해야 함
+- **감사 로그 이동** — 기존엔 `loadUser()`에서 `isNew` 여부로 `AuditEvent.OAUTH2_SIGNUP`/`OAUTH2_LOGIN`을 기록했는데, 신규 유저는 이제 `loadUser()` 시점엔 `User`가 아직 없어서(`user.getId()` 호출 불가) `OAUTH2_SIGNUP` 기록은 3번(동의 완료 API)으로 옮겨야 함. `OAUTH2_LOGIN`(기존 회원)은 지금처럼 `loadUser()`에 남음
+- **SecurityConfig 화이트리스트 추가 필요** — `SecurityConfig.java`의 `permitAll` 목록(`/api/auth/signup`, `/api/auth/login` 등)에 신규 엔드포인트 `POST /api/auth/oauth2/signup`을 추가하지 않으면 401 발생
+- **확인 완료(조치 불필요)**: `/terms/agree`는 `middleware.ts`의 matcher(`/my/:path*`, `/admin/:path*`, `/board/write`)에 안 걸려서 세션 쿠키 없이도 접근 가능함을 확인함
 
-```sql
-CREATE TABLE deleted_images (
-    id        BIGSERIAL PRIMARY KEY,
-    url       TEXT        NOT NULL,
-    marked_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-CREATE INDEX idx_deleted_images_marked_at ON deleted_images (marked_at);
-```
+#### 3. 동의 완료 API — 이 시점에 처음으로 계정 생성
 
-### 9-2. Post 엔티티 수정
+- `POST /api/auth/oauth2/signup` — `{ signupToken, termsAgreed, privacyAgreed }`
+  - `signupToken` 서명·만료 검증 (`ErrorCode`에 관련 코드 추가 필요, 예: `SIGNUP_TOKEN_EXPIRED`, `TERMS_NOT_AGREED`)
+  - `termsAgreed`/`privacyAgreed` 둘 다 `true`가 아니면 400
+  - **멱등성 처리**: 같은 `signupToken`으로 중복 호출될 가능성 있음 — `provider`+`providerId`로 이미 생성된 계정이 있으면 새로 만들지 않고 그 계정으로 로그인 처리. **이 분기에서는 `agreeToTerms()`를 호출하지 않음** — `termsAgreedAt`/`privacyAgreedAt`/버전은 최초 생성 시점에만 기록하고, 이미 존재하는 계정의 기존 값을 덮어쓰면 안 됨(최초 동의 시각이 실제 동의 시각과 달라지는 걸 방지)
+  - **동시성(TOCTOU) 처리**: `loadUser()`에서 이메일 중복을 체크한 시점과 실제 계정 생성(여기) 사이 최대 10분의 간극이 있음 — 그 사이 같은 이메일로 다른 경로(이메일 가입 등)가 먼저 가입하면 `users.email UNIQUE` 제약 위반이 발생할 수 있으므로, INSERT 시점에 `existsByEmail` 재검증 또는 `DataIntegrityViolationException`을 잡아 `DUPLICATE_EMAIL`로 매핑 필요 (닉네임도 동일 종류의 경합 가능성 있으나 발생 확률 낮음)
+  - 신규 생성 시 `state: NORMAL`(현재 `PENDING` 안 거침), `termsAgreedAt`/`privacyAgreedAt = now()`
+  - `TokenIssuerService.issue()`로 AT/RT 정상 발급 후 `LoginResponse` 반환
 
-- `contentPreview` — `@Column(name = "content_preview", length = 300)`
-- `imageUrls` — `@Column(name = "image_urls", columnDefinition = "TEXT[]")` + `@Type(StringArrayType.class)`
-- `build.gradle`에 `io.hypersistence:hypersistence-utils-hibernate-63` 의존성 추가
+#### 4. 이메일 가입 경로도 동의 시각 기록 (이번 Phase 범위 포함 — 확정)
 
-> `r2.public-url`은 `application.yaml`에 이미 설정되어 있으므로 추가 작업 불필요.
+- `SignupRequest`(FE `types/auth.ts` + BE DTO)에 `termsAgreed`/`privacyAgreed` 필드 추가 (프론트에서 이미 체크 강제 중이므로 값은 항상 `true`로 오지만, 백엔드도 방어적으로 `false`면 400 반환)
+- `AuthService.signup()`에서 `agreeToTerms(Instant.now(), TermsPolicy.CURRENT_TERMS_VERSION, TermsPolicy.CURRENT_PRIVACY_VERSION)` 호출
 
-### 9-3. TiptapContentParser 유틸리티 신규 추가
+### [Frontend]
 
-- 신규 클래스: `TiptapContentParser.java` (패키지: `global/util`)
-- `extractTextPreview(JsonNode content, int maxLength)` — 기존 `PostSummaryResponse.collectText()` 로직을 이전. `type === "text"` 조건 + `text` 필드 존재 여부 함께 체크
-- `extractImageKeys(JsonNode content, int maxCount)` — `content` 배열을 문서 순서대로 재귀 순회, `type=image` 노드의 `attrs.src`에서 `{public-url}/` prefix를 제거한 key를 최대 maxCount개 추출 (`imageUrls[0]`이 문서 최상단 이미지가 됨)
+#### 5. OAuth2 콜백 분기
 
-### 9-4. PostService 수정
+- `OAuth2CallbackContent.tsx` — URL hash에 `accessToken` 대신 `signupToken`이 오는 경우를 분기 처리
+  - `accessToken` 있음 → 기존 로직 그대로 (AT 저장 후 원래 목적지로 리다이렉트)
+  - `signupToken` 있음 → `/terms/agree#signupToken=...`로 이동 (accessToken과 동일하게 fragment 사용 — 서버 로그에 안 남고 Referer에도 안 실림). **`OAUTH2_REDIRECT_KEY`/`PENDING_SOCIAL_PROVIDER_KEY`(sessionStorage)를 이 분기에서 지우면 안 됨** — 지금 accessToken 분기는 이 두 키를 읽고 바로 삭제하는데, signupToken 분기는 그대로 남겨둬서 동의 완료 후 `TermsAgreementContent.tsx`가 읽어야 함
 
-**저장/수정 시** — content 파싱 후 preview·imageKeys 세팅:
+#### 6. 약관 동의 페이지 신설 (소셜 전용 이름 지양 — 향후 재동의 흐름과 공유)
 
-```java
-String preview = TiptapContentParser.extractTextPreview(contentJson, 300);
-String[] imageKeys = TiptapContentParser.extractImageKeys(contentJson, 3);
-post.setContentPreview(preview);
-post.setImageUrls(imageKeys);
-```
-
-**삭제 시** — 삭제된 게시글은 복구 없음 정책. `post.hide()` 전에 모든 이미지 삭제 예약:
-
-```java
-imageCleanupService.markRemovedImages(post.getContent(), "");
-post.hide();
-```
-
-### 9-5. ImageCleanupService 수정
-
-`{public-url}` 플레이스홀더 방식으로 content의 image src 형태가 변경되므로 두 곳 수정:
-
-- `collectImageUrls()` — `src.startsWith(r2PublicUrl)` 조건에 `src.startsWith("{public-url}")` 조건 추가
-- `keyFromUrl()` — `{public-url}/` prefix 제거 처리 추가
-
-### 9-6. PostSummaryResponse 수정
-
-- `imageUrls: List<String>` 필드 추가
-- `from(Post post)` → `from(Post post, String r2PublicUrl)` 시그니처 변경
-  - `extractPreview(post.getContent())` → `post.getContentPreview()` 로 교체 (DB 저장값 사용)
-  - `imageUrls`: `post.getImageUrls()`의 각 key에 `r2PublicUrl + "/" + key`로 조합
-  - 기존 `extractPreview()` · `collectText()` 스태틱 메서드 제거
-- `PostService`에서 `PostSummaryResponse.from(post, r2PublicUrl)` 호출로 변경
-
-> `PostRepositoryImpl`은 `Post` 엔티티 전체를 fetchJoin으로 가져오므로 **수정 불필요**.
+- `app/(auth)/terms/agree/page.tsx` + `TermsAgreementContent.tsx`
+  - 이름/라우트를 "소셜 가입"이 아니라 "약관 동의"로 범용화 — 나중에 약관 버전이 올라가서 **기존 유저(이메일/소셜 무관) 재동의**가 필요해질 때도 같은 화면을 재사용하기 위함
+  - 이번 Phase에서는 URL의 `signupToken` 유무로만 분기: 있으면 신규 소셜 가입 완료 흐름(`POST /api/auth/oauth2/signup`), 없는 경우(기존 유저 재동의)는 이번 범위 밖이라 미구현
+- `FormStep.tsx`(148-181행)에 있는 약관/개인정보 체크박스 UI를 공용 컴포넌트로 추출(`TermsAgreementCheckboxes.tsx`) — `WriteFormContent.tsx`(비회원 자유글 작성 시 동일 체크박스 존재)까지 포함해 3곳 중복 제거
+- 동의 클릭 → `POST /api/auth/oauth2/signup` 호출 → 성공 시:
+  1. AT 저장
+  2. `sessionStorage`에서 `PENDING_SOCIAL_PROVIDER_KEY` 읽어 `setLastLoginMethod(provider)` 호출 (지금 `OAuth2CallbackContent.tsx`가 하던 역할을 이 페이지가 이어받음)
+  3. `OAUTH2_REDIRECT_KEY`로 원래 목적지 리다이렉트
+  - 실패(토큰 만료 등) 시 재로그인 유도
 
 ---
 
-## [Frontend]
+## 결정 사항 (확정)
 
-### 9-7. `.env.local` 및 `.env.example` 수정
-
-- `NEXT_PUBLIC_R2_PUBLIC_URL` 항목 추가 (`R2_PUBLIC_URL`과 동일한 값)
-- `NEXT_PUBLIC_` prefix가 있어야 브라우저에서 접근 가능
-
-```
-NEXT_PUBLIC_R2_PUBLIC_URL=https://pub-xxx.r2.dev
-```
-
-### 9-8. `lib/r2Utils.ts` 신규 추가
-
-```ts
-const R2_URL = process.env.NEXT_PUBLIC_R2_PUBLIC_URL!;
-const PLACEHOLDER = "{public-url}";
-
-export function encodeR2Urls(content: string): string {
-  return content.replaceAll(R2_URL, PLACEHOLDER);
-}
-
-export function decodeR2Urls(content: string): string {
-  return content.replaceAll(PLACEHOLDER, R2_URL);
-}
-```
-
-### 9-9. 게시글 저장/수정 API 호출 시 encode 적용
-
-- `lib/api/post.ts` — `createPost`, `updatePost` 호출 전 content에 `encodeR2Urls` 적용
-
-### 9-10. 게시글 렌더링/수정 로드 시 decode 적용
-
-- 게시글 상세 페이지 — content를 TipTap 렌더러에 넘기기 전 `decodeR2Urls` 적용
-- 수정 페이지 — `RichContentEditor`의 `initialContent` prop에 넘기기 전 `decodeR2Urls` 적용
-
-### 9-11. `next.config.ts` 확인
-
-- `images.remotePatterns`에 `NEXT_PUBLIC_R2_PUBLIC_URL` 도메인이 허용되어 있는지 확인
-
-### 9-12. 타입 수정
-
-- `types/post.ts` — `PostSummaryResponse`에 `imageUrls: string[] | null` 추가
-  (`contentPreview`는 이미 존재하므로 확인 후 없으면 추가)
-
-### 9-13. 게시글 카드 UI 개선
-
-- `PostCard` 컴포넌트
-  - `contentPreview` 2줄 말줄임 표시
-  - `imageUrls[0]` 존재 시 썸네일 이미지 표시
-
----
-
-## 개발 순서
-
-```
-9-1 V1 스키마 수정 (posts 컬럼 추가 + deleted_images + 시드 통합)
- → 9-2 엔티티
- → 9-3 TiptapContentParser 유틸
- → 9-4 PostService
- → 9-5 ImageCleanupService
- → 9-6 PostSummaryResponse
- → 통합 테스트 (작성/수정/삭제 시 preview·imageKeys·이미지 예약 검증)
- → 9-7 .env.local · .env.example
- → 9-8 r2Utils.ts
- → 9-9 encode 적용 (저장)
- → 9-10 decode 적용 (렌더링/수정 로드)
- → 9-11 next.config.ts 확인
- → 9-12 타입
- → 9-13 카드 UI
-```
+1. 이메일 가입 경로도 이번 Phase에 포함 (4번 — 배포 전 상태라 굳이 나눌 필요 없음)
+2. 레거시 유저는 `terms_agreed_at`/`privacy_agreed_at` NULL로 그대로 둠 (배포 전이라 소급 동의 불필요)
+3. `signupToken` 만료 10분 확정
+4. 약관 버전 관리 도입 — `terms_version`/`privacy_version` 컬럼 추가, 현재 버전은 상수(`TermsPolicy`)로 관리
+5. 카카오 연동 미완료 상태라 이번 Phase는 구글만 대상으로 진행 — 카카오 관련 항목(이메일 선택 동의 이슈 등)은 제외

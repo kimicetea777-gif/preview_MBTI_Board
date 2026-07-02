@@ -1,0 +1,10 @@
+{
+  "properties": [
+    {
+      "name": "admin.stats.cache-refresh-delay-ms",
+      "type": "java.lang.Long",
+      "description": "어드민 통계 캐시 스케줄러 갱신 주기 (밀리초). 기본값 1,800,000 = 30분.",
+      "defaultValue": 1800000
+    }
+  ]
+}

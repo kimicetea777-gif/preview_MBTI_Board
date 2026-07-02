@@ -18,10 +18,6 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/**
- * 어드민 FUN 문항 관리 서비스 — 전체 조회·노출 변경 담당
- * 주의: 문항 내용(title·options)은 Flyway 시드로만 관리, 변경 불가
- */
 @Service
 @RequiredArgsConstructor
 public class AdminFunQuestionService {

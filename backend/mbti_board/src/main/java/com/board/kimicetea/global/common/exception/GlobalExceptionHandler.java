@@ -1,13 +1,17 @@
 package com.board.kimicetea.global.common.exception;
 
+import com.board.kimicetea.global.alert.AlertMarkers;
 import com.board.kimicetea.global.common.response.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -19,11 +23,31 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(CustomException.class)
-    public ResponseEntity<ApiResponse<Void>> handleCustomException(final CustomException e) {
+    public ResponseEntity<ApiResponse<Void>> handleCustomException(final CustomException e,
+            final HttpServletRequest request) {
+        final ErrorCode code = e.getErrorCode();
+        if (code == ErrorCode.ACCOUNT_LOCKED) {
+            log.error(AlertMarkers.ACCOUNT_LOCKED, "Locked account access attempt: {}", request.getRequestURI());
+        } else if (code == ErrorCode.RATE_LIMIT_EXCEEDED) {
+            final String uri = request.getRequestURI();
+            if (uri.contains("login")) {
+                log.error(AlertMarkers.BRUTE_FORCE_LOGIN, "Brute force login detected: {}", uri);
+            } else if (uri.contains("password-reset")) {
+                log.error(AlertMarkers.PASSWORD_RESET_ABUSE, "Password reset abuse detected: {}", uri);
+            } else {
+                log.error(AlertMarkers.RATE_LIMIT_EXCEEDED, "Rate limit exceeded: {}", uri);
+            }
+        }
         log.warn("CustomException: {}", e.getMessage());
         return ResponseEntity
                 .status(e.getErrorCode().getHttpStatus().value())
                 .body(ApiResponse.fail(e.getMessage()));
+    }
+
+    @ExceptionHandler(RedisConnectionFailureException.class)
+    public ResponseEntity<ApiResponse<Void>> handleRedisConnectionFailure(final RedisConnectionFailureException e) {
+        log.error(AlertMarkers.REDIS_CONNECTION_FAIL, "Redis connection failure", e);
+        return ResponseEntity.internalServerError().body(ApiResponse.fail(ErrorCode.INTERNAL_SERVER_ERROR.getMessage()));
     }
 
     // @Valid DTO객체 @RequestBody 검증 실패
@@ -61,6 +85,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(ApiResponse.fail(e.getParameterName() + " 파라미터가 누락되었습니다."));
     }
 
+    // 필수 @RequestHeader 누락
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingHeader(final MissingRequestHeaderException e) {
+        return ResponseEntity.badRequest().body(ApiResponse.fail(e.getHeaderName() + " 헤더가 누락되었습니다."));
+    }
+
     // JSON 바디 파싱 실패 (문법 오류)
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiResponse<Void>> handleHttpMessageNotReadable(final HttpMessageNotReadableException e) {
@@ -85,7 +115,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(final Exception e) {
-        log.error("Unhandled exception", e);
+        log.error(AlertMarkers.UNHANDLED_ERROR, "Unhandled exception", e);
         return ResponseEntity
                 .internalServerError()
                 .body(ApiResponse.fail(ErrorCode.INTERNAL_SERVER_ERROR.getMessage()));

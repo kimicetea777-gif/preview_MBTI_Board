@@ -1,7 +1,7 @@
 "use client";
 
 import SocialLoginButton from "@/components/auth/SocialLoginButton";
-import { LOGIN_METHOD, type LoginMethod } from "@/lib/lastLoginMethod";
+import { LOGIN_METHOD, type LoginMethod } from "@/lib/loginUtils";
 
 interface Props {
   redirectTo: string;

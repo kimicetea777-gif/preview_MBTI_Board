@@ -13,16 +13,23 @@ import com.board.kimicetea.domain.user.dto.UpdateProfileRequest;
 import com.board.kimicetea.domain.user.dto.UserActivityStatsResponse;
 import com.board.kimicetea.domain.user.dto.UserProfileResponse;
 import com.board.kimicetea.domain.user.entity.User;
+import com.board.kimicetea.domain.user.entity.UserRetentionLog;
 import com.board.kimicetea.domain.user.enums.MbtiVerified;
 import com.board.kimicetea.domain.user.enums.UserRole;
 import com.board.kimicetea.domain.user.enums.UserState;
 import com.board.kimicetea.domain.user.repository.UserRepository;
+import com.board.kimicetea.domain.user.repository.UserRetentionLogRepository;
+import com.board.kimicetea.global.crypto.RetentionEncryptionService;
+import com.board.kimicetea.global.audit.AuditEvent;
+import com.board.kimicetea.global.audit.AuditLogService;
 import com.board.kimicetea.global.common.exception.CustomException;
 import com.board.kimicetea.global.common.exception.ErrorCode;
+import com.board.kimicetea.global.common.util.RequestUtils;
 import com.board.kimicetea.global.crypto.PhoneHashService;
 import com.board.kimicetea.global.mail.EmailService;
 import com.board.kimicetea.global.security.jwt.JwtProvider;
 import com.board.kimicetea.global.security.redis.TokenRedisService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -32,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -43,15 +51,18 @@ import java.util.UUID;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final UserRetentionLogRepository userRetentionLogRepository;
     private final MbtiMetadataRepository mbtiMetadataRepository;
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
     private final MbtiTestHistoryRepository mbtiTestHistoryRepository;
     private final PasswordEncoder passwordEncoder;
     private final PhoneHashService phoneHashService;
+    private final RetentionEncryptionService retentionEncryptionService;
     private final TokenRedisService tokenRedisService;
     private final JwtProvider jwtProvider;
     private final EmailService emailService;
+    private final AuditLogService auditLogService;
 
     /**
      * 어드민 유저 직접 생성 — 이메일 인증 없이 role·state 직접 지정
@@ -81,7 +92,7 @@ public class UserService {
 
     /** 회원가입 — AuthService에서 위임받아 유저 엔티티 생성. phone은 null 허용 (이메일 찾기 전용) */
     @Transactional
-    public void registerUser(final String email, final String rawPassword,
+    public User registerUser(final String email, final String rawPassword,
             final String nickname, final String mbtiId, final String phone) {
         if (userRepository.existsByEmail(email)) {
             throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
@@ -99,7 +110,7 @@ public class UserService {
         final MbtiMetadata mbti = findMbtiOrThrow(mbtiId);
         final MbtiVerified mbtiVerified = mbti.isNone() ? MbtiVerified.DEFAULT : MbtiVerified.SELF;
 
-        userRepository.save(User.builder()
+        return userRepository.save(User.builder()
                 .email(email)
                 .password(passwordEncoder.encode(rawPassword))
                 .nickname(nickname)
@@ -175,11 +186,13 @@ public class UserService {
     }
 
     /**
-     * 회원 탈퇴 — OTP 검증 후 상태 WITHDRAWN 변경 + PII 즉시 익명화 + 전체 기기 토큰 무효화
+     * 회원 탈퇴 — OTP 검증 후 수사 협조용 보존 로그 저장 → PII 즉시 익명화 → 전체 기기 토큰 무효화
      * 주의: AT 블랙리스트·RT 삭제는 @Transactional 외부에서 실행 (Redis는 JPA 트랜잭션 미참여)
+     * 주의: 보존 로그는 반드시 anonymize() 호출 전에 저장 — 익명화 후에는 원본 email 소실
      */
     @Transactional
-    public void withdraw(final UUID userId, final String accessToken, final String otpCode) {
+    public void withdraw(final UUID userId, final String accessToken,
+                         final String otpCode, final HttpServletRequest httpRequest) {
         final String savedOtp = tokenRedisService.getWithdrawalOtp(userId.toString());
         if (savedOtp == null) {
             throw new CustomException(ErrorCode.WITHDRAWAL_OTP_EXPIRED);
@@ -198,11 +211,22 @@ public class UserService {
         tokenRedisService.deleteWithdrawalOtp(userId.toString());
 
         final User user = findUserOrThrow(userId);
+
+        saveRetentionLog(user, RequestUtils.extractClientIp(httpRequest));
+
         user.changeState(UserState.WITHDRAWN);
         user.anonymize();
 
         tokenRedisService.deleteAllRefreshTokens(userId.toString());
-        tokenRedisService.addToBlacklist(accessToken, jwtProvider.getRemainingExpiry(accessToken));
+        jwtProvider.validateAndParseClaims(accessToken).ifPresent(claims -> {
+            final long remaining = jwtProvider.getRemainingExpiry(claims);
+            if (remaining > 0) {
+                tokenRedisService.addToBlacklist(claims.getId(), remaining);
+            }
+        });
+
+        auditLogService.record(AuditEvent.WITHDRAWAL, userId,
+                user.getRole().name(), RequestUtils.extractClientIp(httpRequest));
     }
 
     /**
@@ -210,7 +234,8 @@ public class UserService {
      * 주의: 소셜 전용 계정(socialProvider != null)은 로컬 비밀번호가 없으므로 차단
      */
     @Transactional
-    public void changePassword(final UUID userId, final ChangePasswordRequest request) {
+    public void changePassword(final UUID userId, final ChangePasswordRequest request,
+                               final HttpServletRequest httpRequest) {
         final User user = findUserOrThrow(userId);
 
         if (user.getSocialProvider() != null) {
@@ -221,6 +246,8 @@ public class UserService {
         }
 
         user.changePassword(passwordEncoder.encode(request.newPassword()));
+        auditLogService.record(AuditEvent.PASSWORD_CHANGE, userId,
+                user.getRole().name(), RequestUtils.extractClientIp(httpRequest));
     }
 
     /**
@@ -228,20 +255,35 @@ public class UserService {
      * 주의: 원본 전화번호는 저장하지 않으므로 현재 번호 조회 불가
      */
     @Transactional
-    public void updatePhone(final UUID userId, final UpdatePhoneRequest request) {
+    public void updatePhone(final UUID userId, final UpdatePhoneRequest request,
+                            final HttpServletRequest httpRequest) {
+        final User user = findUserOrThrow(userId);
         final String phoneHash = phoneHashService.hash(request.phone());
         if (userRepository.existsByPhoneHashAndIdNot(phoneHash, userId)) {
             throw new CustomException(ErrorCode.DUPLICATE_PHONE);
         }
-        final User user = findUserOrThrow(userId);
         user.changePhone(phoneHash);
+        auditLogService.record(AuditEvent.PHONE_CHANGE, userId,
+                user.getRole().name(), RequestUtils.extractClientIp(httpRequest));
     }
 
     /** 전화번호 삭제 */
     @Transactional
-    public void removePhone(final UUID userId) {
+    public void removePhone(final UUID userId, final HttpServletRequest httpRequest) {
         final User user = findUserOrThrow(userId);
         user.changePhone(null);
+        auditLogService.record(AuditEvent.PHONE_CHANGE, userId,
+                user.getRole().name(), RequestUtils.extractClientIp(httpRequest));
+    }
+
+    /** anonymize() 이전에 호출 — 원본 email·phoneHash가 필요하므로 순서 변경 금지 */
+    private void saveRetentionLog(final User user, final String ip) {
+        userRetentionLogRepository.save(Objects.requireNonNull(UserRetentionLog.of(
+                user.getId(),
+                retentionEncryptionService.encrypt(user.getEmail()),
+                user.getPhoneHash(),
+                ip
+        )));
     }
 
     /** 닉네임 중복 검증 **/

@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -28,6 +29,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -57,6 +59,7 @@ public class SecurityConfig {
                                                                 "/api/auth/signup",
                                                                 "/api/auth/login",
                                                                 "/api/auth/reissue", // RT Cookie 기반 — 인증 없이 접근해야 함
+                                                                "/api/auth/oauth2/signup", // signupToken 기반 — 계정이 아직 없는 상태에서 호출됨
                                                                 "/api/auth/email-verify/send",
                                                                 "/api/auth/email-verify/confirm",
                                                                 "/api/auth/find-email",
@@ -85,6 +88,9 @@ public class SecurityConfig {
                                                 .authenticated()
                                                 // FN 응답 저장: 비회원 포함 허용 (GET stats도 동일)
                                                 .requestMatchers(HttpMethod.POST, "/api/mbti/fun/responses")
+                                                .permitAll()
+                                                // 공지사항 조회는 완전 공개
+                                                .requestMatchers(HttpMethod.GET, "/api/notices/active")
                                                 .permitAll()
                                                 // MBTI 메타데이터·문항 조회는 완전 공개 (GET 전용)
                                                 .requestMatchers(HttpMethod.GET, "/api/mbti", "/api/mbti/**")

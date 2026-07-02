@@ -8,7 +8,7 @@ import { useAuthStore } from "@/store/authStore";
 import { login } from "@/lib/api/auth";
 import { ROUTES } from "@/constants/routes";
 import { toSafeRedirect } from "@/lib/safeRedirect";
-import { getLastLoginMethod, setLastLoginMethod, LOGIN_METHOD } from "@/lib/lastLoginMethod";
+import { getLastLoginMethod, setLastLoginMethod, LOGIN_METHOD } from "@/lib/loginUtils";
 import { useLocalStorageSnapshot } from "@/lib/localStorageUtils";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { FIND_ACCOUNT_TAB } from "@/types/auth";

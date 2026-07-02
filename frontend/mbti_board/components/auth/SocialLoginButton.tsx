@@ -3,7 +3,7 @@
 import { memo } from "react";
 import { OAUTH2_REDIRECT_KEY } from "@/components/auth/OAuth2CallbackContent";
 import { toSafeRedirect } from "@/lib/safeRedirect";
-import { PENDING_SOCIAL_PROVIDER_KEY } from "@/lib/lastLoginMethod";
+import { PENDING_SOCIAL_PROVIDER_KEY } from "@/lib/loginUtils";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 

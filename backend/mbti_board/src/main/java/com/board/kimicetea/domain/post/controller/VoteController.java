@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -41,14 +42,14 @@ public class VoteController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "비로그인"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "게시글 또는 선택지 없음")
     })
+    @PreAuthorize("isAuthenticated()")
     @PostMapping
     public ResponseEntity<ApiResponse<VoteResultResponse>> castVote(
             @PathVariable final Long postId,
             @Valid @RequestBody final VoteRequest request,
             @AuthenticationPrincipal final CustomUserDetails userDetails) {
 
-        final UUID currentUserId = (userDetails != null) ? userDetails.userId() : null;
-        return ResponseEntity.ok(ApiResponse.ok(voteService.castVote(postId, request, currentUserId)));
+        return ResponseEntity.ok(ApiResponse.ok(voteService.castVote(postId, request, userDetails.userId())));
     }
 
     @Operation(summary = "투표 결과 조회", description = "선택지별 득표수와 본인 선택 옵션을 조회합니다.")

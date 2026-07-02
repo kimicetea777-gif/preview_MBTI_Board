@@ -16,6 +16,8 @@ export interface SignupRequest {
   nickname: string;
   mbtiId: string;
   phone?: string;
+  termsAgreed: boolean;
+  privacyAgreed: boolean;
 }
 
 export interface LoginResponse {
@@ -23,6 +25,12 @@ export interface LoginResponse {
   email: string;
   nickname: string;
   role: string;
+}
+
+export interface OAuth2SignupConfirmRequest {
+  signupToken: string;
+  termsAgreed: boolean;
+  privacyAgreed: boolean;
 }
 
 export interface EmailVerifySendRequest {

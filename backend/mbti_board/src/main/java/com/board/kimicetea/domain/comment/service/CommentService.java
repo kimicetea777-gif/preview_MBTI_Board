@@ -7,9 +7,8 @@ import com.board.kimicetea.domain.comment.entity.Comment;
 import com.board.kimicetea.domain.comment.entity.CommentReaction;
 import com.board.kimicetea.domain.comment.repository.CommentReactionRepository;
 import com.board.kimicetea.domain.comment.repository.CommentRepository;
-import com.board.kimicetea.domain.mbti.MbtiConstants;
+import com.board.kimicetea.domain.mbti.MbtiMetadataSupport;
 import com.board.kimicetea.domain.mbti.entity.MbtiMetadata;
-import com.board.kimicetea.domain.mbti.repository.MbtiMetadataRepository;
 import com.board.kimicetea.global.common.util.GuestPasswordHelper;
 import com.board.kimicetea.global.common.util.RequestUtils;
 import com.board.kimicetea.domain.post.entity.Post;
@@ -47,7 +46,7 @@ public class CommentService {
     private final PostRepository postRepository;
     private final VotePostHistoryRepository votePostHistoryRepository;
     private final UserRepository userRepository;
-    private final MbtiMetadataRepository mbtiMetadataRepository;
+    private final MbtiMetadataSupport mbtiMetadataSupport;
     private final PasswordEncoder passwordEncoder;
 
     /**
@@ -57,12 +56,12 @@ public class CommentService {
      */
     @Transactional(readOnly = true)
     public List<CommentResponse> getComments(final Long postId, final UUID userId) {
-        final Post post = postRepository.findWithDetailsById(postId)
+        final PostType postType = postRepository.findPostTypeById(postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
 
         final List<Comment> all = commentRepository.findAllVisibleByPostId(postId);
         final Map<Long, Short> reactionMap = buildReactionMap(userId, all);
-        final Map<UUID, String> voteOptionMap = buildVoteOptionMap(postId, post, all);
+        final Map<UUID, String> voteOptionMap = buildVoteOptionMap(postId, postType, all);
 
         // parent_id 기준으로 대댓글 그룹핑
         final Map<Long, List<Comment>> repliesByParentId = all.stream()
@@ -80,8 +79,8 @@ public class CommentService {
      * VOTE 게시글의 댓글 작성자별 투표 선택지 텍스트 맵 — userId → optionText
      * 주의: VOTE 게시글이 아니거나 로그인 댓글이 없으면 빈 맵 반환
      */
-    private Map<UUID, String> buildVoteOptionMap(final Long postId, final Post post, final List<Comment> comments) {
-        if (post.getPostType() != PostType.VOTE) {
+    private Map<UUID, String> buildVoteOptionMap(final Long postId, final PostType postType, final List<Comment> comments) {
+        if (postType != PostType.VOTE) {
             return Map.of();
         }
         final List<UUID> userIds = comments.stream()
@@ -269,7 +268,6 @@ public class CommentService {
     }
 
     private MbtiMetadata findNoneMbtiOrThrow() {
-        return mbtiMetadataRepository.findById(MbtiConstants.NONE_MBTI_ID)
-                .orElseThrow(() -> new CustomException(ErrorCode.MBTI_NOT_FOUND));
+        return mbtiMetadataSupport.getNoneMbti();
     }
 }
