@@ -1,3 +1,9 @@
 logging:
   file:
     path: /var/log/mbti-board
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

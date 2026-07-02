@@ -6,6 +6,7 @@ import com.board.kimicetea.domain.auth.dto.FindEmailRequest;
 import com.board.kimicetea.domain.auth.dto.FindEmailResponse;
 import com.board.kimicetea.domain.auth.dto.LoginRequest;
 import com.board.kimicetea.domain.auth.dto.LoginResponse;
+import com.board.kimicetea.domain.auth.dto.OAuth2SignupConfirmRequest;
 import com.board.kimicetea.domain.auth.dto.PasswordResetConfirmRequest;
 import com.board.kimicetea.domain.auth.dto.PasswordResetRequestBody;
 import com.board.kimicetea.domain.auth.dto.SignupRequest;
@@ -85,8 +86,9 @@ public class AuthController {
         })
         @PostMapping("/password-reset/confirm")
         public ResponseEntity<ApiResponse<Void>> confirmPasswordReset(
-                        @Valid @RequestBody final PasswordResetConfirmRequest request) {
-                authService.confirmPasswordReset(request);
+                        @Valid @RequestBody final PasswordResetConfirmRequest request,
+                        final HttpServletRequest httpRequest) {
+                authService.confirmPasswordReset(request, httpRequest);
                 return ResponseEntity.ok(ApiResponse.ok("비밀번호가 변경되었습니다."));
         }
 
@@ -132,8 +134,10 @@ public class AuthController {
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이메일 또는 닉네임 중복")
         })
         @PostMapping("/signup")
-        public ResponseEntity<ApiResponse<Void>> signup(@Valid @RequestBody final SignupRequest request) {
-                authService.signup(request);
+        public ResponseEntity<ApiResponse<Void>> signup(
+                        @Valid @RequestBody final SignupRequest request,
+                        final HttpServletRequest httpRequest) {
+                authService.signup(request, httpRequest);
                 return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("회원가입이 완료되었습니다."));
         }
 
@@ -151,8 +155,27 @@ public class AuthController {
         @PostMapping("/login")
         public ResponseEntity<ApiResponse<LoginResponse>> login(
                         @Valid @RequestBody final LoginRequest request,
+                        final HttpServletRequest httpRequest,
                         final HttpServletResponse response) {
-                return ResponseEntity.ok(ApiResponse.ok(authService.login(request, response)));
+                return ResponseEntity.ok(ApiResponse.ok(authService.login(request, httpRequest, response)));
+        }
+
+        /**
+         * 소셜 로그인 신규 가입 약관 동의 완료 — signupToken 검증 후 이 시점에 처음으로 계정 생성
+         * 주의: signupToken은 OAuth2 로그인 성공 시 신규 가입자에 한해 발급되는 10분 만료 토큰
+         */
+        @Operation(summary = "소셜 가입 약관 동의 완료", description = "signupToken과 약관 동의 여부를 받아 계정을 생성하고 로그인 처리합니다.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "가입 및 로그인 성공"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "토큰 만료·무효 또는 약관 미동의"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이메일 중복(경합 상태 포함)")
+        })
+        @PostMapping("/oauth2/signup")
+        public ResponseEntity<ApiResponse<LoginResponse>> confirmOAuth2Signup(
+                        @Valid @RequestBody final OAuth2SignupConfirmRequest request,
+                        final HttpServletRequest httpRequest,
+                        final HttpServletResponse response) {
+                return ResponseEntity.ok(ApiResponse.ok(authService.confirmOAuth2Signup(request, httpRequest, response)));
         }
 
         /**

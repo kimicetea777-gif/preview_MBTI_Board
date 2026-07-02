@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useSuspenseInfiniteQuery, useQuery, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
-import type { InfiniteData } from "@tanstack/react-query";
+import type { InfiniteData, QueryClient } from "@tanstack/react-query";
 import { fetchPosts, fetchPostById } from "@/lib/api/post";
 import type { PostListParams, PostSummaryResponse, PostDetailResponse } from "@/types/post";
 import type { PageResponse } from "@/types/api";
@@ -15,6 +15,27 @@ export const postKeys = {
   detail:  (id: number) =>
                [...postKeys.details(), id]    as const,
 };
+
+/**
+ * 목록 캐시(무한 스크롤, 정렬·필터별 여러 개 존재 가능)에서 id가 일치하는 게시글을 찾아
+ * 상세 쿼리의 initialData로 사용 — summary 필드만 있어 content/isOwner/isGuest/updatedAt은 없음 (UI에서 nullish 처리 필요)
+ */
+function findPostInListCaches(
+  queryClient: QueryClient,
+  id: number,
+): PostDetailResponse | undefined {
+  const listCaches = queryClient.getQueriesData<
+    InfiniteData<PageResponse<PostSummaryResponse>>
+  >({ queryKey: postKeys.lists() });
+
+  for (const [, cached] of listCaches) {
+    for (const page of cached?.pages ?? []) {
+      const match = page.content.find((post) => post.id === id);
+      if (match) return match as unknown as PostDetailResponse;
+    }
+  }
+  return undefined;
+}
 
 export function useSuspensePostList(params: Omit<PostListParams, "page">) {
   return useSuspenseInfiniteQuery({
@@ -32,18 +53,7 @@ export function useSuspensePostDetail(id: number) {
   const result = useSuspenseQuery({
     queryKey: postKeys.detail(id),
     queryFn: () => fetchPostById(id),
-    initialData: () => {
-      const listCaches = queryClient.getQueriesData<
-        InfiniteData<PageResponse<PostSummaryResponse>>
-      >({ queryKey: postKeys.lists() });
-
-      for (const [, cached] of listCaches) {
-        for (const page of cached?.pages ?? []) {
-          const match = page.content.find((post) => post.id === id);
-          if (match) return match as unknown as PostDetailResponse;
-        }
-      }
-    },
+    initialData: () => findPostInListCaches(queryClient, id),
     initialDataUpdatedAt: 0,
   });
 
@@ -63,20 +73,7 @@ export function usePostDetail(id: number) {
     queryKey: postKeys.detail(id),
     queryFn: () => fetchPostById(id),
     enabled: id > 0,
-    initialData: () => {
-      // 목록 캐시에서 해당 게시글의 summary 데이터를 찾아 초기값으로 사용.
-      // content/isOwner/isGuest/updatedAt은 아직 없으므로 UI에서 nullish 처리 필요.
-      const listCaches = queryClient.getQueriesData<
-        InfiniteData<PageResponse<PostSummaryResponse>>
-      >({ queryKey: postKeys.lists() });
-
-      for (const [, cached] of listCaches) {
-        for (const page of cached?.pages ?? []) {
-          const match = page.content.find((post) => post.id === id);
-          if (match) return match as unknown as PostDetailResponse;
-        }
-      }
-    },
+    initialData: () => findPostInListCaches(queryClient, id),
     // 0으로 설정 시 initialData를 즉시 stale로 취급 → 백그라운드에서 전체 상세 데이터 fetch
     initialDataUpdatedAt: 0,
   });

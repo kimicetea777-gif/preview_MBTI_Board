@@ -34,7 +34,7 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
         builder.and(post.isVisible.isTrue());
 
         if (typeCode != null && !typeCode.isBlank()) {
-            builder.and(post.postType.eq(PostType.valueOf(typeCode)));
+            builder.and(post.postType.eq(PostType.from(typeCode)));
         }
 
         if (authorMbti != null && !authorMbti.isBlank()) {
@@ -81,7 +81,7 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
         final BooleanBuilder builder = new BooleanBuilder();
 
         if (typeCode != null && !typeCode.isBlank()) {
-            builder.and(post.postType.eq(PostType.valueOf(typeCode)));
+            builder.and(post.postType.eq(PostType.from(typeCode)));
         }
         if (isVisible != null) {
             builder.and(post.isVisible.eq(isVisible));
@@ -130,7 +130,7 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
         builder.and(post.isVisible.isTrue());
 
         if (typeCode != null && !typeCode.isBlank()) {
-            builder.and(post.postType.eq(PostType.valueOf(typeCode)));
+            builder.and(post.postType.eq(PostType.from(typeCode)));
         }
 
         final OrderSpecifier<?> order = switch (sort) {

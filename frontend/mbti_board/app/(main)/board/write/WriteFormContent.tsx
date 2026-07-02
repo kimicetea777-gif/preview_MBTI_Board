@@ -1,17 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { POST_TYPE, POST_TYPE_LABELS, GUEST_PASSWORD_MIN_LENGTH, GUEST_PASSWORD_MAX_LENGTH, MAX_POST_IMAGES } from "@/types/post";
 import type { PostType } from "@/types/post";
 import { useWriteForm } from "@/hooks/useWriteForm";
 import PostWriteForm from "@/components/post/PostWriteForm";
 import InfoBanner, { BANNER_VARIANT } from "@/components/common/InfoBanner";
 import FloatingLabelInput from "@/components/common/FloatingLabelInput";
-import { ALLOWED_IMAGE_TYPES_LABEL, MAX_IMAGE_BYTES_LABEL } from "@/lib/imageUtils";
+import { ALLOWED_IMAGE_TYPES_LABEL, MAX_IMAGE_BYTES_LABEL } from "@/constants/imageUpload";
 import VoteOptionsField from "@/components/post/VoteOptionsField";
 import DebateLabelsField from "@/components/post/DebateLabelsField";
-import { ROUTES } from "@/constants/routes";
+import TermsAgreementCheckboxes from "@/components/auth/TermsAgreementCheckboxes";
 import { toast } from "@/components/common/Toast";
 
 interface Props {
@@ -84,7 +83,6 @@ export default function WriteFormContent({ initialType }: Props) {
         onContentChange={setContent}
         onUpload={handleUpload}
         onUploadingChange={setUploadingCount}
-        mbtiList={mbtiList}
         contentLabel={contentLabel}
         contentPlaceholder={contentPlaceholder}
       >
@@ -113,32 +111,13 @@ export default function WriteFormContent({ initialType }: Props) {
               autoComplete="off"
               disabled={isPending}
             />
-            <div className="space-y-2">
-              <label className="flex items-start gap-2.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={termsAgreed}
-                  onChange={(e) => setTermsAgreed(e.target.checked)}
-                  disabled={isPending}
-                  className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
-                />
-                <span className="text-xs text-on-surface-variant leading-relaxed">
-                  <Link href={ROUTES.terms} target="_blank" className="font-medium text-primary underline underline-offset-2 hover:opacity-80">이용약관</Link>에 동의합니다. <span className="text-red-500">*</span>
-                </span>
-              </label>
-              <label className="flex items-start gap-2.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={privacyAgreed}
-                  onChange={(e) => setPrivacyAgreed(e.target.checked)}
-                  disabled={isPending}
-                  className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
-                />
-                <span className="text-xs text-on-surface-variant leading-relaxed">
-                  <Link href={ROUTES.privacy} target="_blank" className="font-medium text-primary underline underline-offset-2 hover:opacity-80">개인정보처리방침</Link>에 동의합니다. <span className="text-red-500">*</span>
-                </span>
-              </label>
-            </div>
+            <TermsAgreementCheckboxes
+              termsAgreed={termsAgreed}
+              onTermsAgreedChange={setTermsAgreed}
+              privacyAgreed={privacyAgreed}
+              onPrivacyAgreedChange={setPrivacyAgreed}
+              disabled={isPending}
+            />
           </div>
         )}
 

@@ -10,7 +10,7 @@ import Youtube from "@tiptap/extension-youtube";
 import { LuX } from "react-icons/lu";
 import { useEffect, useRef } from "react";
 import { MAX_POST_IMAGES } from "@/types/post";
-import { ALLOWED_IMAGE_TYPES, ALLOWED_IMAGE_TYPES_LABEL, MAX_IMAGE_BYTES, MAX_IMAGE_BYTES_LABEL } from "@/lib/imageUtils";
+import { ALLOWED_IMAGE_TYPES, ALLOWED_IMAGE_TYPES_LABEL, MAX_IMAGE_BYTES, MAX_IMAGE_BYTES_LABEL } from "@/constants/imageUpload";
 import { parseTiptapContent, countTiptapImages } from "@/lib/editor";
 import { uploadImage } from "@/lib/api/image";
 import { toast } from "@/components/common/Toast";

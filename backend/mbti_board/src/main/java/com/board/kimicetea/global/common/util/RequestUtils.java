@@ -16,8 +16,15 @@ import java.util.HexFormat;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class RequestUtils {
 
-    /** Cloudflare Tunnel 환경: X-Forwarded-For 우선, 없으면 RemoteAddr */
+    /**
+     * Cloudflare Tunnel 환경: CF-Connecting-IP 우선, X-Forwarded-For 차선, 없으면 RemoteAddr
+     * 주의: CF-Connecting-IP는 Cloudflare가 설정하는 헤더로 클라이언트 실제 IP를 담음
+     */
     public static String extractClientIp(final HttpServletRequest request) {
+        final String cfIp = request.getHeader("CF-Connecting-IP");
+        if (cfIp != null && !cfIp.isBlank()) {
+            return cfIp.strip();
+        }
         final String forwarded = request.getHeader("X-Forwarded-For");
         if (forwarded != null && !forwarded.isBlank()) {
             return forwarded.split(",")[0].strip();

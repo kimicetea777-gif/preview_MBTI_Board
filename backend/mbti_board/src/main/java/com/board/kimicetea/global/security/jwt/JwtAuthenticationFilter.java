@@ -1,6 +1,7 @@
 package com.board.kimicetea.global.security.jwt;
 
 import com.board.kimicetea.domain.user.security.CustomUserDetails;
+import com.board.kimicetea.global.alert.AlertMarkers;
 import com.board.kimicetea.global.security.redis.TokenRedisService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
@@ -8,6 +9,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.StringUtils;
@@ -20,6 +23,7 @@ import java.util.UUID;
  * 매 요청마다 AT를 검증하고 SecurityContext에 인증 정보를 등록
  * 주의: 블랙리스트 확인은 Redis 조회를 수반하므로 permitAll 경로는 SecurityConfig에서 제외 권장
  */
+@Slf4j
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -39,7 +43,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (token != null) {
             // validateAndParseClaims로 단일 파싱 — isValid() + parseToken() 이중 파싱 방지
             final boolean authenticated = jwtProvider.validateAndParseClaims(token)
-                    .filter(claims -> !tokenRedisService.isBlacklisted(token))
+                    .filter(claims -> {
+                        try {
+                            return !tokenRedisService.isBlacklisted(claims.getId());
+                        } catch (RedisConnectionFailureException e) {
+                            log.error(AlertMarkers.REDIS_CONNECTION_FAIL, "Redis unavailable during blacklist check", e);
+                            return false;
+                        }
+                    })
                     .map(claims -> { registerAuthentication(claims); return true; })
                     .orElse(false);
 

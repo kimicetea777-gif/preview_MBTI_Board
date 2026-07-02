@@ -33,6 +33,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long>, Comment
             SELECT c FROM Comment c
             JOIN FETCH c.authorMbti
             LEFT JOIN FETCH c.user
+            LEFT JOIN FETCH c.parent
             WHERE c.post.id = :postId AND c.isVisible = true
             ORDER BY c.createdAt ASC
             """)
@@ -46,10 +47,6 @@ public interface CommentRepository extends JpaRepository<Comment, Long>, Comment
     /** 숨겨진 댓글 수 */
     @Query(value = "SELECT COUNT(*) FROM comments WHERE is_visible = false", nativeQuery = true)
     long countHidden();
-
-    /** 전체 좋아요 / 싫어요 수 — [[likeSum, dislikeSum]] */
-    @Query(value = "SELECT SUM(like_count), SUM(dislike_count) FROM comments WHERE is_visible = true", nativeQuery = true)
-    List<Object[]> sumReactions();
 
     /** MBTI별 댓글 수 */
     @Query(value = "SELECT author_mbti AS name, COUNT(*) AS value FROM comments GROUP BY author_mbti ORDER BY value DESC", nativeQuery = true)

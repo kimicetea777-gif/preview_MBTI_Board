@@ -5,6 +5,7 @@ import type {
   LoginRequest,
   LoginResponse,
   SignupRequest,
+  OAuth2SignupConfirmRequest,
   EmailVerifySendRequest,
   EmailVerifyConfirmRequest,
   FindEmailRequest,
@@ -20,6 +21,11 @@ export async function login(data: LoginRequest): Promise<LoginResponse> {
 
 export async function signup(data: SignupRequest): Promise<void> {
   await apiClient.post<ApiResponse<void>>(API.auth.signup, data);
+}
+
+export async function confirmOAuth2Signup(data: OAuth2SignupConfirmRequest): Promise<LoginResponse> {
+  const res = await apiClient.post<ApiResponse<LoginResponse>>(API.auth.oauth2Signup, data);
+  return res.data.data;
 }
 
 export async function sendEmailVerification(data: EmailVerifySendRequest): Promise<void> {

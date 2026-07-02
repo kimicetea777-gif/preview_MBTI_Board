@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { getAllMbti } from "@/constants/mbtiData";
 import { sendEmailVerification, signup } from "@/lib/api/auth";
 
 import { STEP, type Step } from "@/app/(auth)/signup/steps";
@@ -24,8 +23,6 @@ export default function SignupContent({ initialStep, initialEmail }: Props) {
   const [step, setStep] = useState<Step>(initialStep);
   const [email, setEmail] = useState(initialEmail);
   const [countdown, setCountdown] = useState(0);
-
-  const mbtiList = getAllMbti();
 
   useEffect(() => {
     if (countdown <= 0) return;
@@ -95,7 +92,6 @@ export default function SignupContent({ initialStep, initialEmail }: Props) {
       <FormStep
         email={email}
         onReauth={goToEmail}
-        mbtiList={mbtiList}
         hasAuthError={hasAuthError}
         onSubmit={(data) => signupMutation.mutate(data)}
         isPending={signupMutation.isPending}

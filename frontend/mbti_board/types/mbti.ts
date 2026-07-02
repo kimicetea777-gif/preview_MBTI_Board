@@ -1,6 +1,5 @@
 export const MBTI_ID = {
   NONE: "NONE",
-  UNKNOWN: "UNKNOWN",
   ISTJ: "ISTJ",
   ISFJ: "ISFJ",
   INFJ: "INFJ",
@@ -21,8 +20,6 @@ export const MBTI_ID = {
 
 export type MbtiIdType = typeof MBTI_ID[keyof typeof MBTI_ID];
 
-export const NONE_MBTI_ID = MBTI_ID.NONE;
-export const UNKNOWN_MBTI_ID = MBTI_ID.UNKNOWN;
 export const MBTI_ALL = "ALL";
 
 export const MBTI_GROUPS = [

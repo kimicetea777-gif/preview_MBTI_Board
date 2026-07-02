@@ -13,7 +13,7 @@ public record PasswordResetConfirmRequest(
         String token,
 
         @NotBlank(message = "새 비밀번호를 입력해 주세요.")
-        @Size(min = 10, message = "비밀번호는 영문+숫자 포함 10자 이상이어야 합니다.")
+        @Size(min = 10, message = "비밀번호는 10자 이상이어야 합니다.")
         @Pattern(regexp = ValidationConstants.PASSWORD_REGEXP, message = ValidationConstants.PASSWORD_MESSAGE)
         String newPassword
 ) {

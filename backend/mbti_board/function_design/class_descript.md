@@ -1,11 +1,16 @@
 | 클래스 | 경로 | 설명 |
 |---|---|---|
+| `AlertType` | `global/alert` | 이메일 알림 성격 분류 enum — JWT_TAMPER·UNHANDLED_ERROR·DB_QUERY_SLOW, 타입별 독립 flag 키로 사용 |
+| `SlowQueryAspect` | `global/aop` | Repository 메서드 실행 시간 감시 AOP — 임계치(기본 1000ms) 초과 시 DB_QUERY_SLOW 알림 발송 |
+| `AlertFlagRegistry` | `global/alert` | AlertType별 이메일 알림 활성화 플래그 레지스트리 — 발송 후 auto-mute, 서버 재시작 시 초기화 |
+| `AlertMarkers` | `global/alert` | SLF4J Marker 상수 보관 — log.error(AlertMarkers.JWT_TAMPER, ...) 형태로 알림 타입 지정 |
 | `ValidationConstants` | `global/common` | 비밀번호·전화번호 정책 등 공통 검증 상수 모음 (PASSWORD_REGEXP, PHONE_REGEXP 등) |
 | `PhoneHashService` | `global/crypto` | 전화번호 HMAC-SHA256 해싱 서비스 — DB 조회 키용 결정적 해시 생성 (시크릿 키로 역추적 방지, 최소 32자 검증) |
 | `RateLimitService` | `global/ratelimit` | Redis INCR 기반 Rate Limiting — IP별(check)·이메일별(checkByEmail) 두 방식 지원, 엔드포인트·최대 횟수·시간 창 지정 가능 (Cloudflare X-Forwarded-For 지원) |
 | `RateLimit` | `global/ratelimit` | IP 기반 Rate Limit 선언 어노테이션 — endpoint·max·windowSecs 지정, RateLimitAspect가 메서드 진입 전 자동 처리 |
 | `RateLimitAspect` | `global/ratelimit` | @RateLimit 어노테이션 AOP 처리기 — RequestContextHolder로 HttpServletRequest 획득 후 RateLimitService.check() 호출 |
 | `RequestUtils` | `global/common/util` | HTTP 요청 유틸 — Cloudflare Tunnel 환경 클라이언트 IP 추출(extractClientIp), salt 기반 SHA-256 IP 해싱(hashIp) |
+| `EmailUtils` | `global/common/util` | 이메일 관련 유틸 — @앞 2자만 노출하고 나머지 로컬 파트를 *** 처리(mask) |
 | `OAuth2AuthenticationFailureHandler` | `global/security/oauth2` | OAuth2 인증 실패 시 에러 코드를 쿼리 파라미터로 담아 프론트 콜백 페이지로 리다이렉트 |
 | `EmailVerifySendRequest` | `domain/auth/dto` | 이메일 인증 발송 요청 DTO (이메일 주소) |
 | `EmailVerifyConfirmRequest` | `domain/auth/dto` | 이메일 인증 토큰 확인 요청 DTO (UUID 토큰) |
@@ -33,13 +38,17 @@
 | `AsyncConfig` | `global/config` | @EnableAsync 활성화 + 비동기 예외 로깅 핸들러 — 가상 스레드 기반 메일 발송 비동기 처리 |
 | `UserCleanupService` | `domain/user/service` | 탈퇴 유저(WITHDRAWN) 배치 삭제 스케줄러 — 매일 04:00 실행, findAllByState → deleteAll |
 | `AdminUserStatsResponse` | `domain/user/dto` | 유저 통계 응답 DTO — totalUsers·inactiveCount·소셜/로컬 수·상태/역할/MBTI 분포·30일 가입 추이 |
-| `AdminUserStatsService` | `domain/user/service` | 어드민 유저 통계 집계 서비스 — 상태·역할·MBTI 분포, 장기 미접속 수, 가입 추이(읽기 전용) |
+| `AdminUserStatsService` | `domain/user/service` | 어드민 유저 통계 서비스 — computeAndCache()로 DB 집계 후 Redis 저장, getCachedStats()로 즉시 반환 |
+| `AdminUserStatsScheduler` | `domain/user/service` | 어드민 유저 통계 사전 계산 스케줄러 — 10분마다 computeAndCache() 호출, triggerAsync()로 수동 갱신 지원 |
 | `AdminPostStatsResponse` | `domain/post/dto` | 게시글 통계 응답 DTO — totalPosts·hiddenCount·타입 분포·MBTI별 작성 분포·30일 작성 추이 |
-| `AdminPostStatsService` | `domain/post/service` | 어드민 게시글 통계 집계 서비스 — 타입 분포·MBTI 분포·숨김 현황·작성 추이(읽기 전용) |
+| `AdminPostStatsService` | `domain/post/service` | 어드민 게시글 통계 서비스 — computeAndCache()로 DB 집계 후 Redis 저장, getCachedStats()로 즉시 반환 |
+| `AdminPostStatsScheduler` | `domain/post/service` | 어드민 게시글 통계 사전 계산 스케줄러 — 10분마다 computeAndCache() 호출, triggerAsync()로 수동 갱신 지원 |
 | `AdminCommentStatsResponse` | `domain/comment/dto` | 댓글 통계 응답 DTO — totalComments·hiddenCount·좋아요/싫어요 합계·MBTI 분포·30일 작성 추이 |
-| `AdminCommentStatsService` | `domain/comment/service` | 어드민 댓글 통계 집계 서비스 — MBTI 분포·리액션 합계·숨김 현황·작성 추이(읽기 전용) |
+| `AdminCommentStatsService` | `domain/comment/service` | 어드민 댓글 통계 서비스 — computeAndCache()로 DB 집계 후 Redis 저장, getCachedStats()로 즉시 반환 |
+| `AdminCommentStatsScheduler` | `domain/comment/service` | 어드민 댓글 통계 사전 계산 스케줄러 — 10분마다 computeAndCache() 호출, triggerAsync()로 수동 갱신 지원 |
 | `AdminMbtiTestStatsResponse` | `domain/mbti/dto` | MBTI 검사 통계 응답 DTO — totalTests·지표별 평균·결과 분포·재검사 빈도·30일 검사 추이 |
-| `AdminMbtiTestStatsService` | `domain/mbti/service` | 어드민 MBTI 검사 통계 집계 서비스 — 결과 분포·지표 평균·재검사 빈도·추이(읽기 전용) |
+| `AdminMbtiTestStatsService` | `domain/mbti/service` | 어드민 MBTI 검사 통계 서비스 — computeAndCache()로 DB 집계 후 Redis 저장, getCachedStats()로 즉시 반환 |
+| `AdminMbtiTestStatsScheduler` | `domain/mbti/service` | 어드민 MBTI 검사 통계 사전 계산 스케줄러 — 10분마다 computeAndCache() 호출, triggerAsync()로 수동 갱신 지원 |
 | `AdminMbtiController` | `domain/mbti/controller` | 어드민 MBTI 검사 통계 API 컨트롤러 (GET /api/admin/mbti/stats — ADMIN 전용) |
 | `PostRepositoryCustom` | `domain/post/repository` | 게시글 목록 QueryDSL 커스텀 조회 인터페이스 (findPosts·findAllPostsForAdmin·findMyPosts) |
 | `PostRepositoryImpl` | `domain/post/repository` | 게시글 목록 QueryDSL 구현체 (유형·정렬·MBTI 필터 조합, 내 게시글 userId 필터 포함) |
@@ -64,7 +73,7 @@
 | `CommentCreateRequest` | `domain/comment/dto` | 댓글 작성 요청 DTO (content·parentId·guestPassword·debateStance) |
 | `CommentUpdateRequest` | `domain/comment/dto` | 댓글 수정 요청 DTO (content·guestPassword) |
 | `GuestPasswordHelper` | `global/common/util` | 비회원 BCrypt 인코딩 정적 유틸 — PostService·CommentService 공유 |
-| `MbtiConstants` | `domain/mbti` | MBTI 도메인 상수 (NONE_MBTI_ID 등) |
+| `MbtiMetadataSupport` | `domain/mbti` | NONE MBTI sentinel을 @PostConstruct로 1회 로드해 캐싱 — PostService·CommentService·CustomOAuth2UserService 공유 |
 | `CommentReactionRepository` | `domain/comment/repository` | 댓글 리액션 CRUD — findByComment_IdAndUser_Id로 유저별 리액션 단건 조회 |
 | `CommentReactionRequest` | `domain/comment/dto` | 댓글 리액션 요청 DTO (reactionType: 1=LIKE, -1=DISLIKE) |
 | `CommentReactionResponse` | `domain/comment/dto` | 댓글 리액션 응답 DTO (commentId·myReactionType·likeCount·dislikeCount) |
@@ -84,6 +93,16 @@
 | `VoteRequest` | `domain/post/dto` | 투표 참여 요청 DTO (optionId 필수) |
 | `VoteService` | `domain/post/service` | 투표 참여(castVote) 및 결과 조회(getVoteResult) 비즈니스 로직 — 1인 1표 UPSERT, 마감 검증 |
 | `VoteController` | `domain/post/controller` | 투표 API 컨트롤러 (POST /api/posts/{postId}/vote, GET /api/posts/{postId}/vote/result) |
+| `Notice` | `domain/notice/entity` | 공지사항 엔티티 — is_active·priority·starts_at/ends_at 기간 노출 제어 |
+| `NoticeRepository` | `domain/notice/repository` | 공지사항 레포지토리 — findActive(now)로 현재 노출 가능한 공지 priority DESC 조회 |
+| `NoticeResponse` | `domain/notice/dto` | 공개 공지사항 응답 DTO (id·title·content·createdAt, 관리 필드 미노출) |
+| `AdminNoticeResponse` | `domain/notice/dto` | 어드민 공지사항 응답 DTO (isActive·priority·starts_at/ends_at 포함, ADMIN 전용) |
+| `NoticeCreateRequest` | `domain/notice/dto` | 공지사항 생성 요청 DTO (title·content·isActive·priority·startsAt·endsAt) |
+| `NoticeUpdateRequest` | `domain/notice/dto` | 공지사항 수정 요청 DTO (NoticeCreateRequest와 동일 필드, 전체 교체) |
+| `NoticeService` | `domain/notice/service` | 공개 공지사항 서비스 — getActiveNotices()로 현재 노출 가능한 목록 반환 (읽기 전용) |
+| `AdminNoticeService` | `domain/notice/service` | 어드민 공지사항 CRUD 서비스 — 전체 목록 조회·생성·수정·삭제 |
+| `NoticeController` | `domain/notice/controller` | 공개 공지사항 API 컨트롤러 (GET /api/notices/active — 인증 불필요) |
+| `AdminNoticeController` | `domain/notice/controller` | 어드민 공지사항 관리 API 컨트롤러 (GET·POST /api/admin/notices, PATCH·DELETE /api/admin/notices/{id}) |
 | `AdminUserSummaryResponse` | `domain/user/dto` | 어드민 유저 목록 응답 DTO (이메일·역할·상태·MBTI 등 민감 정보 포함, ADMIN 전용) |
 | `AdminUserStateRequest` | `domain/user/dto` | 어드민 유저 상태 변경 요청 DTO (state 필수) |
 | `AdminUserRoleRequest` | `domain/user/dto` | 어드민 유저 역할 변경 요청 DTO (role 필수) |
@@ -135,9 +154,12 @@
 | `FunResponseCountRepository` | `domain/mbti/repository` | Fun 응답 집계 레포지토리 (ON CONFLICT DO UPDATE upsertCount 네이티브 쿼리) |
 | `FunService` | `domain/mbti/service` | Fun 질문 비즈니스 로직 (랜덤 3개 추출, 응답 UPSERT, 통계 LinkedHashMap 조립) |
 | `FunController` | `domain/mbti/controller` | Fun API 컨트롤러 (POST /api/mbti/fun/responses, GET /api/mbti/fun/stats — 인증 불필요) |
-| `UserCleanupService` | `domain/user/service` | WITHDRAWN 상태 유저 정기 삭제 서비스 — 매일 오전 04:00 배치 실행, PII는 탈퇴 시점 즉시 익명화됨 |
+| `UserCleanupService` | `domain/user/service` | WITHDRAWN 유저 정기 삭제·법적 보존 로그 만료 삭제 스케줄러 — 04:00 유저 배치, 04:05 retention 배치 |
 | `WithdrawalLog` | `domain/user/entity` | 탈퇴 이벤트 기록 엔티티 — PII 없이 withdrawn_at 타임스탬프만 보관, 탈퇴 추이 통계 전용 |
 | `WithdrawalLogRepository` | `domain/user/repository` | 탈퇴 로그 레포지토리 — MM-DD 기준 일별 탈퇴 수 집계 네이티브 쿼리 (findTrendRaw) |
+| `UserRetentionLog` | `domain/user/entity` | 탈퇴 유저 법적 보존 로그 엔티티 — email(AES 암호화)·phone_hash·탈퇴 IP를 12개월 보관 (전기통신사업법 §83의3) |
+| `UserRetentionLogRepository` | `domain/user/repository` | 법적 보존 로그 레포지토리 — deleteAllByExpiresAtBefore로 만료 로그 일괄 삭제 |
+| `RetentionEncryptionService` | `global/crypto` | 법적 보존 로그용 가역 암호화 서비스 — Spring Security Encryptors(AES-256/CBC), 환경변수 password·salt 주입 필수 |
 | `AdminMbtiQuestionUpdateRequest` | `domain/mbti/dto` | 어드민 MBTI 문항 수정 요청 DTO (title·category·isReverse, testVersion 변경 불가) |
 | `AdminMbtiQuestionService` | `domain/mbti/service` | 어드민 MBTI 문항 수정·노출 변경 서비스 — title·category·isReverse 수정, isVisible 토글, QUESTION_NOT_FOUND 예외 처리 |
 | `AdminMbtiQuestionVisibilityRequest` | `domain/mbti/dto` | 어드민 MBTI 문항 노출 여부 변경 요청 DTO (visible 필수) |
@@ -151,3 +173,13 @@
 | `InternalOnly` | `global/internal` | Next.js 서버 등 내부 호출 전용 엔드포인트 선언 어노테이션 — X-Internal-Key 헤더 검증을 InternalOnlyAspect가 자동 처리 |
 | `InternalOnlyAspect` | `global/internal` | @InternalOnly 어노테이션 AOP 처리기 — RequestContextHolder로 HttpServletRequest 획득 후 X-Internal-Key 헤더 검증 |
 | `InternalApiConstants` | `global/internal` | 내부 API 프로토콜 상수 모음 — INTERNAL_KEY_HEADER("X-Internal-Key") |
+| `AuditEvent` | `global/audit` | 감사 로그 이벤트 유형 Enum — SIGNUP·OAUTH2_SIGNUP·LOGIN·OAUTH2_LOGIN·PASSWORD_CHANGE·PHONE_CHANGE·WITHDRAWAL |
+| `AuditLog` | `global/audit` | 개인정보보호법 시행령 제30조 접속 기록 엔티티 — actor_id·event·ip·created_at 저장, of()/ofWithTarget() 팩토리 |
+| `AuditLogRepository` | `global/audit` | 감사 로그 JPA 레포지토리 (audit_logs 테이블, 커스텀 쿼리 없음) |
+| `AuditLogEvent` | `global/audit` | 감사 로그 기록 요청 Spring 이벤트 레코드 — event·actorId·actorRole·ip 전달 |
+| `AuditLogService` | `global/audit` | 감사 로그 기록 진입점 — ApplicationEventPublisher로 AuditLogEvent 발행만 담당 |
+| `AuditLogEventHandler` | `global/audit` | 감사 로그 비동기 저장 핸들러 — @TransactionalEventListener(AFTER_COMMIT)+@Async 조합으로 호출자 커밋 이후 별도 스레드에 저장 |
+| `TermsPolicy` | `domain/user` | 이용약관/개인정보처리방침 현재 버전 상수 (CURRENT_TERMS_VERSION·CURRENT_PRIVACY_VERSION) — 재동의 필요 여부 판단 기준 |
+| `PendingOAuth2SignupPrincipal` | `global/security/oauth2` | 약관 동의 전 신규 소셜 가입자용 임시 OAuth2User — User 없이 provider+프로필 정보만 보유, OAuth2AuthenticationSuccessHandler에서 분기 처리 |
+| `OAuth2AccountService` | `global/security/oauth2` | 소셜 로그인 신규 계정 생성 서비스 — 약관 동의 완료 API에서만 호출, 이메일 검증은 CustomOAuth2UserService.loadUser()에서 선행 |
+| `OAuth2SignupConfirmRequest` | `domain/auth/dto` | 소셜 로그인 신규 가입 약관 동의 완료 요청 DTO (signupToken·termsAgreed·privacyAgreed) |

@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import type { PostType } from "@/types/post";
-import { BOARD_META } from "@/lib/boardUtils";
+import { BOARD_META } from "@/constants/navigation";
 import BoardPostList from "@/components/post/BoardPostList";
 import QueryResetErrorBoundary from "@/components/common/QueryResetErrorBoundary";
 import PostCardSkeleton from "@/components/post/PostCardSkeleton";

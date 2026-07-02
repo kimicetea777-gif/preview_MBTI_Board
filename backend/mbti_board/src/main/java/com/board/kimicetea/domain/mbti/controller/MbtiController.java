@@ -5,8 +5,6 @@ import com.board.kimicetea.domain.mbti.dto.QuestionResponse;
 import com.board.kimicetea.domain.mbti.dto.MbtiTestSubmitRequest;
 import com.board.kimicetea.domain.mbti.service.MbtiService;
 import com.board.kimicetea.domain.user.security.CustomUserDetails;
-import com.board.kimicetea.global.common.exception.CustomException;
-import com.board.kimicetea.global.common.exception.ErrorCode;
 import com.board.kimicetea.global.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -64,8 +62,6 @@ public class MbtiController {
     public ResponseEntity<ApiResponse<MbtiTestResultResponse>> submitTest(
             @AuthenticationPrincipal final CustomUserDetails userDetails,
             @Valid @RequestBody final MbtiTestSubmitRequest request) {
-        if (userDetails == null)
-            throw new CustomException(ErrorCode.AUTHENTICATION_REQUIRED);
         return ResponseEntity.ok(ApiResponse.ok(mbtiService.submitTest(userDetails.userId(), request)));
     }
 }

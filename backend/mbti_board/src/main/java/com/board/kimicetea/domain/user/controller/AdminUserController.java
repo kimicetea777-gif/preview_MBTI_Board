@@ -8,6 +8,7 @@ import com.board.kimicetea.domain.user.enums.UserRole;
 import com.board.kimicetea.domain.user.enums.UserSortField;
 import com.board.kimicetea.domain.user.enums.UserState;
 import com.board.kimicetea.domain.user.service.AdminUserService;
+import com.board.kimicetea.domain.user.service.AdminUserStatsScheduler;
 import com.board.kimicetea.domain.user.service.AdminUserStatsService;
 import org.springframework.data.domain.Sort;
 import com.board.kimicetea.global.common.response.ApiResponse;
@@ -45,15 +46,27 @@ public class AdminUserController {
 
     private final AdminUserService adminUserService;
     private final AdminUserStatsService adminUserStatsService;
+    private final AdminUserStatsScheduler adminUserStatsScheduler;
 
-    @Operation(summary = "유저 통계 조회", description = "상태·역할·MBTI 분포, 가입 추이, 장기 미접속 수 등 유저 현황 통계를 반환합니다.")
+    @Operation(summary = "유저 통계 조회", description = "Redis 캐시에서 즉시 반환합니다. 캐시는 10분마다 자동 갱신되며 최초 기동 5초 후 선적재됩니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ADMIN 권한 없음")
     })
     @GetMapping("/stats")
     public ResponseEntity<ApiResponse<AdminUserStatsResponse>> getUserStats() {
-        return ResponseEntity.ok(ApiResponse.ok(adminUserStatsService.getStats()));
+        return ResponseEntity.ok(ApiResponse.ok(adminUserStatsService.getCachedStats()));
+    }
+
+    @Operation(summary = "유저 통계 캐시 수동 갱신", description = "백그라운드에서 즉시 재계산 후 Redis 캐시를 업데이트합니다. 실제 적용까지 수 초 소요됩니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "202", description = "갱신 시작됨"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ADMIN 권한 없음")
+    })
+    @PostMapping("/stats/refresh")
+    public ResponseEntity<ApiResponse<Void>> refreshStats() {
+        adminUserStatsScheduler.triggerAsync();
+        return ResponseEntity.accepted().body(ApiResponse.ok("통계 캐시 갱신을 시작했습니다."));
     }
 
     @Operation(summary = "유저 직접 생성", description = "어드민이 이메일 인증 없이 유저를 직접 생성합니다. role·state를 직접 지정할 수 있습니다.")

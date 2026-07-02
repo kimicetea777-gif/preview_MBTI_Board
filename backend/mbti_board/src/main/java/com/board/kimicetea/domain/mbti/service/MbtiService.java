@@ -7,6 +7,7 @@ import com.board.kimicetea.domain.mbti.dto.MbtiTestResultResponse;
 import com.board.kimicetea.domain.mbti.dto.MbtiTestSubmitRequest;
 import com.board.kimicetea.domain.mbti.dto.QuestionResponse;
 import com.board.kimicetea.domain.mbti.entity.MbtiMetadata;
+import com.board.kimicetea.domain.mbti.entity.MbtiQuestion;
 import com.board.kimicetea.domain.mbti.entity.MbtiTestHistory;
 import com.board.kimicetea.domain.mbti.repository.FunQuestionRepository;
 import com.board.kimicetea.domain.mbti.repository.MbtiMetadataRepository;
@@ -18,6 +19,7 @@ import com.board.kimicetea.domain.user.repository.UserRepository;
 import com.board.kimicetea.global.common.exception.CustomException;
 import com.board.kimicetea.global.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,12 +50,12 @@ public class MbtiService {
      * 주의: FN 질문은 fun_questions 테이블에서 별도 조회 후 셔플하여 섞음
      */
     public List<QuestionResponse> getTestQuestions() {
-        final List<com.board.kimicetea.domain.mbti.entity.MbtiQuestion> raw =
+        final List<MbtiQuestion> raw =
                 mbtiQuestionRepository.findRandomQuestionsByVersion("v1.0");
 
         final Map<String, Long> countByCategory = raw.stream()
                 .collect(Collectors.groupingBy(
-                        com.board.kimicetea.domain.mbti.entity.MbtiQuestion::getCategory,
+                        MbtiQuestion::getCategory,
                         Collectors.counting()));
 
         final List<String> insufficient = List.of("EI", "SN", "TF", "JP").stream()
@@ -109,7 +111,7 @@ public class MbtiService {
 
     /** 내 검사 이력 반환 — 최신순 */
     public List<MbtiTestHistoryResponse> getMyMbtiHistory(final UUID userId) {
-        return mbtiTestHistoryRepository.findByUserIdOrderByCreatedAtDesc(userId)
+        return mbtiTestHistoryRepository.findLatestByUserId(userId, Pageable.unpaged())
                 .stream()
                 .map(MbtiTestHistoryResponse::from)
                 .toList();

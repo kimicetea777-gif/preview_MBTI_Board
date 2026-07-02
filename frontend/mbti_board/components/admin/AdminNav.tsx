@@ -6,7 +6,7 @@ import type { IconType } from "react-icons";
 import { MdClose, MdArrowBack } from "react-icons/md";
 import {
   ADMIN_DASHBOARD_TABS, ADMIN_USER_TABS,
-  ADMIN_POST_TABS, ADMIN_COMMENT_TABS, ADMIN_MBTI_TABS,
+  ADMIN_POST_TABS, ADMIN_COMMENT_TABS, ADMIN_MBTI_TABS, ADMIN_ALERT_TABS, ADMIN_NOTICE_TABS,
 } from "@/constants/navigation";
 import { ROUTES } from "@/constants/routes";
 import { useNavStore } from "@/store/navStore";
@@ -72,11 +72,13 @@ export default function AdminNav() {
 }
 
 const ADMIN_NAV_GROUPS = [
-  { label: null,        tabs: ADMIN_DASHBOARD_TABS },
-  { label: null,      tabs: ADMIN_USER_TABS },
-  { label: null,    tabs: ADMIN_POST_TABS },
-  { label: null,      tabs: ADMIN_COMMENT_TABS },
-  { label: null,     tabs: ADMIN_MBTI_TABS },
+  { label: null, tabs: ADMIN_DASHBOARD_TABS },
+  { label: null, tabs: ADMIN_USER_TABS },
+  { label: null, tabs: ADMIN_POST_TABS },
+  { label: null, tabs: ADMIN_COMMENT_TABS },
+  { label: null, tabs: ADMIN_MBTI_TABS },
+  { label: null, tabs: ADMIN_NOTICE_TABS },
+  { label: null, tabs: ADMIN_ALERT_TABS },
 ] as const;
 
 function NavContent({ pathname, onNavClick }: { pathname: string; onNavClick?: () => void }) {

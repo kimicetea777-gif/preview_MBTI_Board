@@ -35,7 +35,11 @@ export function recordRecentlyViewed(post: Omit<RecentlyViewedPost, "viewedAt">)
   ].slice(0, MAX_ITEMS);
   cachedRaw = JSON.stringify(next);
   cachedSnapshot = next;
-  localStorage.setItem(STORAGE_KEY, cachedRaw);
+  try {
+    localStorage.setItem(STORAGE_KEY, cachedRaw);
+  } catch {
+    // 저장 실패는 무시 (사파리 프라이빗 모드, 저장공간 초과 등) — 부가 기능이라 크래시로 이어지면 안 됨
+  }
 }
 
 export function getRecentlyViewed(): RecentlyViewedPost[] {

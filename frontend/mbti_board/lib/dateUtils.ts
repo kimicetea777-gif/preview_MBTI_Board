@@ -1,3 +1,4 @@
+
 export function getDeadlineLabel(endsAt: string | null, isEnded: boolean, closedLabel = "투표 종료"): string {
   if (isEnded) return closedLabel;
   if (!endsAt) return "기한 없음";

@@ -51,10 +51,6 @@ public class VoteService {
     public VoteResultResponse castVote(final Long postId, final VoteRequest request,
             final UUID userId) {
 
-        if (userId == null) {
-            throw new CustomException(ErrorCode.AUTHENTICATION_REQUIRED);
-        }
-
         // 숨겨진(is_visible=false) 게시글에 투표 방지
         if (!postRepository.existsByIdAndIsVisibleTrue(postId)) {
             throw new CustomException(ErrorCode.POST_NOT_FOUND);

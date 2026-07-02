@@ -11,7 +11,7 @@ const ROLE_OPTIONS: UserRole[] = ["ADMIN", "TESTER", "USER", "GUEST"];
 // PENDING(이메일 인증 대기)은 어드민 직접 생성 시 의미 없음 — 이메일 인증 우회
 // WITHDRAWN(탈퇴 대기)은 생성 시 허용 불가 — 백엔드에서도 400 반환
 const STATE_OPTIONS: UserState[] = ["NORMAL", "INACTIVE", "LOCKED", "SHADOW_BANNED", "PERMANENT_BAN"];
-const MBTI_OPTIONS = Object.values(MBTI_ID).filter((id) => id !== "UNKNOWN");
+const MBTI_OPTIONS = Object.values(MBTI_ID);
 
 const INPUT_CLS =
   "w-full rounded-md border border-outline-variant bg-surface-container-lowest px-3 py-1.5 text-sm text-on-surface focus:border-outline focus:outline-none";
@@ -25,7 +25,7 @@ export default function AdminCreateUserModal({ onClose }: Props) {
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [nickname, setNickname] = useState("");
-  const [mbtiId, setMbtiId] = useState<string>("NONE");
+  const [mbtiId, setMbtiId] = useState<string>(MBTI_ID.NONE);
   const [role, setRole] = useState<UserRole>("USER");
   const [state, setState] = useState<UserState>("NORMAL");
 

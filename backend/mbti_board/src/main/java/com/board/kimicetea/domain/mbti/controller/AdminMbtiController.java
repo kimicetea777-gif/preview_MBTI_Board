@@ -9,6 +9,7 @@ import com.board.kimicetea.domain.mbti.dto.AdminMbtiQuestionVisibilityRequest;
 import com.board.kimicetea.domain.mbti.dto.AdminMbtiTestStatsResponse;
 import com.board.kimicetea.domain.mbti.service.AdminFunQuestionService;
 import com.board.kimicetea.domain.mbti.service.AdminMbtiQuestionService;
+import com.board.kimicetea.domain.mbti.service.AdminMbtiTestStatsScheduler;
 import com.board.kimicetea.domain.mbti.service.AdminMbtiTestStatsService;
 import com.board.kimicetea.global.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -37,17 +39,29 @@ import java.util.List;
 public class AdminMbtiController {
 
     private final AdminMbtiTestStatsService adminMbtiTestStatsService;
+    private final AdminMbtiTestStatsScheduler adminMbtiTestStatsScheduler;
     private final AdminMbtiQuestionService adminMbtiQuestionService;
     private final AdminFunQuestionService adminFunQuestionService;
 
-    @Operation(summary = "MBTI 검사 통계 조회", description = "검사 결과 분포, 지표별 평균 점수, 재검사 빈도, 검사 추이 통계를 반환합니다.")
+    @Operation(summary = "MBTI 검사 통계 조회", description = "Redis 캐시에서 즉시 반환합니다. 캐시는 10분마다 자동 갱신되며 최초 기동 5초 후 선적재됩니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ADMIN 권한 없음")
     })
     @GetMapping("/stats")
     public ResponseEntity<ApiResponse<AdminMbtiTestStatsResponse>> getMbtiTestStats() {
-        return ResponseEntity.ok(ApiResponse.ok(adminMbtiTestStatsService.getStats()));
+        return ResponseEntity.ok(ApiResponse.ok(adminMbtiTestStatsService.getCachedStats()));
+    }
+
+    @Operation(summary = "MBTI 검사 통계 캐시 수동 갱신", description = "백그라운드에서 즉시 재계산 후 Redis 캐시를 업데이트합니다. 실제 적용까지 수 초 소요됩니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "202", description = "갱신 시작됨"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ADMIN 권한 없음")
+    })
+    @PostMapping("/stats/refresh")
+    public ResponseEntity<ApiResponse<Void>> refreshStats() {
+        adminMbtiTestStatsScheduler.triggerAsync();
+        return ResponseEntity.accepted().body(ApiResponse.ok("통계 캐시 갱신을 시작했습니다."));
     }
 
     @Operation(summary = "MBTI 전체 문항 조회", description = "is_visible 여부와 관계없이 모든 문항을 카테고리·ID 오름차순으로 반환합니다.")

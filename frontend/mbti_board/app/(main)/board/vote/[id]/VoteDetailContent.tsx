@@ -15,7 +15,7 @@ interface Props {
 }
 
 export default function VoteDetailContent({ id }: Props) {
-  const isLoggedIn = useAuthStore((s) => s.accessToken) !== null;
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn());
 
   const { data: post } = useSuspensePostDetail(id);
 

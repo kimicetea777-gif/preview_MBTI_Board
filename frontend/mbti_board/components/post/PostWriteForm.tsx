@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import RichContentEditor from "@/components/post/RichContentEditor";
 import MbtiSelect from "@/components/common/MbtiSelect";
 import FloatingLabelInput from "@/components/common/FloatingLabelInput";
-import { MBTI_ALL, type MbtiMetadata } from "@/types/mbti";
+import { MBTI_ALL } from "@/types/mbti";
 import { MAX_TITLE_LENGTH } from "@/types/post";
 
 interface Props {
@@ -18,7 +18,6 @@ interface Props {
   onContentChange: (value: string) => void;
   onUpload?: (url: string) => void;
   onUploadingChange?: (count: number) => void;
-  mbtiList: MbtiMetadata[];
   contentLabel?: string;
   contentPlaceholder?: string;
   children?: React.ReactNode;
@@ -39,7 +38,6 @@ export default function PostWriteForm({
   onContentChange,
   onUpload,
   onUploadingChange,
-  mbtiList,
   contentLabel,
   contentPlaceholder = "내용을 입력하세요.",
   children,
@@ -66,7 +64,6 @@ export default function PostWriteForm({
           <MbtiSelect
             value={targetMbti === MBTI_ALL ? undefined : targetMbti}
             onChange={(v) => onTargetMbtiChange(v ?? MBTI_ALL)}
-            mbtiList={mbtiList}
             placeholder="모든 MBTI"
             disabled={isPending}
           />

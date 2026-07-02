@@ -11,7 +11,6 @@ import { isTiptapEmpty, EMPTY_TIPTAP } from "@/lib/editor";
 import { MBTI_ALL } from "@/types/mbti";
 import {
   VOTE_OPTION_MIN,
-  VOTE_OPTION_MAX,
   POST_TYPE,
   GUEST_PASSWORD_MIN_LENGTH,
   MAX_TITLE_LENGTH,
@@ -19,16 +18,13 @@ import {
 import type { PostType, VoteOptionRequest } from "@/types/post";
 import { useImageUpload } from "@/hooks/useImageUpload";
 import { getApiErrorMessage } from "@/lib/apiError";
-
-export interface OptionRow {
-  optionText: string;
-  mbtiTarget: string;
-}
+import { useVoteOptionsForm } from "@/hooks/useVoteOptionsForm";
+import { useDeadlineForm } from "@/hooks/useDeadlineForm";
 
 export function useWriteForm(initialType: PostType) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const isLoggedIn = useAuthStore((s) => s.accessToken) !== null;
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn());
 
   const { hasImage, handleUpload, markSaved } = useImageUpload();
   const [uploadingCount, setUploadingCount] = useState(0);
@@ -44,15 +40,12 @@ export function useWriteForm(initialType: PostType) {
   const [guestPassword, setGuestPassword] = useState("");
 
   // VOTE
-  const [isMbtiMode, setIsMbtiMode] = useState(false);
-  const [options, setOptions] = useState<OptionRow[]>([
-    { optionText: "", mbtiTarget: "" },
-    { optionText: "", mbtiTarget: "" },
-  ]);
+  const { isMbtiMode, options, toggleMbtiMode, addOption, removeOption, updateOptionText } =
+    useVoteOptionsForm(mbtiList);
 
   // VOTE + DEBATE
-  const [endsAt, setEndsAt] = useState("");
-  const [isNoDeadline, setIsNoDeadline] = useState(false);
+  const { endsAt, isNoDeadline, setEndsAt, handleNoDeadlineToggle, validateDeadline } =
+    useDeadlineForm();
 
   // DEBATE
   const [proLabel, setProLabel] = useState("");
@@ -100,48 +93,6 @@ export function useWriteForm(initialType: PostType) {
       return;
     }
     setPostType(type);
-  };
-
-  const toggleMbtiMode = () => {
-    if (!isMbtiMode) {
-      const mbtiOptions = mbtiList.map((m) => ({ optionText: m.id, mbtiTarget: m.id }));
-      setOptions(mbtiOptions.length >= VOTE_OPTION_MIN ? mbtiOptions : options);
-    } else {
-      setOptions([
-        { optionText: "", mbtiTarget: "" },
-        { optionText: "", mbtiTarget: "" },
-      ]);
-    }
-    setIsMbtiMode((prev) => !prev);
-  };
-
-  const addOption = () => {
-    if (options.length >= VOTE_OPTION_MAX) return;
-    setOptions((prev) => [...prev, { optionText: "", mbtiTarget: "" }]);
-  };
-
-  const removeOption = (index: number) => {
-    if (options.length <= VOTE_OPTION_MIN) return;
-    setOptions((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const updateOptionText = (index: number, value: string) => {
-    setOptions((prev) =>
-      prev.map((o, i) => (i === index ? { ...o, optionText: value } : o))
-    );
-  };
-
-  const handleNoDeadlineToggle = () => {
-    setIsNoDeadline((prev) => !prev);
-    setEndsAt("");
-  };
-
-  const validateDeadline = (): boolean => {
-    if (!isNoDeadline && !!endsAt && new Date(endsAt) <= new Date()) {
-      toast.error("마감일은 현재 시각 이후여야 합니다.");
-      return false;
-    }
-    return true;
   };
 
   const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {

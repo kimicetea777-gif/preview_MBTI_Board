@@ -26,5 +26,9 @@ public record SignupRequest(
 
         /** 이메일 찾기 전용 — 미입력 시 null 허용 */
         @Pattern(regexp = ValidationConstants.PHONE_REGEXP, message = ValidationConstants.PHONE_MESSAGE)
-        String phone
+        String phone,
+
+        /** primitive boolean — 필드 누락 시 false로 역직렬화되어 안전하게 거부됨 */
+        boolean termsAgreed,
+        boolean privacyAgreed
 ) {}

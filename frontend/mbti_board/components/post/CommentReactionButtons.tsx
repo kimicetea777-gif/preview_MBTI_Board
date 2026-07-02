@@ -13,7 +13,7 @@ interface Props {
 }
 
 export default function CommentReactionButtons({ comment, postId }: Props) {
-  const isLoggedIn = !!useAuthStore((s) => s.accessToken);
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn());
   const { localState, handleClick, isMutating } = useReactionDebounce(comment, postId);
   const [loginAlert, setLoginAlert] = useState(false);
   const alertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

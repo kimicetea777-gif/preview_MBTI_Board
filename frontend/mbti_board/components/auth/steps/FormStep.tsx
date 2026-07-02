@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { MdAccountCircle } from "react-icons/md";
 import { HiArrowRight } from "react-icons/hi";
 import AuthCardHeader from "@/components/auth/AuthCardHeader";
@@ -9,30 +8,29 @@ import FloatingLabelInput from "@/components/common/FloatingLabelInput";
 import PasswordInput from "@/components/common/PasswordInput";
 import MbtiSelect from "@/components/common/MbtiSelect";
 import LabeledFilterBox from "@/components/common/LabeledFilterBox";
-import { UNKNOWN_MBTI_ID } from "@/types/mbti";
+import { MBTI_ID } from "@/types/mbti";
 import { PASSWORD_REGEX, PASSWORD_MESSAGE, PHONE_REGEX, PHONE_MESSAGE } from "@/lib/validationConstants";
 import { usePhoneInput } from "@/hooks/usePhoneInput";
 import ErrorMessage from "@/components/common/ErrorMessage";
-import { ROUTES } from "@/constants/routes";
+import TermsAgreementCheckboxes from "@/components/auth/TermsAgreementCheckboxes";
 import { toast } from "@/components/common/Toast";
 
 interface Props {
   email: string;
   onReauth: () => void;
-  mbtiList: { id: string }[];
   hasAuthError: boolean;
-  onSubmit: (data: { email: string; password: string; nickname: string; mbtiId: string; phone?: string }) => void;
+  onSubmit: (data: { email: string; password: string; nickname: string; mbtiId: string; phone?: string; termsAgreed: boolean; privacyAgreed: boolean }) => void;
   isPending: boolean;
   apiErrorMsg: string | null;
   isDuplicateNickname: boolean;
   isDuplicatePhone: boolean;
 }
 
-export default function FormStep({ email, onReauth, mbtiList, hasAuthError, onSubmit, isPending, apiErrorMsg, isDuplicateNickname, isDuplicatePhone }: Props) {
+export default function FormStep({ email, onReauth, hasAuthError, onSubmit, isPending, apiErrorMsg, isDuplicateNickname, isDuplicatePhone }: Props) {
   const [nickname, setNickname] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [mbtiId, setMbtiId] = useState(UNKNOWN_MBTI_ID);
+  const [mbtiId, setMbtiId] = useState<string>(MBTI_ID.NONE);
   const { phone, setPhone, handlePhoneChange } = usePhoneInput();
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
@@ -90,7 +88,7 @@ export default function FormStep({ email, onReauth, mbtiList, hasAuthError, onSu
                 toast.warning("약관 동의를 읽고 체크해주세요.");
                 return;
               }
-              onSubmit({ email, password, nickname, mbtiId, phone: phone ? phone.replace(/-/g, "") : undefined });
+              onSubmit({ email, password, nickname, mbtiId, phone: phone ? phone.replace(/-/g, "") : undefined, termsAgreed, privacyAgreed });
             }}
             className="space-y-4"
           >
@@ -129,8 +127,7 @@ export default function FormStep({ email, onReauth, mbtiList, hasAuthError, onSu
             <LabeledFilterBox label="MBTI">
               <MbtiSelect
                 value={mbtiId}
-                onChange={(v) => setMbtiId(v ?? UNKNOWN_MBTI_ID)}
-                mbtiList={mbtiList}
+                onChange={(v) => setMbtiId(v ?? MBTI_ID.NONE)}
                 disabled={isPending}
                 className="border-0 rounded-none flex-1"
               />
@@ -153,32 +150,14 @@ export default function FormStep({ email, onReauth, mbtiList, hasAuthError, onSu
               <ErrorMessage message={phoneError} />
             </div>
             <ErrorMessage message={errorMsg} />
-            <div className="space-y-2 pt-1">
-              <label className="flex items-start gap-2.5 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={termsAgreed}
-                  onChange={(e) => setTermsAgreed(e.target.checked)}
-                  disabled={isPending}
-                  className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
-                />
-                <span className="text-xs text-on-surface-variant leading-relaxed">
-                  <Link href={ROUTES.terms} target="_blank" className="font-medium text-primary underline underline-offset-2 hover:opacity-80">이용약관</Link>에 동의합니다. <span className="text-red-500">*</span>
-                </span>
-              </label>
-              <label className="flex items-start gap-2.5 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={privacyAgreed}
-                  onChange={(e) => setPrivacyAgreed(e.target.checked)}
-                  disabled={isPending}
-                  className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
-                />
-                <span className="text-xs text-on-surface-variant leading-relaxed">
-                  <Link href={ROUTES.privacy} target="_blank" className="font-medium text-primary underline underline-offset-2 hover:opacity-80">개인정보처리방침</Link>에 동의합니다. <span className="text-red-500">*</span>
-                </span>
-              </label>
-            </div>
+            <TermsAgreementCheckboxes
+              className="pt-1"
+              termsAgreed={termsAgreed}
+              onTermsAgreedChange={setTermsAgreed}
+              privacyAgreed={privacyAgreed}
+              onPrivacyAgreedChange={setPrivacyAgreed}
+              disabled={isPending}
+            />
             <div className="pt-2">
               <button
                 type="submit"

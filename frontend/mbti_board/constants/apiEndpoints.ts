@@ -2,6 +2,7 @@ export const API = {
   auth: {
     login: "/api/auth/login",
     signup: "/api/auth/signup",
+    oauth2Signup: "/api/auth/oauth2/signup",
     reissue: "/api/auth/reissue",
     logout: "/api/auth/logout",
     emailVerifySend: "/api/auth/email-verify/send",
@@ -50,6 +51,9 @@ export const API = {
     upload: "/api/upload", // Next.js Route Handler (Sharp 처리) — Java 백엔드 경유 안 함
     cancel: "/api/images", // Next.js Route Handler 경유 — X-Internal-Key 서버에서 주입 후 백엔드 전달
   },
+  notices: {
+    active: "/api/notices/active",
+  },
   admin: {
     users: "/api/admin/users",
     userStats: "/api/admin/users/stats",
@@ -61,6 +65,10 @@ export const API = {
     comments: "/api/admin/comments",
     commentStats: "/api/admin/comments/stats",
     commentVisibility: (id: number) => `/api/admin/comments/${id}/visibility`,
+    userStatsRefresh: "/api/admin/users/stats/refresh",
+    postStatsRefresh: "/api/admin/posts/stats/refresh",
+    commentStatsRefresh: "/api/admin/comments/stats/refresh",
+    mbtiStatsRefresh: "/api/admin/mbti/stats/refresh",
     mbtiStats: "/api/admin/mbti/stats",
     mbtiQuestions: "/api/admin/mbti/questions",
     mbtiQuestion: (id: number) => `/api/admin/mbti/questions/${id}`,
@@ -68,5 +76,10 @@ export const API = {
     funQuestions: "/api/admin/mbti/fun-questions",
     funQuestion: (id: number) => `/api/admin/mbti/fun-questions/${id}`,
     funQuestionVisibility: (id: number) => `/api/admin/mbti/fun-questions/${id}/visibility`,
+    alertStatus: "/api/admin/alerts/status",
+    alertMute: (type: string) => `/api/admin/alerts/mute/${type}`,
+    alertUnmute: (type: string) => `/api/admin/alerts/unmute/${type}`,
+    notices: "/api/admin/notices",
+    notice: (id: number) => `/api/admin/notices/${id}`,
   },
 } as const;

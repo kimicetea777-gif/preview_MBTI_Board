@@ -17,7 +17,10 @@ export const ROUTES = {
   adminCommentStats: "/admin/comments/stats",
   adminMbti: "/admin/mbti",
   adminMbtiStats: "/admin/mbti/stats",
+  adminAlerts: "/admin/alerts",
+  adminNotices: "/admin/notices",
   terms: "/terms",
+  termsAgree: "/terms/agree",
   privacy: "/privacy",
   mbti: {
     list: "/mbti",

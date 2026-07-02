@@ -20,6 +20,7 @@ import com.board.kimicetea.global.security.util.CookieUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -188,10 +189,11 @@ public class UserController {
             @RequestHeader("Authorization") final String bearerToken,
             @AuthenticationPrincipal final CustomUserDetails userDetails,
             @Valid @RequestBody final WithdrawalRequest request,
+            final HttpServletRequest httpRequest,
             final HttpServletResponse response) {
 
         final String accessToken = bearerToken.substring("Bearer ".length());
-        userService.withdraw(userDetails.userId(), accessToken, request.code());
+        userService.withdraw(userDetails.userId(), accessToken, request.code(), httpRequest);
         cookieUtils.clearRefreshTokenCookie(response);
         return ResponseEntity.ok(ApiResponse.ok("탈퇴 처리가 완료되었습니다."));
     }
@@ -221,9 +223,10 @@ public class UserController {
     @PatchMapping("/me/phone")
     public ResponseEntity<ApiResponse<Void>> updatePhone(
             @AuthenticationPrincipal final CustomUserDetails userDetails,
-            @Valid @RequestBody final UpdatePhoneRequest request) {
+            @Valid @RequestBody final UpdatePhoneRequest request,
+            final HttpServletRequest httpRequest) {
 
-        userService.updatePhone(userDetails.userId(), request);
+        userService.updatePhone(userDetails.userId(), request, httpRequest);
         return ResponseEntity.ok(ApiResponse.ok("전화번호가 등록되었습니다."));
     }
 
@@ -237,9 +240,10 @@ public class UserController {
     })
     @DeleteMapping("/me/phone")
     public ResponseEntity<ApiResponse<Void>> removePhone(
-            @AuthenticationPrincipal final CustomUserDetails userDetails) {
+            @AuthenticationPrincipal final CustomUserDetails userDetails,
+            final HttpServletRequest httpRequest) {
 
-        userService.removePhone(userDetails.userId());
+        userService.removePhone(userDetails.userId(), httpRequest);
         return ResponseEntity.ok(ApiResponse.ok("전화번호가 삭제되었습니다."));
     }
 
@@ -254,9 +258,10 @@ public class UserController {
     @PatchMapping("/me/password")
     public ResponseEntity<ApiResponse<Void>> changePassword(
             @AuthenticationPrincipal final CustomUserDetails userDetails,
-            @Valid @RequestBody final ChangePasswordRequest request) {
+            @Valid @RequestBody final ChangePasswordRequest request,
+            final HttpServletRequest httpRequest) {
 
-        userService.changePassword(userDetails.userId(), request);
+        userService.changePassword(userDetails.userId(), request, httpRequest);
         return ResponseEntity.ok(ApiResponse.ok("비밀번호가 변경되었습니다."));
     }
 }

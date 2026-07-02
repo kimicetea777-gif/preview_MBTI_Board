@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * FN 질문 레포지토리
@@ -15,8 +16,7 @@ import java.util.List;
 public interface FunQuestionRepository extends JpaRepository<FunQuestion, Long> {
 
     /** DB에서 랜덤 ID limit개 추출 — is_visible=true인 문항만, Java 셔플 없이 DB가 직접 랜덤 선택 */
-    @Query(value = "SELECT id FROM fun_questions WHERE test_version = :version AND is_visible = true ORDER BY RANDOM() LIMIT :limit",
-            nativeQuery = true)
+    @Query(value = "SELECT id FROM fun_questions WHERE test_version = :version AND is_visible = true ORDER BY RANDOM() LIMIT :limit", nativeQuery = true)
     List<Long> findRandomIdsByVersion(@Param("version") String version, @Param("limit") int limit);
 
     /** ID 목록으로 options JOIN FETCH — findRandomIdsByVersion 결과로 호출 */
@@ -29,7 +29,7 @@ public interface FunQuestionRepository extends JpaRepository<FunQuestion, Long> 
 
     /** 단건 조회 + options JOIN FETCH — 어드민 수정 시 사용 */
     @Query("SELECT DISTINCT q FROM FunQuestion q JOIN FETCH q.options WHERE q.id = :id")
-    java.util.Optional<FunQuestion> findByIdWithOptions(@Param("id") Long id);
+    Optional<FunQuestion> findByIdWithOptions(@Param("id") Long id);
 
     /** 전체 통계 플랫 조회 — 질문·선택지·카운트 한 번에 */
     @Query(value = """

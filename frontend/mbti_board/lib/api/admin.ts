@@ -17,6 +17,8 @@ import type {
   AdminCommentVisibilityRequest,
   AdminCommentListParams,
   AdminMbtiTestStatsResponse,
+  AlertType,
+  AlertStatusResponse,
 } from "@/types/admin";
 
 export async function fetchAdminUserStats(): Promise<AdminUserStatsResponse> {
@@ -92,6 +94,22 @@ export async function fetchAdminMbtiTestStats(): Promise<AdminMbtiTestStatsRespo
   return res.data.data;
 }
 
+export async function refreshAdminUserStats(): Promise<void> {
+  await apiClient.post(API.admin.userStatsRefresh);
+}
+
+export async function refreshAdminPostStats(): Promise<void> {
+  await apiClient.post(API.admin.postStatsRefresh);
+}
+
+export async function refreshAdminCommentStats(): Promise<void> {
+  await apiClient.post(API.admin.commentStatsRefresh);
+}
+
+export async function refreshAdminMbtiStats(): Promise<void> {
+  await apiClient.post(API.admin.mbtiStatsRefresh);
+}
+
 export async function fetchAdminMbtiQuestions(): Promise<AdminMbtiQuestion[]> {
   const res = await apiClient.get<ApiResponse<AdminMbtiQuestion[]>>(API.admin.mbtiQuestions);
   return res.data.data;
@@ -128,4 +146,17 @@ export async function changeAdminFunQuestionVisibility(
   visible: boolean
 ): Promise<void> {
   await apiClient.patch(API.admin.funQuestionVisibility(id), { visible });
+}
+
+export async function fetchAlertStatus(): Promise<AlertStatusResponse> {
+  const res = await apiClient.get<ApiResponse<AlertStatusResponse>>(API.admin.alertStatus);
+  return res.data.data;
+}
+
+export async function muteAlert(type: AlertType): Promise<void> {
+  await apiClient.post(API.admin.alertMute(type));
+}
+
+export async function unmuteAlert(type: AlertType): Promise<void> {
+  await apiClient.post(API.admin.alertUnmute(type));
 }

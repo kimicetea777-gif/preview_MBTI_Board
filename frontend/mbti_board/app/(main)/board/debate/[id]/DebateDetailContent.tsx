@@ -17,7 +17,7 @@ interface Props {
 }
 
 export default function DebateDetailContent({ id }: Props) {
-  const isLoggedIn = useAuthStore((s) => s.accessToken) !== null;
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn());
   const [selectedStance, setSelectedStance] = useState<DebateStance | null>(null);
 
   const { data: post } = useSuspensePostDetail(id);

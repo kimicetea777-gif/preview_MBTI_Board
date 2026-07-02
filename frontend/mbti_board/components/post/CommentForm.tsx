@@ -24,7 +24,7 @@ interface Props {
     - 비회원: 의견 선택 자체가 불가능하므로 댓글 등록 불가 (백엔드도 stance 필수로 거부)
 */
 export default function CommentForm({ postId, debateStance, parentId, onSuccess }: Props) {
-  const isLoggedIn = !!useAuthStore((s) => s.accessToken);
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn());
   const queryClient = useQueryClient();
 
   const [content, setContent] = useState("");
