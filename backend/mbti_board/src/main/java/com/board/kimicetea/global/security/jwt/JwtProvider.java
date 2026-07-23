@@ -57,12 +57,13 @@ public class JwtProvider {
                 .compact();
     }
 
-    public String generateRefreshToken(final UUID userId, final String deviceId) {
+    public String generateRefreshToken(final UUID userId, final String deviceId, final boolean rememberMe) {
         final Date now = new Date();
         return Jwts.builder()
                 .id(UUID.randomUUID().toString())
                 .subject(userId.toString())
                 .claim("deviceId", deviceId)
+                .claim("rememberMe", rememberMe)
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + refreshExpiry))
                 .signWith(secretKey)
@@ -72,9 +73,9 @@ public class JwtProvider {
     /**
      * OAuth2 신규 가입 약관 동의 대기용 임시 토큰 — DB에 아직 없는 프로필 정보를 담아 프론트로 전달
      * 주의: AT/RT와 달리 사용자 계정이 존재하지 않는 상태에서 발급되므로 subject는 provider:providerId 조합 사용
+     * 주의: 닉네임·프로필 이미지는 소셜 제공자 값을 쓰지 않고 계정 생성 시 무작위로 부여 — claim에 담지 않음
      */
-    public String generateOAuth2SignupToken(final String provider, final String providerId,
-            final String email, final String nickname, final String profileImageUrl) {
+    public String generateOAuth2SignupToken(final String provider, final String providerId, final String email) {
         final Date now = new Date();
         return Jwts.builder()
                 .id(UUID.randomUUID().toString())
@@ -83,8 +84,6 @@ public class JwtProvider {
                 .claim("provider", provider)
                 .claim("providerId", providerId)
                 .claim("email", email)
-                .claim("nickname", nickname)
-                .claim("profileImageUrl", profileImageUrl)
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + signupExpiry))
                 .signWith(secretKey)

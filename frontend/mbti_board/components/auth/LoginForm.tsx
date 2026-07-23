@@ -36,13 +36,14 @@ export default function LoginForm({ redirectTo }: Props) {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const lastMethod = useLocalStorageSnapshot(getLastLoginMethod, null);
 
   const mutation = useMutation({
     mutationFn: login,
     onSuccess: (data) => {
       setLastLoginMethod(LOGIN_METHOD.EMAIL);
-      setAccessToken(data.accessToken);
+      setAccessToken(data.accessToken, rememberMe);
       router.push(toSafeRedirect(redirectTo));
     },
   });
@@ -53,7 +54,7 @@ export default function LoginForm({ redirectTo }: Props) {
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    mutation.mutate({ email, password });
+    mutation.mutate({ email, password, rememberMe });
   };
 
   return (
@@ -127,6 +128,17 @@ export default function LoginForm({ redirectTo }: Props) {
               required
               disabled={mutation.isPending}
             />
+
+            <label className="flex items-center gap-2 text-sm text-on-surface-variant cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                disabled={mutation.isPending}
+                className="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary"
+              />
+              자동 로그인
+            </label>
 
             <ErrorMessage message={errorMsg} />
 

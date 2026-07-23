@@ -41,7 +41,7 @@ export type ViewMode = (typeof VIEW_MODE)[keyof typeof VIEW_MODE];
 export const MAX_TITLE_LENGTH = 150;
 
 export const VOTE_OPTION_MIN = 2;
-export const VOTE_OPTION_MAX = 10;
+export const VOTE_OPTION_MAX = 16;
 export const MAX_POST_IMAGES = 3;
 
 export const GUEST_PASSWORD_MIN_LENGTH = 4;
@@ -111,11 +111,25 @@ export interface DebateResult {
   myStance: 1 | -1 | null;        // 현재 사용자의 진영 투표 (비로그인·미투표 시 null)
 }
 
+// GET /api/posts/{id}/meta 응답 — SEO/OG 미리보기 생성 전용, viewCount 증가 없음
+export interface PostMetaResponse {
+  title: string;
+  contentPreview: string;
+  imageUrls: string[] | null;
+}
+
+// GET /api/posts/sitemap-entries 응답 — sitemap.xml 생성 전용, JOIN 없는 최소 프로젝션
+export interface PostSitemapEntry {
+  id: number;
+  createdAt: string; // ISO 8601
+}
+
 // GET /api/posts/{id} 상세 응답
 export interface PostDetailResponse extends PostSummaryResponse {
   content: string;                 // Tiptap JSON 직렬화 문자열
   isOwner: boolean;
   isGuest: boolean;
+  isVisible: boolean;
   updatedAt: string;
   voteResult?: VoteResult;         // VOTE 타입일 때만 포함
   debateResult?: DebateResult;     // DEBATE 타입일 때만 포함
@@ -143,6 +157,9 @@ export interface PostCreateRequest {
   content: string;                 // Tiptap JSON 직렬화 문자열
   guestPassword?: string;
   targetMbti?: string;
+  termsAgreed?: boolean;
+  privacyAgreed?: boolean;
+  age14Agreed?: boolean;
 }
 
 // POST /api/posts/vote 요청 (회원 전용)

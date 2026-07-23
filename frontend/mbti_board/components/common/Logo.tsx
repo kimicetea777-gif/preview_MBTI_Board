@@ -8,7 +8,7 @@ interface Props {
 }
 
 const SIZE = {
-  sm: { width: 80,  height: 28 },
+  sm: { width: 60,  height: 30 },
   md: { width: 110, height: 38 },
   lg: { width: 150, height: 52 },
   xl: { width: 200, height: 70 },
@@ -20,7 +20,7 @@ export default memo(function Logo({ size = "md", asLink = true }: Props) {
   const content = (
     <Image
       src="/images/logo.png"
-      alt={process.env.NEXT_PUBLIC_APP_NAME ?? "MBTI Board"}
+      alt={process.env.NEXT_PUBLIC_APP_NAME ?? "The Blue Butter App"}
       width={s.width}
       height={s.height}
       style={{ width: "auto" }}

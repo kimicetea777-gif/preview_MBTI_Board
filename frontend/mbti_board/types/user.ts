@@ -57,9 +57,17 @@ export interface MyProfileResponse {
   role: UserRole;
   state: UserState;
   isSocialOnly: boolean;
-  hasPhone: boolean;
+  hasRecoveryEmail: boolean;
   createdAt: string;
   lastLoginAt: string | null;
+}
+
+export interface RecoveryEmailSendRequest {
+  email: string;
+}
+
+export interface RecoveryEmailConfirmRequest {
+  token: string;
 }
 
 export interface UserActivityStats {
@@ -67,6 +75,10 @@ export interface UserActivityStats {
   commentCount: number;
   latestTestMbtiId: string | null;
   latestTestDate: string | null;
+}
+
+export interface NicknameCheckResponse {
+  available: boolean;
 }
 
 export interface MbtiTestHistory {

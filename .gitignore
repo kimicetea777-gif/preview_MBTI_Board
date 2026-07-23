@@ -1,5 +1,10 @@
 # Environment
 .env
+.env_next
+.env_me
+
+# USB 배포용 이미지 아카이브
+*.tar
 
 # Gradle
 .gradle/
@@ -36,4 +41,6 @@ dist/
 Thumbs.db
 
 # Custom
-/.설계/
+infra.md
+memo.md
+when_build.md

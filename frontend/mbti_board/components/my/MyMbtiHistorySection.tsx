@@ -1,7 +1,7 @@
 "use client";
 
-import { Suspense } from "react";
-import { LuFlaskConical } from "react-icons/lu";
+import { Suspense, useState } from "react";
+import { LuFlaskConical, LuChevronDown } from "react-icons/lu";
 import { getMbtiById } from "@/constants/mbtiData";
 import { useMyMbtiHistorySuspense } from "@/hooks/useUser";
 import QueryResetErrorBoundary from "@/components/common/QueryResetErrorBoundary";
@@ -14,12 +14,19 @@ const SCORE_DIMS = [
   { pos: "J", neg: "P", key: "jpScore" as const },
 ];
 
+const COLLAPSED_COUNT = 3;
+
 function scoreLabel(val: number, pos: string, neg: string) {
   return val >= 0 ? `${pos}${val}` : `${neg}${Math.abs(val)}`;
 }
 
 function MyMbtiHistorySectionInner() {
   const { data: history } = useMyMbtiHistorySuspense();
+  const [expanded, setExpanded] = useState(false);
+
+  const isCollapsible = history.length > COLLAPSED_COUNT;
+  const visibleHistory =
+    isCollapsible && !expanded ? history.slice(0, COLLAPSED_COUNT) : history;
 
   return (
     <div className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/20 shadow-sm">
@@ -36,7 +43,7 @@ function MyMbtiHistorySectionInner() {
         </div>
       ) : (
         <div className="space-y-1">
-          {history.map((item, idx) => {
+          {visibleHistory.map((item, idx) => {
             const meta = getMbtiById(item.mbtiId);
             const color = meta?.colorCode ?? "#A8A29E";
             const scores = SCORE_DIMS.map(({ pos, neg, key }) =>
@@ -67,6 +74,19 @@ function MyMbtiHistorySectionInner() {
             );
           })}
         </div>
+      )}
+
+      {isCollapsible && (
+        <button
+          type="button"
+          onClick={() => setExpanded((prev) => !prev)}
+          className="mt-2 flex w-full items-center justify-center gap-1 rounded-lg py-2 text-xs text-muted-foreground hover:bg-surface-container-low transition-colors"
+        >
+          {expanded ? "접기" : `더보기 (${history.length - COLLAPSED_COUNT})`}
+          <LuChevronDown
+            className={`w-3.5 h-3.5 transition-transform ${expanded ? "rotate-180" : ""}`}
+          />
+        </button>
       )}
     </div>
   );

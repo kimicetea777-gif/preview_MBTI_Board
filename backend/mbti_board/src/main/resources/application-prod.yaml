@@ -1,3 +1,8 @@
+spring:
+  flyway:
+    # 개발용 더미 시드(가짜 유저·게시글·통계) 제외 — db/migration만 적용
+    locations: classpath:db/migration
+
 logging:
   file:
     path: /var/log/mbti-board

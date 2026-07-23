@@ -37,6 +37,4 @@ out/
 .vscode/
 
 # Custom
-/.backend_function/
-/.CLAUDE.md
 .env

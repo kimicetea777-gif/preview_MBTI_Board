@@ -8,6 +8,7 @@ export type FindAccountTab = typeof FIND_ACCOUNT_TAB[keyof typeof FIND_ACCOUNT_T
 export interface LoginRequest {
   email: string;
   password: string;
+  rememberMe: boolean;
 }
 
 export interface SignupRequest {
@@ -15,9 +16,9 @@ export interface SignupRequest {
   password: string;
   nickname: string;
   mbtiId: string;
-  phone?: string;
   termsAgreed: boolean;
   privacyAgreed: boolean;
+  age14Agreed: boolean;
 }
 
 export interface LoginResponse {
@@ -31,6 +32,7 @@ export interface OAuth2SignupConfirmRequest {
   signupToken: string;
   termsAgreed: boolean;
   privacyAgreed: boolean;
+  age14Agreed: boolean;
 }
 
 export interface EmailVerifySendRequest {
@@ -42,7 +44,7 @@ export interface EmailVerifyConfirmRequest {
 }
 
 export interface FindEmailRequest {
-  phone: string;
+  recoveryEmail: string;
 }
 
 export interface FindEmailResponse {

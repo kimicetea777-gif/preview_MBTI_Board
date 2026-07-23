@@ -1,35 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { MdMenu, MdAccountCircle } from "react-icons/md";
 import { useAuthStore } from "@/store/authStore";
 import { useNavStore } from "@/store/navStore";
-import { apiClient } from "@/lib/apiClient";
 import { ROUTES } from "@/constants/routes";
-import { API } from "@/constants/apiEndpoints";
+import { useHasMounted } from "@/hooks/useHasMounted";
 import Logo from "./Logo";
 
 export default function Header() {
   const accessToken = useAuthStore((s) => s.accessToken);
-  const setAccessToken = useAuthStore((s) => s.setAccessToken);
-  const router = useRouter();
   const openDrawer = useNavStore((s) => s.openDrawer);
-
-  const handleLogout = async () => {
-    try {
-      await apiClient.post(API.auth.logout);
-    } finally {
-      setAccessToken(null);
-      router.push(ROUTES.login);
-    }
-  };
+  // 서버 렌더·클라이언트 첫 렌더는 항상 비로그인 상태로 고정 — silent refresh로 복구된
+  // accessToken이 하이드레이션 커밋보다 먼저 반영돼 발생하는 하이드레이션 불일치 방지
+  const mounted = useHasMounted();
 
   return (
-    <header className="sticky top-0 z-50 border-b border-outline-variant bg-background">
-      <div className="mx-auto flex h-16 max-w-300 items-center justify-between px-8 gap-4">
+    <header className="sticky top-0 z-50 border-outline-variant bg-background">
+      <div className="relative mx-auto flex h-16 max-w-300 items-center justify-between px-8 gap-4">
         {/* Brand */}
-        <div className="flex-1 flex items-center gap-3 min-w-0">
+        <div className="flex-1 flex items-center min-w-0">
           <button
             className="md:hidden p-2 rounded-full text-on-surface-variant hover:bg-accent transition-colors"
             onClick={openDrawer}
@@ -37,10 +27,20 @@ export default function Header() {
           >
             <MdMenu size={24} />
           </button>
-          <Link href={ROUTES.board.all} className="flex items-center gap-2.5 shrink-0">
+
+          {/* Logo (데스크톱) */}
+          <Link href={ROUTES.board.all} className="hidden md:flex items-center gap-2.5 shrink-0">
             <Logo size="md" asLink={false}/>
           </Link>
         </div>
+
+        {/* Logo (모바일: 헤더 정중앙 고정 배치) */}
+        <Link
+          href={ROUTES.board.all}
+          className="md:hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+        >
+          <Logo size="sm" asLink={false}/>
+        </Link>
 
         {/* Search */}
         {/* <div className="flex-1 flex justify-center">
@@ -56,22 +56,14 @@ export default function Header() {
 
         {/* Actions */}
         <div className="flex-1 flex items-center justify-end gap-1">
-          {accessToken ? (
-            <>
-              <Link
-                href={ROUTES.my}
-                className="p-2 rounded-full text-on-surface-variant hover:bg-accent transition-colors"
-                title="마이페이지"
-              >
-                <MdAccountCircle size={30} />
-              </Link>
-              <button
-                onClick={handleLogout}
-                className="ml-1 px-4 py-1.5 rounded-full text-sm font-medium text-on-surface-variant border border-outline-variant hover:bg-accent transition-colors"
-              >
-                로그아웃
-              </button>
-            </>
+          {mounted && accessToken ? (
+            <Link
+              href={ROUTES.my}
+              className="p-2 rounded-full text-on-surface-variant hover:bg-accent transition-colors"
+              title="마이페이지"
+            >
+              <MdAccountCircle size={30} />
+            </Link>
           ) : (
             <Link
               href={ROUTES.login}

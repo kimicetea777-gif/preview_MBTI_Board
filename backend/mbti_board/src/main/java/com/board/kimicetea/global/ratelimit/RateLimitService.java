@@ -45,7 +45,7 @@ public class RateLimitService {
      * @param maxRequests 허용 횟수
      * @param windowSecs  시간 창(초)
      */
-    void check(final String endpoint, final HttpServletRequest request, final int maxRequests,
+    public void check(final String endpoint, final HttpServletRequest request, final int maxRequests,
             final int windowSecs) {
         checkKey(RL_PREFIX + endpoint + ":" + RequestUtils.hashIp(ipSalt, RequestUtils.extractClientIp(request)), maxRequests, windowSecs);
     }

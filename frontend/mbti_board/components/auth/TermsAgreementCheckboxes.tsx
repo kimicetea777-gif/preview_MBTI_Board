@@ -8,16 +8,21 @@ interface Props {
   onTermsAgreedChange: (checked: boolean) => void;
   privacyAgreed: boolean;
   onPrivacyAgreedChange: (checked: boolean) => void;
+  /** 회원가입(이메일·소셜) 전용 — 값을 전달한 경우에만 만 14세 확인 체크박스 렌더링. 비회원 글쓰기에는 미적용 */
+  age14Agreed?: boolean;
+  onAge14AgreedChange?: (checked: boolean) => void;
   disabled?: boolean;
   className?: string;
 }
 
-/** 이용약관/개인정보처리방침 동의 체크박스 쌍 — 이메일 회원가입·소셜 약관 동의·비회원 글쓰기에서 공유 */
+/** 이용약관/개인정보처리방침(+회원가입 시 만 14세 확인) 동의 체크박스 — 이메일 회원가입·소셜 약관 동의·비회원 글쓰기에서 공유 */
 export default function TermsAgreementCheckboxes({
   termsAgreed,
   onTermsAgreedChange,
   privacyAgreed,
   onPrivacyAgreedChange,
+  age14Agreed,
+  onAge14AgreedChange,
   disabled,
   className,
 }: Props) {
@@ -47,6 +52,20 @@ export default function TermsAgreementCheckboxes({
           <Link href={ROUTES.privacy} target="_blank" className="font-medium text-primary underline underline-offset-2 hover:opacity-80">개인정보처리방침</Link>에 동의합니다. <span className="text-red-500">*</span>
         </span>
       </label>
+      {onAge14AgreedChange && (
+        <label className="flex items-start gap-2.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={age14Agreed ?? false}
+            onChange={(e) => onAge14AgreedChange(e.target.checked)}
+            disabled={disabled}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+          />
+          <span className="text-xs text-on-surface-variant leading-relaxed">
+            본인은 만 14세 이상입니다. <span className="text-red-500">*</span>
+          </span>
+        </label>
+      )}
     </div>
   );
 }

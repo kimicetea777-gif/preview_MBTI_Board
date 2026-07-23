@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { requestPasswordReset } from "@/lib/api/auth";
 import ErrorMessage from "@/components/common/ErrorMessage";
+import InfoBanner from "@/components/common/InfoBanner";
 import { MdEmail, MdSend } from "react-icons/md";
 
 type PasswordStep = 1 | 2;
@@ -73,7 +74,11 @@ export default function FindPasswordSection({ onPasswordSent }: Props) {
           </button>
         </form>
       ) : (
-        <aside className="text-center py-2">
+        <aside className="text-center py-2 space-y-4">
+          <InfoBanner
+            variant="info"
+            text="소셜 로그인 사용자는 비밀번호 재설정 이메일이 전송되지 않습니다. 소셜 로그인을 이용해 주세요."
+          />
           <button
             type="button"
             onClick={() => {

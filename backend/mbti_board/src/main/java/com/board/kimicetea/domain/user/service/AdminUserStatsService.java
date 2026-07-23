@@ -96,7 +96,7 @@ public class AdminUserStatsService {
         final Instant lastMonthStart = now.minusMonths(1).withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS).toInstant();
         final long thisMonthNewUsers  = userRepository.countByCreatedAtBetween(thisMonthStart, Instant.now());
         final long lastMonthNewUsers  = userRepository.countByCreatedAtBetween(lastMonthStart, thisMonthStart);
-        final long phoneVerifiedCount = userRepository.countHasPhone();
+        final long recoveryEmailCount = userRepository.countHasRecoveryEmail();
         final long longPendingCount   = userRepository.countByStateAndCreatedAtBefore(
                 UserState.PENDING, Instant.now().minus(7, ChronoUnit.DAYS));
 
@@ -104,7 +104,7 @@ public class AdminUserStatsService {
                 totalUsers, inactiveCount, lastMonthInactiveCount,
                 socialLoginCount, localLoginCount,
                 thisMonthNewUsers, lastMonthNewUsers,
-                phoneVerifiedCount, longPendingCount,
+                recoveryEmailCount, longPendingCount,
                 byState, byRole, byMbti, byMbtiVerified, signupTrend, withdrawalTrend, roleTrend);
 
         try {

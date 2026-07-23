@@ -27,6 +27,7 @@ public record PostDetailResponse(
                 int commentCount,
                 boolean isOwner,
                 boolean isGuest,
+                boolean isVisible,
                 Instant createdAt,
                 Instant updatedAt,
                 VoteResultResponse voteResult,
@@ -38,7 +39,7 @@ public record PostDetailResponse(
                                 id, typeCode, title,
                                 TiptapContentParser.resolveForResponse(content, r2PublicUrl),
                                 authorNickname, authorMbtiId, mbtiVerified, targetMbtiId,
-                                viewCount, commentCount, isOwner, isGuest, createdAt, updatedAt,
+                                viewCount, commentCount, isOwner, isGuest, isVisible, createdAt, updatedAt,
                                 voteResult, debateResult);
         }
 
@@ -114,6 +115,7 @@ public record PostDetailResponse(
                                 post.getCommentCount(),
                                 isOwner,
                                 post.getGuestPassword() != null,
+                                post.getIsVisible(),
                                 post.getCreatedAt(),
                                 post.getUpdatedAt(),
                                 voteResult,

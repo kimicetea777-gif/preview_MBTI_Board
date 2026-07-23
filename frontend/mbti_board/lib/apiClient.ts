@@ -23,35 +23,43 @@ apiClient.interceptors.request.use((config) => {
 
 let refreshPromise: Promise<string> | null = null;
 
+// session 힌트 쿠키 존재 여부 — 있으면 RT 쿠키도 유효할 가능성이 있어 silent refresh 시도 대상
+function hasSessionCookie(): boolean {
+  return (
+    typeof document !== "undefined" &&
+    document.cookie.split(";").some((c) => c.trim() === "session=1")
+  );
+}
+
+// silent refresh 진행 중이면 그 Promise를 공유(중복 요청 방지)
+function refreshAccessToken(): Promise<string> {
+  if (!refreshPromise) {
+    refreshPromise = axios
+      .post(REFRESH_URL, null, { withCredentials: true })
+      .then(({ data }) => {
+        const newToken: string = data.data.accessToken;
+        useAuthStore.getState().setAccessToken(newToken);
+        broadcastTokenRefreshed(newToken);
+        return newToken;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
+
 // 401 수신 시 silent refresh 후 원 요청 재시도
 apiClient.interceptors.response.use(
   (res) => res,
   async (error) => {
     const originalRequest = error.config;
 
-    const hasSession =
-      typeof document !== "undefined" &&
-      document.cookie.split(";").some((c) => c.trim() === "session=1");
-
-    if (error.response?.status === 401 && !originalRequest._retry && hasSession) {
+    if (error.response?.status === 401 && !originalRequest._retry && hasSessionCookie()) {
       originalRequest._retry = true;
 
-      if (!refreshPromise) {
-        refreshPromise = axios
-          .post(REFRESH_URL, null, { withCredentials: true })
-          .then(({ data }) => {
-            const newToken: string = data.data.accessToken;
-            useAuthStore.getState().setAccessToken(newToken);
-            broadcastTokenRefreshed(newToken);
-            return newToken;
-          })
-          .finally(() => {
-            refreshPromise = null;
-          });
-      }
-
       try {
-        const newToken = await refreshPromise;
+        const newToken = await refreshAccessToken();
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return apiClient(originalRequest);
       } catch {

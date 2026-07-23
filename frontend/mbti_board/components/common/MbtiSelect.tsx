@@ -11,12 +11,14 @@ interface Props {
   disabled?: boolean;
   className?: string;
   placeholder?: string;
+  align?: "start" | "center" | "end";
 }
 
 const ALL = "__ALL__";
 
-export default function MbtiSelect({ value, onChange, disabled, className, placeholder }: Props) {
+export default function MbtiSelect({ value, onChange, disabled, className, placeholder, align = "start" }: Props) {
   const radixValue = value ?? ALL;
+  const isAll = radixValue === ALL;
   const handleChange = (v: string) => onChange(v === ALL ? undefined : v);
 
   return (
@@ -25,12 +27,12 @@ export default function MbtiSelect({ value, onChange, disabled, className, place
         className={cn(
           "flex w-full items-center justify-between rounded-lg border border-border px-3 py-2 text-xs",
           "focus:border-ring focus:outline-none disabled:opacity-50 bg-background",
-          "data-placeholder:text-muted-foreground text-left",
+          "text-left",
           className,
         )}
       >
-        <Select.Value>
-          {radixValue === ALL ? placeholder : radixValue === MBTI_ID.NONE ? "미설정" : radixValue}
+        <Select.Value className={cn("font-bold", isAll && "text-muted-foreground")}>
+          {isAll ? placeholder : radixValue === MBTI_ID.NONE ? "미설정" : radixValue}
         </Select.Value>
         <Select.Icon asChild>
           <HiChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -41,6 +43,7 @@ export default function MbtiSelect({ value, onChange, disabled, className, place
         <Select.Content
           className="z-50 min-w-(--radix-select-trigger-width) max-h-52 overflow-hidden rounded-lg border border-border bg-popover shadow-lg"
           position="popper"
+          align={align}
           sideOffset={4}
         >
           <Select.ScrollUpButton className="flex items-center justify-center py-1 text-muted-foreground">

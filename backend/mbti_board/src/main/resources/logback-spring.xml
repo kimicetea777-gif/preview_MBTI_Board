@@ -45,7 +45,7 @@
       <to>${ALERT_MAIL_TO}</to>
       <from>${MAIL_USERNAME}</from>
       <subject>[MBTI Board] ERROR - %logger{20}</subject>
-      <cyclicBufferTracker class="ch.qos.logback.core.spi.CyclicBufferTrackerImpl">
+      <cyclicBufferTracker class="ch.qos.logback.core.spi.CyclicBufferTracker">
         <bufferSize>5</bufferSize>
       </cyclicBufferTracker>
       <layout class="ch.qos.logback.classic.PatternLayout">

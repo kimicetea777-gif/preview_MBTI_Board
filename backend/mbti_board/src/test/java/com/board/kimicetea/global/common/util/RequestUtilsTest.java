@@ -24,12 +24,13 @@ class RequestUtilsTest {
         }
 
         @Test
-        @DisplayName("CF-Connecting-IP 없고 X-Forwarded-For 있으면 첫 번째 IP를 반환한다")
-        void xForwardedFor_firstIpReturned() {
+        @DisplayName("CF-Connecting-IP 없으면 X-Forwarded-For는 무시하고(조작 가능한 헤더) RemoteAddr를 반환한다")
+        void xForwardedFor_notTrusted_remoteAddrReturned() {
             final MockHttpServletRequest request = new MockHttpServletRequest();
             request.addHeader("X-Forwarded-For", "2.3.4.5, 10.0.0.1, 172.16.0.1");
+            request.setRemoteAddr("5.5.5.5");
 
-            assertThat(RequestUtils.extractClientIp(request)).isEqualTo("2.3.4.5");
+            assertThat(RequestUtils.extractClientIp(request)).isEqualTo("5.5.5.5");
         }
 
         @Test

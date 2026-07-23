@@ -10,6 +10,7 @@ import FloatingLabelInput from "@/components/common/FloatingLabelInput";
 import { ALLOWED_IMAGE_TYPES_LABEL, MAX_IMAGE_BYTES_LABEL } from "@/constants/imageUpload";
 import VoteOptionsField from "@/components/post/VoteOptionsField";
 import DebateLabelsField from "@/components/post/DebateLabelsField";
+import DeadlineField from "@/components/post/DeadlineField";
 import TermsAgreementCheckboxes from "@/components/auth/TermsAgreementCheckboxes";
 import { toast } from "@/components/common/Toast";
 
@@ -20,6 +21,7 @@ interface Props {
 export default function WriteFormContent({ initialType }: Props) {
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [privacyAgreed, setPrivacyAgreed] = useState(false);
+  const [age14Agreed, setAge14Agreed] = useState(false);
 
   const {
     postType, title, targetMbti, guestPassword, isMbtiMode, options,
@@ -31,11 +33,10 @@ export default function WriteFormContent({ initialType }: Props) {
     updateOptionText, handleSubmit, handleUpload, setUploadingCount,
   } = useWriteForm(initialType);
 
-  const contentLabel = postType !== POST_TYPE.FREE ? "내용 (선택)" : undefined;
   const contentPlaceholder =
-    postType === POST_TYPE.VOTE ? "투표에 대한 설명을 입력하세요."
-    : postType === POST_TYPE.DEBATE ? "토론 주제에 대한 설명을 입력하세요."
-    : "내용을 입력하세요.";
+    postType === POST_TYPE.VOTE ? "투표에 대한 설명을 입력해요."
+    : postType === POST_TYPE.DEBATE ? "토론 주제에 대한 설명을 입력해요."
+    : "내용을 입력해요.";
 
   return (
     <section className="max-w-180 mx-auto px-4 py-8 pb-20">
@@ -64,17 +65,19 @@ export default function WriteFormContent({ initialType }: Props) {
           ))}
         </div>
       </div>
+
       {/* 게시글 공통 입력창 (title + mbti target + content)  */}
       <PostWriteForm
         isPending={isPending}
         isUploading={uploadingCount > 0}
         onSubmit={(e) => {
-          if (!isLoggedIn && postType === POST_TYPE.FREE && (!termsAgreed || !privacyAgreed)) {
+          // 비로그인 사용자 전용
+          if (!isLoggedIn && postType === POST_TYPE.FREE && (!termsAgreed || !privacyAgreed || !age14Agreed)) {
             e.preventDefault();
             toast.warning("약관 동의를 읽고 체크해주세요.");
             return;
           }
-          handleSubmit(e);
+          handleSubmit(e, { termsAgreed, privacyAgreed, age14Agreed });
         }}
         title={title}
         onTitleChange={setTitle}
@@ -83,10 +86,9 @@ export default function WriteFormContent({ initialType }: Props) {
         onContentChange={setContent}
         onUpload={handleUpload}
         onUploadingChange={setUploadingCount}
-        contentLabel={contentLabel}
         contentPlaceholder={contentPlaceholder}
       >
-        {/* Image Info */}
+        {/* Image Info Banner */}
         {hasImage && (
           <InfoBanner
             legend="이미지 업로드"
@@ -98,6 +100,7 @@ export default function WriteFormContent({ initialType }: Props) {
           />
         )}
 
+        {/* 비회원 전용 - 비밀번호 + 약관 동의 체크 */}
         {postType === POST_TYPE.FREE && !isLoggedIn && (
           <div className="space-y-3">
             <FloatingLabelInput
@@ -116,6 +119,8 @@ export default function WriteFormContent({ initialType }: Props) {
               onTermsAgreedChange={setTermsAgreed}
               privacyAgreed={privacyAgreed}
               onPrivacyAgreedChange={setPrivacyAgreed}
+              age14Agreed={age14Agreed}
+              onAge14AgreedChange={setAge14Agreed}
               disabled={isPending}
             />
           </div>
@@ -127,14 +132,10 @@ export default function WriteFormContent({ initialType }: Props) {
             isMbtiMode={isMbtiMode}
             mbtiList={mbtiList}
             isPending={isPending}
-            endsAt={endsAt}
-            isNoDeadline={isNoDeadline}
             onToggleMbtiMode={toggleMbtiMode}
             onAddOption={addOption}
             onRemoveOption={removeOption}
             onUpdateOptionText={updateOptionText}
-            onEndsAtChange={setEndsAt}
-            onNoDeadlineToggle={handleNoDeadlineToggle}
           />
         )}
 
@@ -143,10 +144,16 @@ export default function WriteFormContent({ initialType }: Props) {
             proLabel={proLabel}
             conLabel={conLabel}
             isPending={isPending}
-            endsAt={endsAt}
-            isNoDeadline={isNoDeadline}
             onProLabelChange={setProLabel}
             onConLabelChange={setConLabel}
+          />
+        )}
+
+        {(postType === POST_TYPE.VOTE || postType === POST_TYPE.DEBATE) && (
+          <DeadlineField
+            endsAt={endsAt}
+            isNoDeadline={isNoDeadline}
+            isPending={isPending}
             onEndsAtChange={setEndsAt}
             onNoDeadlineToggle={handleNoDeadlineToggle}
           />

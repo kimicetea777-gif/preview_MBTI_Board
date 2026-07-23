@@ -38,8 +38,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         if (authentication.getPrincipal() instanceof PendingOAuth2SignupPrincipal pending) {
             final var userInfo = pending.getUserInfo();
             final String signupToken = jwtProvider.generateOAuth2SignupToken(
-                    pending.getProvider(), userInfo.getProviderId(),
-                    userInfo.getEmail(), userInfo.getNickname(), userInfo.getProfileImageUrl());
+                    pending.getProvider(), userInfo.getProviderId(), userInfo.getEmail());
 
             final String redirectUrl = UriComponentsBuilder.fromUriString(frontendUrl + "/terms/agree")
                     .fragment("signupToken=" + signupToken)
@@ -53,7 +52,8 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         final User user = principal.getUser();
         final String deviceId = UUID.randomUUID().toString();
 
-        final String accessToken = tokenIssuerService.issue(user, deviceId, response);
+        // 소셜 로그인은 별도 체크박스 UI가 없으므로 기본 유지 로그인으로 발급
+        final String accessToken = tokenIssuerService.issue(user, deviceId, response, true);
 
         final String redirectUrl = UriComponentsBuilder.fromUriString(frontendUrl + "/oauth2/callback")
                 .fragment("accessToken=" + accessToken)

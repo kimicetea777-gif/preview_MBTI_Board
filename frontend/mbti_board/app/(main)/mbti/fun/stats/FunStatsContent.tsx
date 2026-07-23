@@ -71,14 +71,18 @@ function QuestionCard({
   return (
     <section className="bg-card rounded-2xl border border-border shadow-[0_4px_12px_rgba(0,0,0,0.05)] overflow-hidden">
       <div
-        className={`flex items-center gap-10 px-6 py-5 ${isList ? "cursor-pointer select-none hover:bg-accent/50 transition-colors" : ""}`}
+        className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-10 px-6 py-5 ${isList ? "cursor-pointer select-none hover:bg-accent/50 transition-colors" : ""}`}
         onClick={isList ? () => setOpen((v) => !v) : undefined}
       >
+
+        {/* Questiomn Title */}
         <span className="flex-1 min-w-0 text-base font-semibold text-card-foreground leading-snug">
           {question.title}
         </span>
-        <div className="shrink-0 flex items-center gap-3">
-          <div className="text-right">
+
+        {/* Total Partic */}
+        <div className="flex items-center justify-between sm:justify-end gap-3 sm:shrink-0">
+          <div className="text-left sm:text-right">
             <p className="text-[11px] text-muted-foreground">참여자</p>
             <p className="text-sm font-bold text-foreground tabular-nums">
               {totalResponses.toLocaleString()}명
@@ -92,6 +96,7 @@ function QuestionCard({
         </div>
       </div>
 
+      {/* Detail Info */}
       {(!isList || open) && (
         <div className="px-6 pb-6 flex flex-col gap-5 border-t border-dashed border-border pt-5">
           {question.options.map((opt) => (

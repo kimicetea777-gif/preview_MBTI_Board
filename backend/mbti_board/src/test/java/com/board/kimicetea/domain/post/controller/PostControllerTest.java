@@ -97,7 +97,7 @@ class PostControllerTest {
     private PostDetailResponse sampleDetail() {
         return new PostDetailResponse(
                 POST_ID, "FREE", "제목", "내용", "작성자", "INTJ", "TESTED", null,
-                5, 3, true, false, Instant.now(), Instant.now(), null, null);
+                5, 3, true, false, true, Instant.now(), Instant.now(), null, null);
     }
 
     private PostSummaryResponse sampleSummary() {
@@ -230,7 +230,7 @@ class PostControllerTest {
             given(postService.createPost(any(PostCreateRequest.class), any(), any()))
                     .willReturn(sampleDetail());
 
-            final PostCreateRequest request = new PostCreateRequest("제목", "내용", "FREE", null, null);
+            final PostCreateRequest request = new PostCreateRequest("제목", "내용", "FREE", null, null, true, true, true);
 
             mockMvc.perform(post(POSTS_URL)
                             .contentType(MediaType.APPLICATION_JSON)
@@ -246,7 +246,7 @@ class PostControllerTest {
             given(postService.createPost(any(PostCreateRequest.class), isNull(), any()))
                     .willReturn(sampleDetail());
 
-            final PostCreateRequest request = new PostCreateRequest("제목", "내용", "FREE", "pass1234", null);
+            final PostCreateRequest request = new PostCreateRequest("제목", "내용", "FREE", "pass1234", null, true, true, true);
 
             SecurityContextHolder.clearContext();
             mockMvc.perform(post(POSTS_URL)
@@ -259,7 +259,7 @@ class PostControllerTest {
         @Test
         @DisplayName("실패 — title 빈 문자열(@NotBlank 위반) → 400")
         void blankTitle() throws Exception {
-            final PostCreateRequest request = new PostCreateRequest("", "내용", "FREE", null, null);
+            final PostCreateRequest request = new PostCreateRequest("", "내용", "FREE", null, null, true, true, true);
 
             mockMvc.perform(post(POSTS_URL)
                             .contentType(MediaType.APPLICATION_JSON)
@@ -271,7 +271,7 @@ class PostControllerTest {
         @Test
         @DisplayName("실패 — content 빈 문자열(@NotBlank 위반) → 400")
         void blankContent() throws Exception {
-            final PostCreateRequest request = new PostCreateRequest("제목", "", "FREE", null, null);
+            final PostCreateRequest request = new PostCreateRequest("제목", "", "FREE", null, null, true, true, true);
 
             mockMvc.perform(post(POSTS_URL)
                             .contentType(MediaType.APPLICATION_JSON)
@@ -283,7 +283,7 @@ class PostControllerTest {
         @Test
         @DisplayName("실패 — guestPassword 3자(@Size min=4 위반) → 400")
         void tooShortGuestPassword() throws Exception {
-            final PostCreateRequest request = new PostCreateRequest("제목", "내용", "FREE", "abc", null);
+            final PostCreateRequest request = new PostCreateRequest("제목", "내용", "FREE", "abc", null, true, true, true);
 
             mockMvc.perform(post(POSTS_URL)
                             .contentType(MediaType.APPLICATION_JSON)

@@ -8,14 +8,19 @@ import com.board.kimicetea.domain.post.dto.PostSummaryResponse;
 import com.board.kimicetea.domain.post.service.PostService;
 import com.board.kimicetea.domain.user.dto.ChangePasswordRequest;
 import com.board.kimicetea.domain.user.dto.MyProfileResponse;
-import com.board.kimicetea.domain.user.dto.UpdatePhoneRequest;
+import com.board.kimicetea.domain.user.dto.NicknameCheckResponse;
+import com.board.kimicetea.domain.user.dto.RecoveryEmailConfirmRequest;
+import com.board.kimicetea.domain.user.dto.RecoveryEmailSendRequest;
 import com.board.kimicetea.domain.user.dto.UpdateProfileRequest;
 import com.board.kimicetea.domain.user.dto.UserActivityStatsResponse;
 import com.board.kimicetea.domain.user.dto.UserProfileResponse;
 import com.board.kimicetea.domain.user.dto.WithdrawalRequest;
 import com.board.kimicetea.domain.user.security.CustomUserDetails;
 import com.board.kimicetea.domain.user.service.UserService;
+import com.board.kimicetea.global.common.ValidationConstants;
 import com.board.kimicetea.global.common.response.ApiResponse;
+import com.board.kimicetea.global.ratelimit.RateLimit;
+import com.board.kimicetea.global.ratelimit.RateLimitEndpoints;
 import com.board.kimicetea.global.security.util.CookieUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -25,6 +30,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -90,6 +96,23 @@ public class UserController {
             @Valid @RequestBody final UpdateProfileRequest request) {
 
         return ResponseEntity.ok(ApiResponse.ok(userService.updateMyProfile(userDetails.userId(), request)));
+    }
+
+    /**
+     * 닉네임 실시간 중복 체크 — 회원가입/프로필 수정 폼에서 제출 전 확인용
+     * 주의: 최종 검증은 제출 시점에 서버가 다시 수행 (그 사이 다른 유저가 선점 가능)
+     */
+    @Operation(summary = "닉네임 중복 체크", description = "입력한 닉네임의 사용 가능 여부를 조회합니다. 인증 불필요.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "닉네임 형식 오류")
+    })
+    @RateLimit(endpoint = RateLimitEndpoints.NICKNAME_CHECK, max = 20, windowSecs = 60)
+    @GetMapping("/check-nickname")
+    public ResponseEntity<ApiResponse<NicknameCheckResponse>> checkNickname(
+            @RequestParam @Pattern(regexp = ValidationConstants.NICKNAME_REGEXP, message = ValidationConstants.NICKNAME_MESSAGE) final String nickname) {
+
+        return ResponseEntity.ok(ApiResponse.ok(new NicknameCheckResponse(userService.isNicknameAvailable(nickname))));
     }
 
     /**
@@ -213,38 +236,59 @@ public class UserController {
     }
 
     /**
-     * 전화번호 등록/변경 — HMAC 해싱 후 저장, 중복 검증 포함
+     * 복구 이메일 등록/변경 인증 링크 발송 — 소유권 확인 전까지는 실제로 반영되지 않음
      */
-    @Operation(summary = "전화번호 등록/변경", description = "전화번호를 해싱해 저장합니다. 이미 등록된 번호는 중복 오류를 반환합니다.")
+    @Operation(summary = "복구 이메일 인증 링크 발송", description = "입력한 이메일로 소유권 확인용 인증 링크를 발송합니다.")
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "등록/변경 성공"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 다른 계정에 등록된 전화번호")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "발송 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "로그인 이메일과 동일한 이메일"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 다른 계정에 등록된 이메일"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "요청 횟수 초과")
     })
-    @PatchMapping("/me/phone")
-    public ResponseEntity<ApiResponse<Void>> updatePhone(
+    @PostMapping("/me/recovery-email/send")
+    public ResponseEntity<ApiResponse<Void>> sendRecoveryEmailVerification(
             @AuthenticationPrincipal final CustomUserDetails userDetails,
-            @Valid @RequestBody final UpdatePhoneRequest request,
+            @Valid @RequestBody final RecoveryEmailSendRequest request,
             final HttpServletRequest httpRequest) {
 
-        userService.updatePhone(userDetails.userId(), request, httpRequest);
-        return ResponseEntity.ok(ApiResponse.ok("전화번호가 등록되었습니다."));
+        userService.sendRecoveryEmailVerification(userDetails.userId(), request, httpRequest);
+        return ResponseEntity.ok(ApiResponse.ok("인증 메일이 발송되었습니다."));
     }
 
     /**
-     * 전화번호 삭제
+     * 복구 이메일 인증 토큰 확인 — 검증 성공 시 계정에 복구 이메일 반영
+     * 주의: 메일 인박스를 다른 브라우저/기기에서 열 수 있으므로 인증 불필요(공개 엔드포인트) — SecurityConfig permitAll 등록됨
      */
-    @Operation(summary = "전화번호 삭제", description = "등록된 전화번호를 제거합니다.")
+    @Operation(summary = "복구 이메일 인증 확인", description = "인증 링크의 token을 검증하고 복구 이메일을 계정에 반영합니다. 로그인 불필요.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "인증 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "토큰 만료 또는 유효하지 않음"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 다른 계정에 등록된 이메일")
+    })
+    @PostMapping("/me/recovery-email/confirm")
+    public ResponseEntity<ApiResponse<Void>> confirmRecoveryEmailVerification(
+            @Valid @RequestBody final RecoveryEmailConfirmRequest request,
+            final HttpServletRequest httpRequest) {
+
+        userService.confirmRecoveryEmailVerification(request, httpRequest);
+        return ResponseEntity.ok(ApiResponse.ok("복구 이메일이 등록되었습니다."));
+    }
+
+    /**
+     * 복구 이메일 삭제
+     */
+    @Operation(summary = "복구 이메일 삭제", description = "등록된 복구 이메일을 제거합니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "삭제 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
     })
-    @DeleteMapping("/me/phone")
-    public ResponseEntity<ApiResponse<Void>> removePhone(
+    @DeleteMapping("/me/recovery-email")
+    public ResponseEntity<ApiResponse<Void>> removeRecoveryEmail(
             @AuthenticationPrincipal final CustomUserDetails userDetails,
             final HttpServletRequest httpRequest) {
 
-        userService.removePhone(userDetails.userId(), httpRequest);
-        return ResponseEntity.ok(ApiResponse.ok("전화번호가 삭제되었습니다."));
+        userService.removeRecoveryEmail(userDetails.userId(), httpRequest);
+        return ResponseEntity.ok(ApiResponse.ok("복구 이메일이 삭제되었습니다."));
     }
 
     /**

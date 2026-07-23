@@ -29,4 +29,15 @@ public final class GuestPasswordHelper {
             throw new CustomException(ErrorCode.GUEST_PASSWORD_REQUIRED);
         }
     }
+
+    /**
+     * 비회원 게시글·댓글 작성 시 이용약관/개인정보처리방침/만 14세 확인 검증
+     * 주의: 회원은 가입 시 이미 동의했으므로 호출하지 않음 (비회원 작성 분기 전용)
+     */
+    public static void requireTermsAgreement(final boolean termsAgreed, final boolean privacyAgreed,
+            final boolean age14Agreed) {
+        if (!termsAgreed || !privacyAgreed || !age14Agreed) {
+            throw new CustomException(ErrorCode.TERMS_NOT_AGREED);
+        }
+    }
 }

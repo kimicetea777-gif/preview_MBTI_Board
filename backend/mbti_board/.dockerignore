@@ -1,0 +1,9 @@
+build/
+bin/
+.gradle/
+.idea/
+*.iml
+out/
+function_design/
+HELP.md
+CLAUDE.md

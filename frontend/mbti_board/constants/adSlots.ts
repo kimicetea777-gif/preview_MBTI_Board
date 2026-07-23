@@ -13,3 +13,8 @@ export const AD_SLOTS = {
 } as const;
 
 export const AD_CLIENT_ID = "itsme";
+
+export const AD_EVERY = 6;
+
+// 초기 오픈 기간에는 광고 노출을 끄기 위한 스위치. true로 바꾸면 인피드/사이드바 광고가 다시 노출됨.
+export const AD_ENABLED = false;

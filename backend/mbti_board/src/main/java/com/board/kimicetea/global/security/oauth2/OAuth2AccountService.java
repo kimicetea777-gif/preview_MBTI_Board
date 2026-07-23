@@ -14,11 +14,15 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 /**
  * 소셜 로그인 신규 계정 생성 — 약관 동의 완료 API(POST /api/auth/oauth2/signup)에서만 호출됨
  * 주의: 이메일 필수 여부는 CustomOAuth2UserService.loadUser()에서 먼저 검증되지만,
  *       loadUser() 검증 시점과 실제 생성(여기) 사이 최대 signupToken 만료시간(10분) 간극이 있어
  *       그 사이 동일 이메일로 다른 경로가 먼저 가입할 수 있음 — DB UNIQUE 제약 위반을 DUPLICATE_EMAIL로 매핑해 방어
+ * 주의: 닉네임·프로필 이미지는 소셜 제공자가 준 값을 쓰지 않음 — 닉네임은 무작위로 부여 후 마이페이지에서 변경,
+ *       프로필 이미지는 현재 어디에도 노출되지 않아 수집하지 않음(불필요한 개인정보 수집 최소화)
  */
 @Service
 @RequiredArgsConstructor
@@ -28,16 +32,14 @@ public class OAuth2AccountService {
     private final MbtiMetadataSupport mbtiMetadataSupport;
 
     @Transactional
-    public User createAccount(final String provider, final String providerId, final String email,
-            final String nickname, final String profileImageUrl) {
+    public User createAccount(final String provider, final String providerId, final String email) {
         final MbtiMetadata defaultMbti = mbtiMetadataSupport.getNoneMbti();
 
         final User user = User.builder()
                 .email(email)
                 .socialProvider(provider)
                 .providerId(providerId)
-                .nickname(resolveUniqueNickname(nickname))
-                .profileImageUrl(profileImageUrl)
+                .nickname(generateRandomNickname())
                 .mbtiVerified(MbtiVerified.DEFAULT)
                 .role(UserRole.USER)
                 .state(UserState.NORMAL)
@@ -51,14 +53,17 @@ public class OAuth2AccountService {
         }
     }
 
-    /** 닉네임 중복 시 숫자 suffix를 붙여 고유 닉네임 생성 */
-    private String resolveUniqueNickname(final String base) {
-        final String safeName = (base != null && !base.isBlank()) ? base : "user";
-        String candidate = safeName;
-        int attempt = 0;
-        while (userRepository.existsByNickname(candidate)) {
-            candidate = safeName + "_" + (++attempt);
-        }
+    /**
+     * "user" + 36진수 랜덤 문자열(8자) 닉네임 생성 — 충돌 시 재추첨
+     * 주의: 보안이 걸린 값이 아니므로(예측 가능해도 무방) SecureRandom 대신 가벼운 ThreadLocalRandom 사용
+     */
+    private String generateRandomNickname() {
+        String candidate;
+        do {
+            // base36 문자열은 값에 따라 길이가 가변적 — 8자 미만이면 substring이 터지므로 앞을 0으로 채운 뒤 뒤 8자만 사용
+            final String padded = "00000000" + Long.toUnsignedString(ThreadLocalRandom.current().nextLong(), 36);
+            candidate = "user" + padded.substring(padded.length() - 8);
+        } while (userRepository.existsByNickname(candidate));
         return candidate;
     }
 }

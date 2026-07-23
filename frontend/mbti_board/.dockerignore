@@ -1,0 +1,8 @@
+node_modules/
+.next/
+function_design/
+CLAUDE.md
+AGENTS.md
+*.tsbuildinfo
+.env.development
+.env.development.local

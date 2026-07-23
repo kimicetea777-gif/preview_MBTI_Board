@@ -3,6 +3,7 @@ package com.board.kimicetea.domain.post.controller;
 import com.board.kimicetea.domain.post.dto.AdminPostStatsResponse;
 import com.board.kimicetea.domain.post.dto.AdminPostSummaryResponse;
 import com.board.kimicetea.domain.post.dto.AdminPostVisibilityRequest;
+import com.board.kimicetea.domain.post.dto.PostDetailResponse;
 import com.board.kimicetea.domain.post.service.AdminPostService;
 import com.board.kimicetea.domain.post.service.AdminPostStatsScheduler;
 import com.board.kimicetea.domain.post.service.AdminPostStatsService;
@@ -76,6 +77,17 @@ public class AdminPostController {
         return ResponseEntity.ok(ApiResponse.ok(
                 adminPostService.getPosts(typeCode, isVisible, authorNickname, sortDir,
                         PageRequest.of(Math.max(page, 0), Math.max(1, Math.min(size, 100))))));
+    }
+
+    @Operation(summary = "게시글 단건 조회", description = "숨겨진 게시글을 포함해 상세 내용을 조회합니다. viewCount는 증가하지 않습니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ADMIN 권한 없음"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "게시글 없음")
+    })
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<PostDetailResponse>> getPost(@PathVariable final long id) {
+        return ResponseEntity.ok(ApiResponse.ok(adminPostService.getPost(id)));
     }
 
     @Operation(summary = "게시글 삭제", description = "게시글을 영구 삭제합니다. 연결된 댓글도 CASCADE 삭제됩니다.")

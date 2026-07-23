@@ -7,7 +7,6 @@ import com.board.kimicetea.global.audit.AuditLogService;
 
 import com.board.kimicetea.global.common.util.RequestUtils;
 import com.board.kimicetea.global.security.oauth2.userinfo.GoogleOAuth2UserInfo;
-import com.board.kimicetea.global.security.oauth2.userinfo.KakaoOAuth2UserInfo;
 import com.board.kimicetea.global.security.oauth2.userinfo.OAuth2UserInfo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
@@ -85,7 +84,6 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     private OAuth2UserInfo resolveUserInfo(final String provider, final Map<String, Object> attributes) {
         return switch (provider.toLowerCase()) {
             case "google" -> new GoogleOAuth2UserInfo(attributes);
-            case "kakao"  -> new KakaoOAuth2UserInfo(attributes);
             default -> throw new OAuth2AuthenticationException(new OAuth2Error("UNSUPPORTED_PROVIDER"));
         };
     }

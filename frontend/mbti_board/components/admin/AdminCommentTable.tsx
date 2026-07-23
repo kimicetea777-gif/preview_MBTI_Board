@@ -2,11 +2,20 @@
 
 import { useState } from "react";
 import { useAdminComments, useChangeCommentVisibility } from "@/hooks/useAdmin";
+import { usePagination } from "@/hooks/usePagination";
 import { SORT_DIR } from "@/types/admin";
-import type { SortDir } from "@/types/admin";
+import type { SortDir, AdminCommentSummaryResponse } from "@/types/admin";
 import { POST_TYPE } from "@/types/post";
 import type { PostType } from "@/types/post";
 import { ROUTES } from "@/constants/routes";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 const PAGE_SIZE = 20;
 
@@ -41,6 +50,7 @@ export default function AdminCommentTable() {
   const [authorNickname, setAuthorNickname] = useState(INITIAL_FILTERS.authorNickname);
   const [sortDir, setSortDir] = useState<SortDir>(INITIAL_FILTERS.sortDir);
   const [appliedParams, setAppliedParams] = useState<AppliedParams>(INITIAL_APPLIED);
+  const [selectedComment, setSelectedComment] = useState<AdminCommentSummaryResponse | null>(null);
 
   const { data } = useAdminComments({
     postId: appliedParams.postId,
@@ -51,6 +61,12 @@ export default function AdminCommentTable() {
     size: PAGE_SIZE,
   });
   const changeVisibility = useChangeCommentVisibility();
+
+  const { goToPrev, goToNext } = usePagination({
+    page: appliedParams.page,
+    totalPages: data.totalPages,
+    onPageChange: (page) => setAppliedParams((prev) => ({ ...prev, page })),
+  });
 
   function handleFilterSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -147,10 +163,7 @@ export default function AdminCommentTable() {
               comments.map((comment) => (
                 <tr
                   key={comment.id}
-                  onClick={() => {
-                    const routeFn = POST_BOARD_ROUTE[comment.postTypeCode as PostType];
-                    if (routeFn) window.open(routeFn(comment.postId), "_blank");
-                  }}
+                  onClick={() => setSelectedComment(comment)}
                   className={`cursor-pointer hover:bg-surface-container-low ${!comment.isVisible ? "opacity-60" : ""}`}
                 >
                   <td className="px-4 py-3 text-on-surface-variant">{comment.id}</td>
@@ -210,7 +223,7 @@ export default function AdminCommentTable() {
       {data.totalPages > 1 && (
         <div className="mt-4 flex items-center justify-center gap-2">
           <button
-            onClick={() => setAppliedParams((p) => ({ ...p, page: Math.max(0, p.page - 1) }))}
+            onClick={goToPrev}
             disabled={appliedParams.page === 0}
             className="rounded-md border border-outline-variant px-3 py-1.5 text-sm text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40"
           >
@@ -220,7 +233,7 @@ export default function AdminCommentTable() {
             {appliedParams.page + 1} / {data.totalPages}
           </span>
           <button
-            onClick={() => setAppliedParams((p) => ({ ...p, page: Math.min(data.totalPages - 1, p.page + 1) }))}
+            onClick={goToNext}
             disabled={data.last}
             className="rounded-md border border-outline-variant px-3 py-1.5 text-sm text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40"
           >
@@ -228,6 +241,65 @@ export default function AdminCommentTable() {
           </button>
         </div>
       )}
+
+      {/* 댓글 전체 내용 확인 다이얼로그 — 숨김 댓글은 공개 페이지에 노출되지 않으므로 여기서 바로 확인 */}
+      <Dialog open={selectedComment !== null} onOpenChange={(open) => !open && setSelectedComment(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>댓글 상세</DialogTitle>
+            <DialogDescription>
+              #{selectedComment?.id} · {selectedComment?.authorNickname}
+              {selectedComment?.isGuest && " (비회원)"}
+              {selectedComment?.parentId !== null && " · 대댓글"}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedComment && (
+            <>
+              <p className="whitespace-pre-wrap rounded-lg border border-outline-variant bg-surface-container-low p-3 text-sm text-on-surface">
+                {selectedComment.content}
+              </p>
+              <div className="flex items-center justify-between text-xs text-on-surface-variant">
+                <span>{new Date(selectedComment.createdAt).toLocaleString("ko-KR")}</span>
+                {selectedComment.isVisible ? (
+                  <span className="font-medium text-green-600">공개</span>
+                ) : (
+                  <span className="font-medium text-red-500">숨김</span>
+                )}
+              </div>
+              <DialogFooter className="flex-row gap-2">
+                {POST_BOARD_ROUTE[selectedComment.postTypeCode as PostType] && (
+                  <a
+                    href={POST_BOARD_ROUTE[selectedComment.postTypeCode as PostType](selectedComment.postId)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 rounded-lg border border-outline-variant py-2 text-center text-sm hover:bg-accent"
+                  >
+                    게시글로 이동
+                  </a>
+                )}
+                <button
+                  type="button"
+                  disabled={changeVisibility.isPending}
+                  onClick={() => {
+                    changeVisibility.mutate({
+                      id: selectedComment.id,
+                      data: { visible: !selectedComment.isVisible },
+                    });
+                    setSelectedComment(null);
+                  }}
+                  className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
+                    selectedComment.isVisible
+                      ? "bg-red-50 text-red-600 hover:bg-red-100"
+                      : "border border-outline-variant text-on-surface-variant hover:bg-surface-container-low"
+                  }`}
+                >
+                  {selectedComment.isVisible ? "숨기기" : "복구"}
+                </button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

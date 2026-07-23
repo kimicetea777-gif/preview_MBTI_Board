@@ -8,6 +8,7 @@ import com.board.kimicetea.global.image.service.ImageCleanupService;
 import com.board.kimicetea.global.image.service.ImageService;
 import com.board.kimicetea.global.internal.InternalOnly;
 import com.board.kimicetea.global.ratelimit.RateLimit;
+import com.board.kimicetea.global.ratelimit.RateLimitEndpoints;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
@@ -43,7 +44,7 @@ public class ImageController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "Rate Limit 초과")
     })
     @InternalOnly
-    @RateLimit(endpoint = "upload", max = ImageConstants.RATE_LIMIT_MAX, windowSecs = ImageConstants.RATE_LIMIT_WINDOW_SECONDS)
+    @RateLimit(endpoint = RateLimitEndpoints.UPLOAD, max = ImageConstants.RATE_LIMIT_MAX, windowSecs = ImageConstants.RATE_LIMIT_WINDOW_SECONDS)
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<?>> upload(@RequestParam final MultipartFile file) {
         return ResponseEntity.ok(ApiResponse.ok(new ImageUploadResponse(imageService.upload(file))));

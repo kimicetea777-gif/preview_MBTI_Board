@@ -5,6 +5,7 @@ import { FiChevronLeft, FiChevronRight, FiUserPlus } from "react-icons/fi";
 import AdminUserDrawer from "./AdminUserDrawer";
 import AdminCreateUserModal from "./AdminCreateUserModal";
 import { useAdminUsers } from "@/hooks/useAdmin";
+import { usePagination, PAGE_ELLIPSIS } from "@/hooks/usePagination";
 import StateInfoPopover from "./StateInfoPopover";
 import { USER_ROLE } from "@/types/user";
 import type { UserRole, UserState } from "@/types/user";
@@ -63,6 +64,12 @@ export default function AdminUserTable() {
 
   // 쿼리 데이터에서 파생 — mutation 후 쿼리 무효화 시 자동으로 최신 데이터 반영
   const selectedUser = data.content.find((u) => u.id === selectedUserId) ?? null;
+
+  const { pageNumbers, goToPrev, goToNext } = usePagination({
+    page: appliedParams.page,
+    totalPages: data.totalPages,
+    onPageChange: (page) => setAppliedParams((prev) => ({ ...prev, page })),
+  });
 
 
   const INITIAL_FILTERS = {
@@ -238,49 +245,33 @@ export default function AdminUserTable() {
         </p>
         <div className="flex items-center gap-1">
           <button
-            onClick={() => setAppliedParams((p) => ({ ...p, page: Math.max(0, p.page - 1) }))}
+            onClick={goToPrev}
             disabled={appliedParams.page === 0}
             className="flex h-8 w-8 items-center justify-center rounded-lg border border-outline-variant text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40"
           >
             <FiChevronLeft size={16} />
           </button>
 
-          {(() => {
-            const total = data.totalPages;
-            const cur = appliedParams.page;
-            const pages: (number | "...")[] = [];
-
-            if (total <= 6) {
-              for (let i = 0; i < total; i++) pages.push(i);
-            } else {
-              pages.push(0, 1, 2);
-              if (cur > 3) pages.push("...");
-              if (cur > 2 && cur < total - 3) pages.push(cur);
-              if (cur < total - 4) pages.push("...");
-              pages.push(total - 3, total - 2, total - 1);
-            }
-
-            return pages.map((p, i) =>
-              p === "..." ? (
-                <span key={`ellipsis-${i}`} className="px-1 text-xs text-on-surface-variant/50">...</span>
-              ) : (
-                <button
-                  key={p}
-                  onClick={() => setAppliedParams((prev) => ({ ...prev, page: p }))}
-                  className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-medium transition-colors ${
-                    cur === p
-                      ? "bg-primary/70 text-primary-foreground shadow-sm"
-                      : "border border-outline-variant text-on-surface-variant hover:bg-surface-container-low"
-                  }`}
-                >
-                  {p + 1}
-                </button>
-              )
-            );
-          })()}
+          {pageNumbers.map((num, i) =>
+            num === PAGE_ELLIPSIS ? (
+              <span key={`ellipsis-${i}`} className="px-1 text-xs text-on-surface-variant/50">...</span>
+            ) : (
+              <button
+                key={num}
+                onClick={() => setAppliedParams((prev) => ({ ...prev, page: num }))}
+                className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-medium transition-colors ${
+                  appliedParams.page === num
+                    ? "bg-primary/70 text-primary-foreground shadow-sm"
+                    : "border border-outline-variant text-on-surface-variant hover:bg-surface-container-low"
+                }`}
+              >
+                {num + 1}
+              </button>
+            )
+          )}
 
           <button
-            onClick={() => setAppliedParams((p) => ({ ...p, page: Math.min(data.totalPages - 1, p.page + 1) }))}
+            onClick={goToNext}
             disabled={data.last}
             className="flex h-8 w-8 items-center justify-center rounded-lg border border-outline-variant text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40"
           >

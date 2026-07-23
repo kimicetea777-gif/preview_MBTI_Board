@@ -15,7 +15,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 /**
- * 탈퇴 유저 법적 보존 로그 — 수사 협조를 위해 email(암호화)·phone_hash·IP를 12개월 보관
+ * 탈퇴 유저 법적 보존 로그 — 수사 협조를 위해 email(암호화)·IP를 12개월 보관
  * 주의: email_enc는 RetentionEncryptionService(AES)로 암호화됨 — 평문 저장 금지
  */
 @Entity
@@ -34,9 +34,6 @@ public class UserRetentionLog {
     @Column(name = "email_enc", nullable = false, columnDefinition = "TEXT")
     private String emailEnc;
 
-    @Column(name = "phone_hash", length = 64)
-    private String phoneHash;
-
     @Column(name = "withdrawal_ip", nullable = false, length = 45)
     private String withdrawalIp;
 
@@ -48,12 +45,10 @@ public class UserRetentionLog {
     private Instant expiresAt;
 
     /** 탈퇴 시점 정보를 받아 12개월 후 만료되는 보존 로그 생성 */
-    public static UserRetentionLog of(final UUID userId, final String emailEnc,
-            final String phoneHash, final String withdrawalIp) {
+    public static UserRetentionLog of(final UUID userId, final String emailEnc, final String withdrawalIp) {
         final UserRetentionLog log = new UserRetentionLog();
         log.userId = userId;
         log.emailEnc = emailEnc;
-        log.phoneHash = phoneHash;
         log.withdrawalIp = withdrawalIp;
         log.expiresAt = Instant.now().plus(365, ChronoUnit.DAYS);
         return log;

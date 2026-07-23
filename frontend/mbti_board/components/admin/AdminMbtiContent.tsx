@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { FiChevronDown, FiChevronUp } from "react-icons/fi";
 import { useAdminMbtiQuestions, useAdminFunQuestions } from "@/hooks/useAdmin";
 import AdminMbtiQuestionDetailModal from "@/components/admin/AdminMbtiQuestionDetailModal";
 import AdminFunQuestionDetailModal from "@/components/admin/AdminFunQuestionDetailModal";
@@ -16,14 +17,21 @@ const CATEGORY_STYLE: Record<"EI" | "SN" | "TF" | "JP", string> = {
   JP: "bg-orange-100 text-orange-700",
 };
 
+// 기본 문항이 많아 FUN 문항이 가려지는 문제 때문에 처음엔 일부만 보여줌
+const MBTI_PREVIEW_COUNT = 5;
+
 export default function AdminMbtiContent() {
   const { data: mbtiQuestions } = useAdminMbtiQuestions();
   const { data: funQuestions } = useAdminFunQuestions();
   const [selected, setSelected] = useState<AdminMbtiQuestion | null>(null);
   const [selectedFun, setSelectedFun] = useState<AdminFunQuestion | null>(null);
+  const [isMbtiExpanded, setIsMbtiExpanded] = useState(false);
 
   const mbtiHiddenCount = mbtiQuestions.filter((q) => !q.isVisible).length;
   const funHiddenCount  = funQuestions.filter((q) => !q.isVisible).length;
+
+  const hasMoreMbti = mbtiQuestions.length > MBTI_PREVIEW_COUNT;
+  const visibleMbtiQuestions = isMbtiExpanded ? mbtiQuestions : mbtiQuestions.slice(0, MBTI_PREVIEW_COUNT);
 
   return (
     <>
@@ -49,7 +57,7 @@ export default function AdminMbtiContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant bg-surface-container-lowest">
-                {mbtiQuestions.map((q) => (
+                {visibleMbtiQuestions.map((q) => (
                   <tr
                     key={q.id}
                     onClick={() => setSelected(q)}
@@ -68,7 +76,9 @@ export default function AdminMbtiContent() {
                         <span className="text-xs text-on-surface-variant">정방향</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-on-surface">{q.title}</td>
+                    <td className="max-w-xs px-4 py-3 text-on-surface">
+                      <p className="truncate">{q.title}</p>
+                    </td>
                     <td className="px-4 py-3 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                       <AdminMbtiVisibilityButton id={q.id} isVisible={q.isVisible} />
                     </td>
@@ -77,6 +87,21 @@ export default function AdminMbtiContent() {
               </tbody>
             </table>
           </div>
+          {hasMoreMbti && (
+            <div className="mt-2 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setIsMbtiExpanded((prev) => !prev)}
+                className="flex items-center gap-1 rounded-md border border-outline-variant px-3 py-1.5 text-xs text-on-surface-variant hover:bg-surface-container-low transition-colors"
+              >
+                {isMbtiExpanded ? (
+                  <>접기 <FiChevronUp /></>
+                ) : (
+                  <>펼치기 ({mbtiQuestions.length - MBTI_PREVIEW_COUNT}개 더보기) <FiChevronDown /></>
+                )}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* FUN 문항 */}
@@ -107,7 +132,9 @@ export default function AdminMbtiContent() {
                     className={`cursor-pointer hover:bg-surface-container-low ${!q.isVisible ? "opacity-40" : ""}`}
                   >
                     <td className="px-4 py-3 text-on-surface-variant">{q.id}</td>
-                    <td className="px-4 py-3 text-on-surface">{q.title}</td>
+                    <td className="max-w-xs px-4 py-3 text-on-surface">
+                      <p className="truncate">{q.title}</p>
+                    </td>
                     <td className="px-4 py-3 text-right text-on-surface-variant">{q.options.length}개</td>
                     <td className="px-4 py-3 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                       <AdminFunVisibilityButton id={q.id} isVisible={q.isVisible} />

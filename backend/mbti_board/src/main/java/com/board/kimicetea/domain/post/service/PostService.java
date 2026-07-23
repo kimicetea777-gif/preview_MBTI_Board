@@ -15,6 +15,8 @@ import com.board.kimicetea.domain.post.dto.PostCreateRequest;
 import com.board.kimicetea.domain.post.dto.PostDeleteRequest;
 import com.board.kimicetea.domain.post.dto.PostDetailResponse;
 import com.board.kimicetea.domain.post.dto.MyPostPreviewResponse;
+import com.board.kimicetea.domain.post.dto.PostMetaResponse;
+import com.board.kimicetea.domain.post.dto.PostSitemapResponse;
 import com.board.kimicetea.domain.post.dto.PostSummaryResponse;
 import com.board.kimicetea.domain.post.dto.PostUpdateRequest;
 import com.board.kimicetea.domain.post.dto.VoteOptionRequest;
@@ -132,6 +134,34 @@ public class PostService {
     public PostDetailResponse getPost(final Long id, final UUID currentUserId) {
         final Post post = findPostOrThrow(id);
         postRepository.increaseViewCount(id);
+        return buildDetailResponse(post, currentUserId);
+    }
+
+    /**
+     * sitemap.xml 생성 전용 — id·createdAt만 필요해 authorMbti/votePost/debatePost JOIN을 전부 생략
+     */
+    @Transactional(readOnly = true)
+    public Page<PostSitemapResponse> getPostsForSitemap(final String type, final Pageable pageable) {
+        return postRepository.findSitemapEntries(PostType.from(type), pageable);
+    }
+
+    /**
+     * SEO/OG 메타데이터 전용 조회 — viewCount 증가 없음, 인증 무관
+     * 주의: title/contentPreview/imageUrls만 필요해 findWithDetailsById의 JOIN을 타지 않음
+     */
+    @Transactional(readOnly = true)
+    public PostMetaResponse getPostMeta(final Long id) {
+        final Post post = postRepository.findVisibleById(id)
+                .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
+        return PostMetaResponse.from(post, r2PublicUrl);
+    }
+
+    /**
+     * Post 엔티티 → PostDetailResponse 변환 (VOTE/DEBATE 부가 정보 포함)
+     * 주의: viewCount 증가를 포함하지 않음 — 어드민 모더레이션 조회(AdminPostService)에서도 재사용하기 위해 분리
+     */
+    public PostDetailResponse buildDetailResponse(final Post post, final UUID currentUserId) {
+        final Long id = post.getId();
 
         if (post.getPostType() == PostType.VOTE) {
             final VotePost votePost = votePostRepository.findWithOptionsById(id)
@@ -210,6 +240,8 @@ public class PostService {
         } else {
             // 비회원
             GuestPasswordHelper.requirePassword(request.guestPassword());
+            GuestPasswordHelper.requireTermsAgreement(
+                    request.termsAgreed(), request.privacyAgreed(), request.age14Agreed());
             user = null;
             authorMbti = mbtiMetadataSupport.getNoneMbti();
         }

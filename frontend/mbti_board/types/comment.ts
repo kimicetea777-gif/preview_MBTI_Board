@@ -30,6 +30,9 @@ export interface CreateCommentRequest {
   parentId?: number | null;
   debateStance?: DebateStance | null;
   guestPassword?: string;
+  termsAgreed?: boolean;
+  privacyAgreed?: boolean;
+  age14Agreed?: boolean;
 }
 
 export interface UpdateCommentRequest {

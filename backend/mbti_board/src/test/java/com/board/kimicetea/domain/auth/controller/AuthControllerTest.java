@@ -99,7 +99,7 @@ class AuthControllerTest {
     private static final String REISSUE_URL              = "/api/auth/reissue";
     private static final String LOGOUT_URL               = "/api/auth/logout";
 
-    private static final String VALID_PHONE    = "010-1234-5678";
+    private static final String VALID_RECOVERY_EMAIL = "recovery@example.com";
     private static final String VALID_EMAIL    = "test@example.com";
     private static final String VALID_PASSWORD = "password123!";
     private static final String VALID_NICKNAME = "테스트유저";
@@ -115,18 +115,18 @@ class AuthControllerTest {
     // ────────────────────── POST /api/auth/find-email ──────────────────────
 
     @Nested
-    @DisplayName("POST /api/auth/find-email — 전화번호로 이메일 찾기")
+    @DisplayName("POST /api/auth/find-email — 복구 이메일로 이메일 찾기")
     class FindEmail {
 
         @Test
-        @DisplayName("성공 — 유효한 전화번호 → 200 및 마스킹된 이메일 반환")
+        @DisplayName("성공 — 유효한 복구 이메일 → 200 및 마스킹된 이메일 반환")
         void success() throws Exception {
             given(authService.findEmail(any()))
                     .willReturn(new FindEmailResponse("te***@example.com", false));
 
             mockMvc.perform(post(FIND_EMAIL_URL)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(new FindEmailRequest(VALID_PHONE))))
+                            .content(objectMapper.writeValueAsString(new FindEmailRequest(VALID_RECOVERY_EMAIL))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data.maskedEmail").value("te***@example.com"))
@@ -141,14 +141,14 @@ class AuthControllerTest {
 
             mockMvc.perform(post(FIND_EMAIL_URL)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(new FindEmailRequest(VALID_PHONE))))
+                            .content(objectMapper.writeValueAsString(new FindEmailRequest(VALID_RECOVERY_EMAIL))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.isSocialOnly").value(true));
         }
 
         @Test
-        @DisplayName("실패 — phone 필드 누락(@NotBlank 위반) → 400")
-        void missingPhone() throws Exception {
+        @DisplayName("실패 — recoveryEmail 필드 누락(@NotBlank 위반) → 400")
+        void missingRecoveryEmail() throws Exception {
             mockMvc.perform(post(FIND_EMAIL_URL)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{}"))
@@ -157,24 +157,24 @@ class AuthControllerTest {
         }
 
         @Test
-        @DisplayName("실패 — 전화번호 형식 오류(@Pattern 위반) → 400")
-        void invalidPhoneFormat() throws Exception {
+        @DisplayName("실패 — 이메일 형식 오류(@Email 위반) → 400")
+        void invalidEmailFormat() throws Exception {
             mockMvc.perform(post(FIND_EMAIL_URL)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content("{\"phone\":\"12345\"}"))
+                            .content("{\"recoveryEmail\":\"not-an-email\"}"))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false));
         }
 
         @Test
-        @DisplayName("실패 — 전화번호에 해당하는 사용자 없음 → 404")
+        @DisplayName("실패 — 복구 이메일에 해당하는 사용자 없음 → 404")
         void userNotFound() throws Exception {
             given(authService.findEmail(any()))
                     .willThrow(new CustomException(ErrorCode.USER_NOT_FOUND));
 
             mockMvc.perform(post(FIND_EMAIL_URL)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(new FindEmailRequest(VALID_PHONE))))
+                            .content(objectMapper.writeValueAsString(new FindEmailRequest(VALID_RECOVERY_EMAIL))))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.success").value(false))
                     .andExpect(jsonPath("$.message").value(ErrorCode.USER_NOT_FOUND.getMessage()));
@@ -188,7 +188,7 @@ class AuthControllerTest {
 
             mockMvc.perform(post(FIND_EMAIL_URL)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(new FindEmailRequest(VALID_PHONE))))
+                            .content(objectMapper.writeValueAsString(new FindEmailRequest(VALID_RECOVERY_EMAIL))))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -307,7 +307,7 @@ class AuthControllerTest {
         @Test
         @DisplayName("성공 — 미가입 이메일 → 200")
         void success() throws Exception {
-            willDoNothing().given(authService).sendEmailVerification(any());
+            willDoNothing().given(authService).sendEmailVerification(any(), any());
 
             mockMvc.perform(post(EMAIL_VERIFY_SEND_URL)
                             .contentType(MediaType.APPLICATION_JSON)
@@ -340,7 +340,7 @@ class AuthControllerTest {
         @DisplayName("실패 — 이미 가입된 이메일 → 409")
         void duplicateEmail() throws Exception {
             willThrow(new CustomException(ErrorCode.DUPLICATE_EMAIL))
-                    .given(authService).sendEmailVerification(any());
+                    .given(authService).sendEmailVerification(any(), any());
 
             mockMvc.perform(post(EMAIL_VERIFY_SEND_URL)
                             .contentType(MediaType.APPLICATION_JSON)
@@ -402,8 +402,8 @@ class AuthControllerTest {
     class Signup {
 
         private String signupBody(final String email, final String password,
-                final String nickname, final String mbti, final String phone) throws Exception {
-            return objectMapper.writeValueAsString(new SignupRequest(email, password, nickname, mbti, phone, true, true));
+                final String nickname, final String mbti) throws Exception {
+            return objectMapper.writeValueAsString(new SignupRequest(email, password, nickname, mbti, true, true, true));
         }
 
         @Test
@@ -413,19 +413,7 @@ class AuthControllerTest {
 
             mockMvc.perform(post(SIGNUP_URL)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(signupBody(VALID_EMAIL, VALID_PASSWORD, VALID_NICKNAME, VALID_MBTI, VALID_PHONE)))
-                    .andExpect(status().isCreated())
-                    .andExpect(jsonPath("$.success").value(true));
-        }
-
-        @Test
-        @DisplayName("성공 — phone 미입력(null) 허용 → 201")
-        void successWithoutPhone() throws Exception {
-            willDoNothing().given(authService).signup(any(), any());
-
-            mockMvc.perform(post(SIGNUP_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(signupBody(VALID_EMAIL, VALID_PASSWORD, VALID_NICKNAME, VALID_MBTI, null)))
+                            .content(signupBody(VALID_EMAIL, VALID_PASSWORD, VALID_NICKNAME, VALID_MBTI)))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.success").value(true));
         }
@@ -437,7 +425,7 @@ class AuthControllerTest {
 
             mockMvc.perform(post(SIGNUP_URL)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(signupBody(VALID_EMAIL, VALID_PASSWORD, VALID_NICKNAME, "NONE", null)))
+                            .content(signupBody(VALID_EMAIL, VALID_PASSWORD, VALID_NICKNAME, "NONE")))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.success").value(true));
         }
@@ -447,7 +435,7 @@ class AuthControllerTest {
         void invalidEmail() throws Exception {
             mockMvc.perform(post(SIGNUP_URL)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(signupBody("not-an-email", VALID_PASSWORD, VALID_NICKNAME, VALID_MBTI, null)))
+                            .content(signupBody("not-an-email", VALID_PASSWORD, VALID_NICKNAME, VALID_MBTI)))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -457,7 +445,7 @@ class AuthControllerTest {
         void invalidPasswordPattern() throws Exception {
             mockMvc.perform(post(SIGNUP_URL)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(signupBody(VALID_EMAIL, "onlychars!!!", VALID_NICKNAME, VALID_MBTI, null)))
+                            .content(signupBody(VALID_EMAIL, "onlychars!!!", VALID_NICKNAME, VALID_MBTI)))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -467,7 +455,7 @@ class AuthControllerTest {
         void passwordTooShort() throws Exception {
             mockMvc.perform(post(SIGNUP_URL)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(signupBody(VALID_EMAIL, "pw1", VALID_NICKNAME, VALID_MBTI, null)))
+                            .content(signupBody(VALID_EMAIL, "pw1", VALID_NICKNAME, VALID_MBTI)))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -477,7 +465,7 @@ class AuthControllerTest {
         void nicknameTooShort() throws Exception {
             mockMvc.perform(post(SIGNUP_URL)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(signupBody(VALID_EMAIL, VALID_PASSWORD, "a", VALID_MBTI, null)))
+                            .content(signupBody(VALID_EMAIL, VALID_PASSWORD, "a", VALID_MBTI)))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -487,7 +475,7 @@ class AuthControllerTest {
         void nicknameTooLong() throws Exception {
             mockMvc.perform(post(SIGNUP_URL)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(signupBody(VALID_EMAIL, VALID_PASSWORD, "닉네임이열세자이상이면안됩니다", VALID_MBTI, null)))
+                            .content(signupBody(VALID_EMAIL, VALID_PASSWORD, "닉네임이열세자이상이면안됩니다", VALID_MBTI)))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -497,7 +485,7 @@ class AuthControllerTest {
         void invalidNicknamePattern() throws Exception {
             mockMvc.perform(post(SIGNUP_URL)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(signupBody(VALID_EMAIL, VALID_PASSWORD, "nick@name", VALID_MBTI, null)))
+                            .content(signupBody(VALID_EMAIL, VALID_PASSWORD, "nick@name", VALID_MBTI)))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -507,17 +495,7 @@ class AuthControllerTest {
         void invalidMbti() throws Exception {
             mockMvc.perform(post(SIGNUP_URL)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(signupBody(VALID_EMAIL, VALID_PASSWORD, VALID_NICKNAME, "XXXX", null)))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.success").value(false));
-        }
-
-        @Test
-        @DisplayName("실패 — 전화번호 형식 오류(@Pattern 위반) → 400")
-        void invalidPhoneFormat() throws Exception {
-            mockMvc.perform(post(SIGNUP_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(signupBody(VALID_EMAIL, VALID_PASSWORD, VALID_NICKNAME, VALID_MBTI, "12345")))
+                            .content(signupBody(VALID_EMAIL, VALID_PASSWORD, VALID_NICKNAME, "XXXX")))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -531,7 +509,7 @@ class AuthControllerTest {
             mockMvc.perform(post(SIGNUP_URL)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(
-                                    new SignupRequest(VALID_EMAIL, VALID_PASSWORD, VALID_NICKNAME, VALID_MBTI, null, false, true))))
+                                    new SignupRequest(VALID_EMAIL, VALID_PASSWORD, VALID_NICKNAME, VALID_MBTI, false, true, true))))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false))
                     .andExpect(jsonPath("$.message").value(ErrorCode.TERMS_NOT_AGREED.getMessage()));
@@ -545,7 +523,7 @@ class AuthControllerTest {
 
             mockMvc.perform(post(SIGNUP_URL)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(signupBody(VALID_EMAIL, VALID_PASSWORD, VALID_NICKNAME, VALID_MBTI, null)))
+                            .content(signupBody(VALID_EMAIL, VALID_PASSWORD, VALID_NICKNAME, VALID_MBTI)))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false))
                     .andExpect(jsonPath("$.message").value(ErrorCode.EMAIL_NOT_VERIFIED.getMessage()));
@@ -559,7 +537,7 @@ class AuthControllerTest {
 
             mockMvc.perform(post(SIGNUP_URL)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(signupBody(VALID_EMAIL, VALID_PASSWORD, VALID_NICKNAME, VALID_MBTI, null)))
+                            .content(signupBody(VALID_EMAIL, VALID_PASSWORD, VALID_NICKNAME, VALID_MBTI)))
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -572,7 +550,7 @@ class AuthControllerTest {
 
             mockMvc.perform(post(SIGNUP_URL)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(signupBody(VALID_EMAIL, VALID_PASSWORD, VALID_NICKNAME, VALID_MBTI, null)))
+                            .content(signupBody(VALID_EMAIL, VALID_PASSWORD, VALID_NICKNAME, VALID_MBTI)))
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -592,7 +570,7 @@ class AuthControllerTest {
 
             mockMvc.perform(post(LOGIN_URL)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(new LoginRequest(VALID_EMAIL, VALID_PASSWORD))))
+                            .content(objectMapper.writeValueAsString(new LoginRequest(VALID_EMAIL, VALID_PASSWORD, false))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data.accessToken").value("access-token"))
@@ -629,7 +607,7 @@ class AuthControllerTest {
 
             mockMvc.perform(post(LOGIN_URL)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(new LoginRequest(VALID_EMAIL, VALID_PASSWORD))))
+                            .content(objectMapper.writeValueAsString(new LoginRequest(VALID_EMAIL, VALID_PASSWORD, false))))
                     .andExpect(status().isUnauthorized())
                     .andExpect(jsonPath("$.success").value(false))
                     .andExpect(jsonPath("$.message").value(ErrorCode.INVALID_CREDENTIALS.getMessage()));
@@ -643,7 +621,7 @@ class AuthControllerTest {
 
             mockMvc.perform(post(LOGIN_URL)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(new LoginRequest(VALID_EMAIL, VALID_PASSWORD))))
+                            .content(objectMapper.writeValueAsString(new LoginRequest(VALID_EMAIL, VALID_PASSWORD, false))))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -656,7 +634,7 @@ class AuthControllerTest {
 
             mockMvc.perform(post(LOGIN_URL)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(new LoginRequest(VALID_EMAIL, VALID_PASSWORD))))
+                            .content(objectMapper.writeValueAsString(new LoginRequest(VALID_EMAIL, VALID_PASSWORD, false))))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -669,7 +647,7 @@ class AuthControllerTest {
 
             mockMvc.perform(post(LOGIN_URL)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(new LoginRequest(VALID_EMAIL, VALID_PASSWORD))))
+                            .content(objectMapper.writeValueAsString(new LoginRequest(VALID_EMAIL, VALID_PASSWORD, false))))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -686,7 +664,7 @@ class AuthControllerTest {
         private String body(final String signupToken, final boolean termsAgreed, final boolean privacyAgreed)
                 throws Exception {
             return objectMapper.writeValueAsString(
-                    new OAuth2SignupConfirmRequest(signupToken, termsAgreed, privacyAgreed));
+                    new OAuth2SignupConfirmRequest(signupToken, termsAgreed, privacyAgreed, true));
         }
 
         @Test

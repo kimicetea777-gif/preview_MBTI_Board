@@ -6,7 +6,7 @@ public enum AuditEvent {
     LOGIN,
     OAUTH2_LOGIN,
     PASSWORD_CHANGE,
-    PHONE_CHANGE,
+    RECOVERY_EMAIL_CHANGE,
     WITHDRAWAL,
     REUSE_DETECTED
 }

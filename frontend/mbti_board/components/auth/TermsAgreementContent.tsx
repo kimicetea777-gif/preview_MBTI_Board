@@ -42,11 +42,13 @@ export default function TermsAgreementContent() {
   const signupToken = useSignupTokenFromHash();
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [privacyAgreed, setPrivacyAgreed] = useState(false);
+  const [age14Agreed, setAge14Agreed] = useState(false);
 
   const mutation = useMutation({
     mutationFn: confirmOAuth2Signup,
     onSuccess: (data) => {
-      setAccessToken(data.accessToken);
+      // 소셜 가입도 체크박스가 없고 백엔드도 항상 유지 로그인으로 RT를 발급함
+      setAccessToken(data.accessToken, true);
 
       const provider = sessionStorage.getItem(PENDING_SOCIAL_PROVIDER_KEY) as LoginMethod | null;
       if (provider) {
@@ -100,6 +102,8 @@ export default function TermsAgreementContent() {
         onTermsAgreedChange={setTermsAgreed}
         privacyAgreed={privacyAgreed}
         onPrivacyAgreedChange={setPrivacyAgreed}
+        age14Agreed={age14Agreed}
+        onAge14AgreedChange={setAge14Agreed}
         disabled={mutation.isPending}
       />
 
@@ -116,11 +120,11 @@ export default function TermsAgreementContent() {
         type="button"
         disabled={mutation.isPending}
         onClick={() => {
-          if (!termsAgreed || !privacyAgreed) {
+          if (!termsAgreed || !privacyAgreed || !age14Agreed) {
             toast.warning("약관 동의를 읽고 체크해주세요.");
             return;
           }
-          mutation.mutate({ signupToken, termsAgreed, privacyAgreed });
+          mutation.mutate({ signupToken, termsAgreed, privacyAgreed, age14Agreed });
         }}
         className="w-full h-12 bg-primary text-primary-foreground text-sm font-semibold rounded-md hover:opacity-80 active:scale-[0.98] disabled:opacity-50 transition-all"
       >

@@ -3,9 +3,9 @@ import { ROUTES } from "@/constants/routes";
 
 export default function Footer() {
   return (
-    <footer className="border-t border-outline-variant mt-auto py-6 px-8 text-xs text-on-surface-variant">
+    <footer className="border-outline-variant mt-auto py-6 px-8 text-xs text-on-surface-variant">
       <div className="mx-auto max-w-300 flex flex-col sm:flex-row items-center justify-between gap-3">
-        <p>© 2025 {process.env.NEXT_PUBLIC_APP_NAME}. All rights reserved.</p>
+        <p>© 2026 {process.env.NEXT_PUBLIC_APP_NAME}.</p>
         <nav className="flex items-center gap-4">
           <Link href={ROUTES.terms} className="hover:text-on-surface transition-colors">
             이용약관

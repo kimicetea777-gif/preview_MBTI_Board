@@ -24,6 +24,8 @@ export default function DeadlineField({
         마감일
       </label>
       <div className="flex items-center gap-2 flex-wrap">
+
+        {/* 마감일 입력창 */}
         <input
           type="datetime-local"
           value={endsAt}
@@ -32,6 +34,8 @@ export default function DeadlineField({
           disabled={isPending || isNoDeadline}
           className="bg-background border border-border rounded-lg px-4 py-2.5 text-sm text-foreground focus:border-ring focus:outline-none disabled:opacity-50 disabled:bg-muted transition-all"
         />
+
+        {/* 기한 없음 Toggle */}
         <button
           type="button"
           onClick={onNoDeadlineToggle}

@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { LuSprout, LuArrowLeft, LuArrowRight } from "react-icons/lu";
-import type { TotalQuestion } from "@/types/mbti";
+import type { TotalQuestion, MbtiTestScores } from "@/types/mbti";
+import { computeScores } from "@/lib/mbtiUtils";
 import { GardenProgress } from "./GardenProgress";
 import { OptionButton } from "./OptionButton";
 
@@ -15,34 +17,45 @@ export const ANSWER_OPTIONS = [
 
 interface Props {
   questions: TotalQuestion[];
-  currentIndex: number;
-  totalQuestions: number;
-  answers: Record<number, number>;
-  funAnswers: Record<number, number>;
-  onAnswer: (value: number) => void;
-  onNext: () => void;
-  onPrev: () => void;
+  onComplete: (scores: MbtiTestScores, funAnswers: Record<number, number>) => void;
 }
 
-export function MbtiTestingPhase({
-  questions,
-  currentIndex,
-  totalQuestions,
-  answers,
-  funAnswers,
-  onAnswer,
-  onNext,
-  onPrev,
-}: Props) {
+export function MbtiTestingPhase({ questions, onComplete }: Props) {
+  const totalQuestions = questions.length;
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [answers, setAnswers] = useState<Record<number, number>>({});        // MBTI: id → score
+  const [funAnswers, setFunAnswers] = useState<Record<number, number>>({});  // FUN: id → optionId
+
   const currentQuestion = questions[currentIndex];
   const isFun = currentQuestion.type === "FUN";
   const currentAnswered = isFun
     ? funAnswers[currentQuestion.id] !== undefined
     : answers[currentQuestion.id] !== undefined;
 
+  function handleAnswer(value: number) {
+    let newAnswers = answers;
+    let newFunAnswers = funAnswers;
+
+    if (currentQuestion.type === "MBTI") {
+      newAnswers = { ...answers, [currentQuestion.id]: value };
+      setAnswers(newAnswers);
+    } else {
+      newFunAnswers = { ...funAnswers, [currentQuestion.id]: value };
+      setFunAnswers(newFunAnswers);
+    }
+
+    if (currentIndex < totalQuestions - 1) {
+      setCurrentIndex((i) => i + 1);
+    } else {
+      onComplete(computeScores(questions, newAnswers), newFunAnswers);
+    }
+  }
+
   return (
     <section className="mb-8">
       <header className="mb-3">
+        {/* Progress Bar */}
         <div className="flex justify-between items-center px-0.5 mb-3">
           <span className="font-medium text-primary/70 uppercase tracking-widest">
             <span className="text-xl font-bold">{String(currentIndex + 1).padStart(2, "0")}</span>
@@ -61,21 +74,17 @@ export function MbtiTestingPhase({
         </div>
       </header>
 
-      {/* Garden IMAGE */}
-      <div className="-mt-8 pointer-events-none">
-        <GardenProgress currentIndex={currentIndex} totalQuestions={totalQuestions} />
-      </div>
-
-      <div className="relative px-8 py-10 w-full bg-card border-2 border-outline-variant storybook-border shadow-sm mt-3 text-center">
+      {/* Question Title */}
+      <div className="relative flex items-center justify-center px-1 py-6 w-full h-28 bg-card border-2 border-outline-variant storybook-border shadow-sm text-center">
         <h2 className="font-heading text-lg md:text-lg text-on-surface leading-tight text-balance">
           {currentQuestion.title}
         </h2>
       </div>
 
-      <div className="mt-3 h-10 flex justify-between items-center">
+      <div className="mt-0 h-8 flex justify-between items-center">
         {currentIndex > 0 ? (
           <button
-            onClick={onPrev}
+            onClick={() => setCurrentIndex((i) => i - 1)}
             className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-all hover:-translate-x-1"
           >
             <LuArrowLeft /> 이전 문항
@@ -83,21 +92,22 @@ export function MbtiTestingPhase({
         ) : <span />}
         {currentAnswered && (
           <button
-            onClick={onNext}
+            onClick={() => setCurrentIndex((i) => i + 1)}
             className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-all hover:translate-x-1"
           >
             다음 문항 <LuArrowRight />
           </button>
         )}
       </div>
-      
-      <div className="flex flex-col gap-3">
+
+      {/* 선택지 */}
+      <div className="flex flex-col gap-1.5">
           {isFun
             ? currentQuestion.options.map((opt) => (
                 <OptionButton
                   key={opt.id}
                   isSelected={funAnswers[currentQuestion.id] === opt.id}
-                  onClick={() => onAnswer(opt.id)}
+                  onClick={() => handleAnswer(opt.id)}
                 >
                   {opt.optionText}
                 </OptionButton>
@@ -106,14 +116,19 @@ export function MbtiTestingPhase({
                 <OptionButton
                   key={opt.label}
                   isSelected={answers[currentQuestion.id] === opt.score}
-                  onClick={() => onAnswer(opt.score)}
+                  onClick={() => handleAnswer(opt.score)}
                 >
                   {opt.label}
                   <span className="ml-1.5 text-xs font-normal text-muted-foreground">({opt.subLabel})</span>
                 </OptionButton>
               ))
           }
-        </div> 
+        </div>
+
+        {/* Garden IMAGE */}
+        <div className="-mt-8 pointer-events-none hidden sm:block">
+          <GardenProgress currentIndex={currentIndex} totalQuestions={totalQuestions} />
+        </div>
     </section>
   );
 }

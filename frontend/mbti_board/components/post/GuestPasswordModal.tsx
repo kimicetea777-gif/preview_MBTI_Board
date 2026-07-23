@@ -32,10 +32,16 @@ const DEFAULT_DESCRIPTION: Record<ModalAction, string> = {
   delete: "게시글 작성 시 입력한 비밀번호를 입력해 주세요.",
 };
 
+export interface GuestAgreement {
+  termsAgreed: boolean;
+  privacyAgreed: boolean;
+  age14Agreed: boolean;
+}
+
 interface Props {
   open: boolean;
   action: ModalAction;
-  onConfirm: (password: string) => void;
+  onConfirm: (password: string, agreement?: GuestAgreement) => void;
   onClose: () => void;
   isPending: boolean;
   error?: string;
@@ -54,6 +60,7 @@ export default function GuestPasswordModal({
   const [password, setPassword] = useState("");
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [privacyAgreed, setPrivacyAgreed] = useState(false);
+  const [age14Agreed, setAge14Agreed] = useState(false);
 
   const isCreate = action === MODAL_ACTION.CREATE;
   const isPasswordValid = password.length >= GUEST_PASSWORD_MIN_LENGTH;
@@ -63,6 +70,7 @@ export default function GuestPasswordModal({
       setPassword("");
       setTermsAgreed(false);
       setPrivacyAgreed(false);
+      setAge14Agreed(false);
       onClose();
     }
   };
@@ -81,11 +89,11 @@ export default function GuestPasswordModal({
           onSubmit={(e) => {
             e.preventDefault();
             if (!isPasswordValid) return;
-            if (isCreate && (!termsAgreed || !privacyAgreed)) {
+            if (isCreate && (!termsAgreed || !privacyAgreed || !age14Agreed)) {
               toast.warning("약관 동의를 읽고 체크해주세요.");
               return;
             }
-            onConfirm(password);
+            onConfirm(password, isCreate ? { termsAgreed, privacyAgreed, age14Agreed } : undefined);
           }}
           className="space-y-3"
         >
@@ -123,6 +131,18 @@ export default function GuestPasswordModal({
                 />
                 <span className="text-xs text-on-surface-variant leading-relaxed">
                   <Link href={ROUTES.privacy} target="_blank" className="font-medium text-primary underline underline-offset-2 hover:opacity-80">개인정보처리방침</Link>에 동의합니다. <span className="text-red-500">*</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={age14Agreed}
+                  onChange={(e) => setAge14Agreed(e.target.checked)}
+                  disabled={isPending}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+                />
+                <span className="text-xs text-on-surface-variant leading-relaxed">
+                  본인은 만 14세 이상입니다. <span className="text-red-500">*</span>
                 </span>
               </label>
             </div>

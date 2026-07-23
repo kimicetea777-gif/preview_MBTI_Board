@@ -1,9 +1,11 @@
 import WriteFormContent from "./WriteFormContent";
-import type { PostType } from "@/types/post";
+import { POST_TYPE, type PostType } from "@/types/post";
+
+export const dynamic = "force-dynamic";
 
 function parseInitialType(param: string | undefined): PostType {
-  if (param === "VOTE" || param === "DEBATE") return param;
-  return "FREE";
+  if (param === POST_TYPE.VOTE || param === POST_TYPE.DEBATE) return param;
+  return POST_TYPE.FREE;
 }
 
 export default async function UnifiedWritePage({

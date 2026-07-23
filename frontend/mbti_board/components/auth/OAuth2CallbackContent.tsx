@@ -40,7 +40,8 @@ export default function OAuth2CallbackContent({ error }: Props) {
     const accessToken = params.get("accessToken");
     if (!accessToken) return;
 
-    setAccessToken(accessToken);
+    // 소셜 로그인은 별도 체크박스가 없고 백엔드도 항상 유지 로그인으로 RT를 발급함
+    setAccessToken(accessToken, true);
     const raw = sessionStorage.getItem(OAUTH2_REDIRECT_KEY) ?? ROUTES.home;
     sessionStorage.removeItem(OAUTH2_REDIRECT_KEY);
     const provider = sessionStorage.getItem(PENDING_SOCIAL_PROVIDER_KEY) as LoginMethod | null;

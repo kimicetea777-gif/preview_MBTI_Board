@@ -81,4 +81,51 @@ class GuestPasswordHelperTest {
             assertThatNoException().isThrownBy(() -> GuestPasswordHelper.requirePassword("guest1234"));
         }
     }
+
+    @Nested
+    @DisplayName("requireTermsAgreement — 비회원 이용약관·개인정보처리방침·만 14세 확인 검증")
+    class RequireTermsAgreement {
+
+        @Test
+        @DisplayName("termsAgreed가 false이면 TERMS_NOT_AGREED 예외를 던진다")
+        void termsNotAgreed_throwsException() {
+            assertThatThrownBy(() -> GuestPasswordHelper.requireTermsAgreement(false, true, true))
+                    .isInstanceOf(CustomException.class)
+                    .extracting(e -> ((CustomException) e).getErrorCode())
+                    .isEqualTo(ErrorCode.TERMS_NOT_AGREED);
+        }
+
+        @Test
+        @DisplayName("privacyAgreed가 false이면 TERMS_NOT_AGREED 예외를 던진다")
+        void privacyNotAgreed_throwsException() {
+            assertThatThrownBy(() -> GuestPasswordHelper.requireTermsAgreement(true, false, true))
+                    .isInstanceOf(CustomException.class)
+                    .extracting(e -> ((CustomException) e).getErrorCode())
+                    .isEqualTo(ErrorCode.TERMS_NOT_AGREED);
+        }
+
+        @Test
+        @DisplayName("age14Agreed가 false이면 TERMS_NOT_AGREED 예외를 던진다")
+        void age14NotAgreed_throwsException() {
+            assertThatThrownBy(() -> GuestPasswordHelper.requireTermsAgreement(true, true, false))
+                    .isInstanceOf(CustomException.class)
+                    .extracting(e -> ((CustomException) e).getErrorCode())
+                    .isEqualTo(ErrorCode.TERMS_NOT_AGREED);
+        }
+
+        @Test
+        @DisplayName("셋 다 false이면 TERMS_NOT_AGREED 예외를 던진다")
+        void allFalse_throwsException() {
+            assertThatThrownBy(() -> GuestPasswordHelper.requireTermsAgreement(false, false, false))
+                    .isInstanceOf(CustomException.class)
+                    .extracting(e -> ((CustomException) e).getErrorCode())
+                    .isEqualTo(ErrorCode.TERMS_NOT_AGREED);
+        }
+
+        @Test
+        @DisplayName("셋 다 true이면 예외를 던지지 않는다")
+        void allTrue_noException() {
+            assertThatNoException().isThrownBy(() -> GuestPasswordHelper.requireTermsAgreement(true, true, true));
+        }
+    }
 }

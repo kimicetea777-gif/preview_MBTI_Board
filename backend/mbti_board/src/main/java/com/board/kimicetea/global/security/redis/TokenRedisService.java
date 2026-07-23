@@ -20,20 +20,23 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class TokenRedisService {
 
-    private static final String RT_PREFIX = "RT:";
-    private static final String BL_PREFIX = "BL:";
-    private static final String WD_PREFIX = "WD:";
-    private static final String WD_CNT_PREFIX = "WD:CNT:";
-    private static final String EV_TOKEN_PREFIX = "EV:TOKEN:";
-    private static final String EV_EMAIL_PREFIX = "EV:EMAIL:";
-    private static final String EV_DONE_PREFIX = "EV:DONE:";
-    private static final String PW_RESET_PREFIX = "PW:RESET:";
-    private static final String PW_RESET_EMAIL_PREFIX = "PW:RESET:EMAIL:";
+    private static final String RT_PREFIX = "RT:"; // Refresh Token: {userId}:{deviceId} → RT 값
+    private static final String BL_PREFIX = "BL:"; // AT 블랙리스트: {jti} → "logout"
+    private static final String WD_PREFIX = "WD:"; // 탈퇴 OTP: {userId} → 6자리 코드
+    private static final String WD_CNT_PREFIX = "WD:CNT:"; // 탈퇴 OTP 오답 횟수: {userId} → 시도 횟수
+    private static final String EV_TOKEN_PREFIX = "EV:TOKEN:"; // 이메일 인증 토큰: {token} → email
+    private static final String EV_EMAIL_PREFIX = "EV:EMAIL:"; // 이메일 인증 역방향: email → 토큰 (재발급 시 기존 토큰 무효화용)
+    private static final String EV_DONE_PREFIX = "EV:DONE:"; // 이메일 인증 완료 마킹: email → "1" (회원가입 완료 전까지 유효)
+    private static final String PW_RESET_PREFIX = "PW:RESET:"; // 비밀번호 재설정 토큰: {token} → email
+    private static final String PW_RESET_EMAIL_PREFIX = "PW:RESET:EMAIL:"; // 비밀번호 재설정 역방향: email → 토큰
+    private static final String RE_TOKEN_PREFIX = "RE:TOKEN:"; // 복구 이메일 인증 토큰: {token} → "userId:email"
+    private static final String RE_USER_PREFIX = "RE:USER:"; // 복구 이메일 인증 역방향: userId → 토큰 (재요청 시 기존 토큰 무효화용)
     private static final String LOGOUT_VALUE = "logout";
     private static final long WITHDRAWAL_OTP_TTL_MS = 3 * 60 * 1000L; // 3분
     private static final long EMAIL_VERIFY_TOKEN_TTL_MS = 10 * 60 * 1000L; // 10분
     private static final long EMAIL_VERIFIED_TTL_MS = 30 * 60 * 1000L; // 30분
     private static final long PW_RESET_TOKEN_TTL_MS = 30 * 60 * 1000L; // 30분
+    private static final long RECOVERY_EMAIL_TOKEN_TTL_MS = 10 * 60 * 1000L; // 10분
 
     // INCR + EXPIRE 원자적 처리 — count == 1일 때만 TTL 설정 (RateLimitService와 동일 패턴)
     private static final DefaultRedisScript<Long> INCR_WITH_EXPIRE = new DefaultRedisScript<>(
@@ -195,6 +198,43 @@ public class TokenRedisService {
         redisTemplate.delete(pwResetEmailKey(email));
     }
 
+    // ── 복구 이메일 인증 토큰 ──────────────────────────────────────
+
+    /** 토큰으로 조회한 (userId, email) 페어 — confirm 시 토큰 소유자 검증에 사용 */
+    public record RecoveryEmailTokenPayload(String userId, String email) {
+    }
+
+    /**
+     * 복구 이메일 인증 토큰 저장 — Key: RE:TOKEN:{token}="{userId}:{email}", RE:USER:{userId}=token, TTL: 10분
+     * 주의: 재요청 시 해당 유저의 기존 토큰을 먼저 무효화 (동시에 유효한 토큰이 두 개 생기지 않도록)
+     */
+    public void saveRecoveryEmailToken(final String token, final String userId, final String email) {
+        final String oldToken = redisTemplate.opsForValue().get(reUserKey(userId));
+        if (oldToken != null) {
+            redisTemplate.delete(reTokenKey(oldToken));
+        }
+        redisTemplate.opsForValue().set(reTokenKey(token), userId + ":" + email,
+                RECOVERY_EMAIL_TOKEN_TTL_MS, TimeUnit.MILLISECONDS);
+        redisTemplate.opsForValue().set(reUserKey(userId), token,
+                RECOVERY_EMAIL_TOKEN_TTL_MS, TimeUnit.MILLISECONDS);
+    }
+
+    /** 토큰으로 (userId, email) 조회 — 만료 또는 미존재 시 empty 반환 */
+    public Optional<RecoveryEmailTokenPayload> getRecoveryEmailPayload(final String token) {
+        final String raw = redisTemplate.opsForValue().get(reTokenKey(token));
+        if (raw == null) {
+            return Optional.empty();
+        }
+        final int idx = raw.indexOf(':');
+        return Optional.of(new RecoveryEmailTokenPayload(raw.substring(0, idx), raw.substring(idx + 1)));
+    }
+
+    /** 토큰 사용 완료 후 양방향 키 모두 삭제 */
+    public void deleteRecoveryEmailToken(final String token, final String userId) {
+        redisTemplate.delete(reTokenKey(token));
+        redisTemplate.delete(reUserKey(userId));
+    }
+
     // ── 키 생성 헬퍼 ──────────────────────────────────────────────
 
     /** RT:{userId}:{deviceId} — 기기별 Refresh Token */
@@ -240,5 +280,15 @@ public class TokenRedisService {
     /** PW:RESET:EMAIL:{email} — 비밀번호 재설정 토큰 역방향 조회 (email → token, 중복 발급 방지) */
     private String pwResetEmailKey(final String email) {
         return PW_RESET_EMAIL_PREFIX + email;
+    }
+
+    /** RE:TOKEN:{token} — 복구 이메일 인증 토큰 → "userId:email" */
+    private String reTokenKey(final String token) {
+        return RE_TOKEN_PREFIX + token;
+    }
+
+    /** RE:USER:{userId} — 복구 이메일 인증 역방향 키 (userId → token, 기존 토큰 무효화용) */
+    private String reUserKey(final String userId) {
+        return RE_USER_PREFIX + userId;
     }
 }

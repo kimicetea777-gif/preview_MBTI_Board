@@ -14,6 +14,7 @@ import com.board.kimicetea.domain.auth.service.AuthService;
 import com.board.kimicetea.domain.user.security.CustomUserDetails;
 import com.board.kimicetea.global.common.response.ApiResponse;
 import com.board.kimicetea.global.ratelimit.RateLimit;
+import com.board.kimicetea.global.ratelimit.RateLimitEndpoints;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -43,16 +44,16 @@ public class AuthController {
         private final AuthService authService;
 
         /**
-         * 전화번호로 이메일 찾기 — WITHDRAWN 계정은 404 반환
-         * 주의: IP당 10분에 5회로 Rate Limit (전화번호 열거 방지)
+         * 복구 이메일로 이메일 찾기 — WITHDRAWN 계정은 404 반환
+         * 주의: IP당 10분에 5회로 Rate Limit (열거 방지)
          */
-        @Operation(summary = "이메일 찾기", description = "전화번호로 마스킹된 이메일을 조회합니다.")
+        @Operation(summary = "이메일 찾기", description = "인증된 복구 이메일로 마스킹된 로그인 이메일을 조회합니다.")
         @ApiResponses({
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "이메일 조회 성공"),
-                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "해당 전화번호의 사용자 없음"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "해당 복구 이메일의 사용자 없음"),
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "요청 횟수 초과")
         })
-        @RateLimit(endpoint = "find-email", max = 5, windowSecs = 600)
+        @RateLimit(endpoint = RateLimitEndpoints.FIND_EMAIL, max = 5, windowSecs = 600)
         @PostMapping("/find-email")
         public ResponseEntity<ApiResponse<FindEmailResponse>> findEmail(
                         @Valid @RequestBody final FindEmailRequest request) {
@@ -68,7 +69,7 @@ public class AuthController {
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "발송 처리 완료"),
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "요청 횟수 초과")
         })
-        @RateLimit(endpoint = "password-reset", max = 3, windowSecs = 600)
+        @RateLimit(endpoint = RateLimitEndpoints.PASSWORD_RESET, max = 3, windowSecs = 600)
         @PostMapping("/password-reset/request")
         public ResponseEntity<ApiResponse<Void>> requestPasswordReset(
                         @Valid @RequestBody final PasswordResetRequestBody request) {
@@ -94,19 +95,21 @@ public class AuthController {
 
         /**
          * 이메일 인증 링크 발송 — 프론트 /signup/verify?token={uuid} 로 연결되는 링크 발송
-         * 주의: IP당 10분에 3회로 Rate Limit (임의 이메일 스팸 발송 방지)
+         * 주의: Rate Limit은 AuthService 내부에서 이메일 중복 확인 후 수동 적용
+         *       (컨트롤러 단의 @RateLimit는 중복 이메일 요청까지 선점 카운팅하는 문제가 있어 제거)
          */
         @Operation(summary = "이메일 인증 발송", description = "입력한 이메일로 인증 링크를 발송합니다.")
         @ApiResponses({
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "발송 성공"),
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "이메일 형식 오류"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 가입된 이메일"),
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "요청 횟수 초과")
         })
-        @RateLimit(endpoint = "email-verify", max = 3, windowSecs = 600)
         @PostMapping("/email-verify/send")
         public ResponseEntity<ApiResponse<Void>> sendEmailVerification(
-                        @Valid @RequestBody final EmailVerifySendRequest request) {
-                authService.sendEmailVerification(request);
+                        @Valid @RequestBody final EmailVerifySendRequest request,
+                        final HttpServletRequest httpRequest) {
+                authService.sendEmailVerification(request, httpRequest);
                 return ResponseEntity.ok(ApiResponse.ok("인증 이메일이 발송되었습니다."));
         }
 
@@ -151,7 +154,7 @@ public class AuthController {
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "이메일 또는 비밀번호 불일치"),
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "요청 횟수 초과")
         })
-        @RateLimit(endpoint = "login", max = 10, windowSecs = 60)
+        @RateLimit(endpoint = RateLimitEndpoints.LOGIN, max = 10, windowSecs = 60)
         @PostMapping("/login")
         public ResponseEntity<ApiResponse<LoginResponse>> login(
                         @Valid @RequestBody final LoginRequest request,
@@ -211,5 +214,24 @@ public class AuthController {
                 final String accessToken = bearerToken.substring("Bearer ".length());
                 authService.logout(accessToken, userDetails.userId().toString(), userDetails.deviceId(), response);
                 return ResponseEntity.ok(ApiResponse.ok("로그아웃되었습니다."));
+        }
+
+        /**
+         * 연동 기기 전체 로그아웃 — 마이페이지에서 다른 기기(공용 PC 등)에 남아있는 세션까지 한번에 정리
+         */
+        @Operation(summary = "전체 기기 로그아웃", description = "현재 계정으로 로그인된 모든 기기의 RT를 삭제합니다.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "전체 로그아웃 성공"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
+        })
+        @PostMapping("/logout/all")
+        public ResponseEntity<ApiResponse<Void>> logoutAll(
+                        @RequestHeader("Authorization") final String bearerToken,
+                        @AuthenticationPrincipal final CustomUserDetails userDetails,
+                        final HttpServletResponse response) {
+
+                final String accessToken = bearerToken.substring("Bearer ".length());
+                authService.logoutAll(accessToken, userDetails.userId().toString(), response);
+                return ResponseEntity.ok(ApiResponse.ok("모든 기기에서 로그아웃되었습니다."));
         }
 }

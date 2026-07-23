@@ -22,18 +22,24 @@ public class CookieUtils {
     @Value("${app.cookie.secure:false}")
     private boolean secure;
 
-    /** RT Cookie 발급 — HttpOnly, SameSite=Lax, Secure(환경별) */
+    /**
+     * RT Cookie 발급 — HttpOnly, SameSite=Lax, Secure(환경별)
+     * 주의: rememberMe=false면 Max-Age를 생략해 브라우저 세션 쿠키로 발급 (브라우저 종료 시 삭제).
+     *       RT 자체의 Redis TTL은 rememberMe 여부와 무관하게 항상 maxAgeMillis로 고정됨
+     */
     public void addRefreshTokenCookie(final HttpServletResponse response,
                                       final String refreshToken,
-                                      final long maxAgeMillis) {
-        final ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE_NAME, refreshToken)
+                                      final long maxAgeMillis,
+                                      final boolean rememberMe) {
+        final ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(REFRESH_TOKEN_COOKIE_NAME, refreshToken)
                 .httpOnly(true)
                 .secure(secure)
                 .path(COOKIE_PATH)
-                .maxAge(Duration.ofMillis(maxAgeMillis))
-                .sameSite(SAME_SITE)
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+                .sameSite(SAME_SITE);
+        if (rememberMe) {
+            builder.maxAge(Duration.ofMillis(maxAgeMillis));
+        }
+        response.addHeader(HttpHeaders.SET_COOKIE, builder.build().toString());
     }
 
     /** 로그아웃 시 클라이언트 RT Cookie 즉시 만료 */

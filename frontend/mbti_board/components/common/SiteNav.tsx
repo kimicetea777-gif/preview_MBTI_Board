@@ -8,9 +8,10 @@ import { ROUTES } from "@/constants/routes";
 import { BOARD_TABS, MY_TABS, EXTRA_TABS, STATS_TABS } from "@/constants/navigation";
 import { useAuthStore } from "@/store/authStore";
 import AdSenseCard from "./AdSenseCard";
-import { AD_SLOTS, AD_VARIANT } from "@/constants/adSlots";
+import { AD_SLOTS, AD_VARIANT, AD_ENABLED } from "@/constants/adSlots";
 import { useNavStore } from "@/store/navStore";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
+import { useHasMounted } from "@/hooks/useHasMounted";
 import Logo from "./Logo";
 
 export default function SiteNav() {
@@ -30,7 +31,7 @@ export default function SiteNav() {
             <NavContent pathname={pathname} currentType={currentType} />
           </nav>
         </div>
-        {isDesktop && <AdSenseCard key={AD_SLOTS.vertical.key} variant={AD_VARIANT.VERTICAL} />}
+        {AD_ENABLED && isDesktop && <AdSenseCard key={AD_SLOTS.vertical.key} variant={AD_VARIANT.VERTICAL} />}
       </aside>
 
       {/* 모바일 드로어 */}
@@ -63,10 +64,13 @@ function NavContent({ pathname, currentType, onNavClick }: {
   onNavClick?: () => void;
 }) {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn());
+  // 서버 렌더·클라이언트 첫 렌더는 항상 비로그인 상태로 고정 — silent refresh로 복구된
+  // accessToken이 이 Suspense 서브트리의 하이드레이션보다 먼저 반영돼 발생하는 하이드레이션 불일치 방지
+  const mounted = useHasMounted();
 
   return (
     <>
-      {isLoggedIn && (
+      {mounted && isLoggedIn && (
         <>
           {MY_TABS.map(({ label, href, icon }) => (
             <NavItem key={href} href={href} icon={icon} label={label} active={pathname === href} onClick={onNavClick} />

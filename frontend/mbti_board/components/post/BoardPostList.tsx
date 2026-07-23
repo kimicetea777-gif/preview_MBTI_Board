@@ -1,43 +1,45 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import Link from "next/link";
 import { useSuspensePostList } from "@/hooks/usePosts";
 import PostCard from "@/components/post/PostCard";
+import PostListItem from "@/components/post/PostListItem";
 import PostCardSkeleton from "@/components/post/PostCardSkeleton";
-import { POST_SORT, SORT_OPTIONS, VIEW_MODE } from "@/types/post";
+import { VIEW_MODE } from "@/types/post";
 import type { PostSortType, PostType, PostSummaryResponse, ViewMode } from "@/types/post";
 import { MdArticle, MdEdit } from "react-icons/md";
-import ViewModeToggle from "@/components/common/ViewModeToggle";
 import { postHref } from "@/lib/boardUtils";
 import { BOARD_META } from "@/constants/navigation";
-import { MBTI_16 } from "@/types/mbti";
 import AdSenseCard from "@/components/common/AdSenseCard";
-import { AD_VARIANT } from "@/constants/adSlots";
+import { AD_VARIANT, AD_EVERY, AD_ENABLED } from "@/constants/adSlots";
 
-const AD_EVERY = 6;
+const FEED_ITEM_KIND = { POST: "post", AD: "ad" } as const;
 
 type FeedItem =
-  | { kind: "post"; data: PostSummaryResponse }
-  | { kind: "ad"; index: number };
+  | { kind: typeof FEED_ITEM_KIND.POST; data: PostSummaryResponse }
+  | { kind: typeof FEED_ITEM_KIND.AD; index: number };
 
 function buildFeedItems(posts: PostSummaryResponse[]): FeedItem[] {
   const items: FeedItem[] = [];
   let adCount = 0;
   for (let i = 0; i < posts.length; i++) {
-    if (items.length === 1 + adCount * AD_EVERY) {
-      items.push({ kind: "ad", index: adCount++ });
+    if (AD_ENABLED && items.length === 1 + adCount * AD_EVERY) {
+      items.push({ kind: FEED_ITEM_KIND.AD, index: adCount++ });
     }
-    items.push({ kind: "post", data: posts[i] });
+    items.push({ kind: FEED_ITEM_KIND.POST, data: posts[i] });
   }
   return items;
 }
 
-export default function BoardPostList({ type }: { type: PostType | undefined }) {
-  const [sort, setSort] = useState<PostSortType>(POST_SORT.LATEST);
-  const [authorMbti, setAuthorMbti] = useState<string | undefined>();
-  const [viewMode, setViewMode] = useState<ViewMode>(VIEW_MODE.CARD);
+interface Props {
+  type: PostType | undefined;
+  sort: PostSortType;
+  authorMbti: string | undefined;
+  viewMode: ViewMode;
+}
 
+export default function BoardPostList({ type, sort, authorMbti, viewMode }: Props) {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useSuspensePostList({ type, sort, authorMbti, targetMbti: undefined });
 
@@ -54,75 +56,16 @@ export default function BoardPostList({ type }: { type: PostType | undefined }) 
     return () => observer.disconnect();
   }, [hasNextPage, fetchNextPage]);
 
-  const { title, description, writeHref } = BOARD_META[type ?? "ALL"];
+  const { writeHref } = BOARD_META[type ?? "ALL"];
 
   return (
-    <section className="p-8 pb-24">
-
-      {/*----------------------------------------------게시판 설명, 인사말----------------------------------------------- */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground tracking-tight mb-1">{title}</h1>
-          <p className="text-base text-on-surface-variant">{description}</p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {/*----------------------------------------------필터: 게시글 정렬 (최신순 인기순..)----------------------------------------------- */}
-          <div className="flex items-center gap-1 bg-surface-container px-1 py-1 rounded-full">
-            {SORT_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setSort(opt.value)}
-                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                  sort === opt.value
-                    ? "bg-card shadow-sm text-foreground"
-                    : "text-on-surface-variant hover:text-foreground"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-          {/*----------------------------------------------목록 보기 모드 (카드 보기, 리스트 보기)----------------------------------------------- */}
-          <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
-        </div>
-      </div>
-
-      {/*----------------------------------------------필터: MBTI----------------------------------------------- */}
-      <div className="flex flex-wrap gap-2 mb-8">
-        <button
-          type="button"
-          onClick={() => setAuthorMbti(undefined)}
-          className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-            !authorMbti
-              ? "bg-primary-container text-surface-variant"
-              : "border border-outline-variant text-on-surface-variant hover:border-primary"
-          }`}
-        >
-          전체 유형
-        </button>
-        {MBTI_16.map((mbti) => (
-          <button
-            key={mbti}
-            type="button"
-            onClick={() => setAuthorMbti(authorMbti === mbti ? undefined : mbti)}
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-              authorMbti === mbti
-                ? "bg-secondary-container text-on-secondary-container"
-                : "border border-outline-variant text-on-surface-variant hover:border-primary"
-            }`}
-          >
-            {mbti}
-          </button>
-        ))}
-      </div>
-
+    <section className="px-8 pb-24">
       {viewMode === VIEW_MODE.CARD ? (
         // 카드 보기 모드
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {feedItems.map((item) =>
-            item.kind === "post" ? (
-              <PostCard key={item.data.id} href={postHref(item.data.typeCode, item.data.id)} showType={!type} card {...item.data} />
+            item.kind === FEED_ITEM_KIND.POST ? (
+              <PostCard key={item.data.id} href={postHref(item.data.typeCode, item.data.id)} showType={!type} {...item.data} />
             ) : (
               <AdSenseCard key={`ad-${item.index}`} variant={AD_VARIANT.FLUID} />
             )
@@ -132,8 +75,8 @@ export default function BoardPostList({ type }: { type: PostType | undefined }) 
         // 목록 보기 모드
         <div className="flex flex-col">
           {feedItems.map((item) =>
-            item.kind === "post" ? (
-              <PostCard key={item.data.id} href={postHref(item.data.typeCode, item.data.id)} showType={!type} {...item.data} />
+            item.kind === FEED_ITEM_KIND.POST ? (
+              <PostListItem key={item.data.id} href={postHref(item.data.typeCode, item.data.id)} showType={!type} {...item.data} />
             ) : (
               <AdSenseCard key={`ad-${item.index}`} variant={AD_VARIANT.RECTANGLE} />
             )
@@ -174,7 +117,6 @@ export default function BoardPostList({ type }: { type: PostType | undefined }) 
           <MdEdit size={22} />
         </Link>
       </div>
-
     </section>
   );
 }

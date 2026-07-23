@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAdminPosts, useChangePostVisibility, useDeleteAdminPost } from "@/hooks/useAdmin";
+import { usePagination } from "@/hooks/usePagination";
 import { POST_TYPE, POST_TYPE_LABELS, POST_TYPE_META } from "@/types/post";
 import type { PostType } from "@/types/post";
 import { SORT_DIR } from "@/types/admin";
@@ -45,6 +46,12 @@ export default function AdminPostTable() {
 
   const changeVisibility = useChangePostVisibility();
   const deletePost = useDeleteAdminPost(() => setConfirmDeleteId(null));
+
+  const { goToPrev, goToNext } = usePagination({
+    page: appliedParams.page,
+    totalPages: data.totalPages,
+    onPageChange: (page) => setAppliedParams((prev) => ({ ...prev, page })),
+  });
 
   const posts = data.content;
 
@@ -139,7 +146,13 @@ export default function AdminPostTable() {
               posts.map((post) => (
                 <tr
                   key={post.id}
-                  onClick={() => window.open(POST_BOARD_ROUTE[post.typeCode](post.id), "_blank")}
+                  onClick={() => {
+                    // 숨김 게시글은 공개 게시판에서 조회 불가 — 어드민 전용 상세 페이지로 이동
+                    const url = post.isVisible
+                      ? POST_BOARD_ROUTE[post.typeCode](post.id)
+                      : ROUTES.adminPostDetail(post.id);
+                    window.open(url, "_blank");
+                  }}
                   className={`cursor-pointer hover:bg-surface-container-low ${!post.isVisible ? "opacity-60" : ""}`}
                 >
                   <td className="px-4 py-3 text-on-surface-variant">{post.id}</td>
@@ -212,7 +225,7 @@ export default function AdminPostTable() {
       {data.totalPages > 1 && (
         <div className="mt-4 flex items-center justify-center gap-2">
           <button
-            onClick={() => setAppliedParams((p) => ({ ...p, page: Math.max(0, p.page - 1) }))}
+            onClick={goToPrev}
             disabled={appliedParams.page === 0}
             className="rounded-md border border-outline-variant px-3 py-1.5 text-sm text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40"
           >
@@ -222,7 +235,7 @@ export default function AdminPostTable() {
             {appliedParams.page + 1} / {data.totalPages}
           </span>
           <button
-            onClick={() => setAppliedParams((p) => ({ ...p, page: Math.min(data.totalPages - 1, p.page + 1) }))}
+            onClick={goToNext}
             disabled={data.last}
             className="rounded-md border border-outline-variant px-3 py-1.5 text-sm text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40"
           >

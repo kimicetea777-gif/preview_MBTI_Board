@@ -2,12 +2,13 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: mbti_postgres
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -19,8 +20,9 @@ services:
   redis:
     image: redis:7-alpine
     container_name: mbti_redis
+    restart: unless-stopped
     ports:
-      - "${REDIS_PORT}:6379"
+      - "127.0.0.1:${REDIS_PORT}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -29,6 +31,43 @@ services:
       timeout: 5s
       retries: 5
 
+  backend:
+    build:
+      context: ./backend/mbti_board
+    image: mbti-backend:latest
+    container_name: mbti_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - backend_logs:/var/log/mbti-board
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend/mbti_board
+    image: mbti-frontend:latest
+    container_name: mbti_frontend
+    restart: unless-stopped
+    env_file:
+      - ./.env_next
+    environment:
+      BACKEND_INTERNAL_URL: http://backend:8080
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - backend
+
 volumes:
   postgres_data:
   redis_data:
+  backend_logs:

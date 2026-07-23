@@ -14,7 +14,6 @@ export function useMbtiTestQuestions() {
     queryKey: mbtiKeys.questions(),
     queryFn: fetchMbtiTestQuestions,
     staleTime: Infinity,
-    gcTime: 0,
   });
 }
 

@@ -59,12 +59,17 @@ public class SecurityConfig {
                                                                 "/api/auth/signup",
                                                                 "/api/auth/login",
                                                                 "/api/auth/reissue", // RT Cookie 기반 — 인증 없이 접근해야 함
-                                                                "/api/auth/oauth2/signup", // signupToken 기반 — 계정이 아직 없는 상태에서 호출됨
+                                                                "/api/auth/oauth2/signup", // signupToken 기반 — 계정이 아직 없는
+                                                                                           // 상태에서 호출됨
                                                                 "/api/auth/email-verify/send",
                                                                 "/api/auth/email-verify/confirm",
                                                                 "/api/auth/find-email",
                                                                 "/api/auth/password-reset/request",
                                                                 "/api/auth/password-reset/confirm",
+
+                                                                // 토큰 자체가 (userId, email) 페어를 증명 — 발송 시 이미 인증된 요청으로만
+                                                                // 발급되므로 확인 시점엔 로그인 불필요
+                                                                "/api/users/me/recovery-email/confirm",
                                                                 "/oauth2/**",
                                                                 "/login/oauth2/**",
                                                                 "/swagger-ui/**",
