@@ -46,6 +46,7 @@ export default function VoteSection({ postId, voteResult, isLoggedIn }: Props) {
   const hasVoted = voteResult.myVotedOptionId !== null;
   const showResults = voteResult.isEnded || (hasVoted && !isChangingVote);
   const deadlineLabel = getDeadlineLabel(voteResult.endsAt, voteResult.isEnded);
+  const showsVoteActionButtons = !showResults && isLoggedIn;
 
   const optionCount = voteResult.options.length;
   const resultGridCls =
@@ -124,7 +125,13 @@ export default function VoteSection({ postId, voteResult, isLoggedIn }: Props) {
       )}
 
       {/* ---- Bottom Row ---- */}
-      <div className="flex items-center justify-between mt-6">
+      <div
+        className={`flex mt-6 ${
+          showsVoteActionButtons
+            ? "flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+            : "items-center justify-between"
+        }`}
+      >
         <div className="flex items-center">
           <span className={`flex items-center gap-1.5 text-xs px-3 py-1 rounded-full font-semibold border ${
             voteResult.isEnded
@@ -140,7 +147,7 @@ export default function VoteSection({ postId, voteResult, isLoggedIn }: Props) {
           </span>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className={`flex items-center gap-4 ${showsVoteActionButtons ? "self-end sm:self-auto" : ""}`}>
           {showResults ? (
             hasVoted && !voteResult.isEnded && (
               <button

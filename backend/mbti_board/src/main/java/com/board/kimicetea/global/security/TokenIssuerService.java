@@ -20,15 +20,20 @@ public class TokenIssuerService {
     private final TokenRedisService tokenRedisService;
     private final CookieUtils cookieUtils;
 
-    /** AT·RT 발급 → Redis 저장 → 쿠키 설정 후 AT 반환 */
-    public String issue(final User user, final String deviceId, final HttpServletResponse response) {
+    /**
+     * AT·RT 발급 → Redis 저장 → 쿠키 설정 후 AT 반환
+     * 주의: rememberMe=false여도 RT의 Redis TTL(서버 세션 수명)은 동일하게 유지되고,
+     *       클라이언트 쿠키만 브라우저 세션 쿠키로 발급되어 브라우저 종료 시 로그아웃됨
+     */
+    public String issue(final User user, final String deviceId, final HttpServletResponse response,
+            final boolean rememberMe) {
         final String accessToken = jwtProvider.generateAccessToken(
                 user.getId(), user.getEmail(), user.getRole().name(), deviceId);
-        final String refreshToken = jwtProvider.generateRefreshToken(user.getId(), deviceId);
+        final String refreshToken = jwtProvider.generateRefreshToken(user.getId(), deviceId, rememberMe);
 
         tokenRedisService.saveRefreshToken(
                 user.getId().toString(), deviceId, refreshToken, jwtProvider.getRefreshExpiry());
-        cookieUtils.addRefreshTokenCookie(response, refreshToken, jwtProvider.getRefreshExpiry());
+        cookieUtils.addRefreshTokenCookie(response, refreshToken, jwtProvider.getRefreshExpiry(), rememberMe);
 
         return accessToken;
     }

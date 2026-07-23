@@ -12,10 +12,6 @@ public final class ValidationConstants {
     public static final String NICKNAME_REGEXP = "^[가-힣a-zA-Z0-9_]{2,12}$";
     public static final String NICKNAME_MESSAGE = "별명은 한글, 영문, 숫자, 언더바(_)만 사용할 수 있습니다.";
 
-    /** 전화번호 정책: 하이픈 있음/없음 모두 허용 (예: 010-1234-5678, 01012345678) */
-    public static final String PHONE_REGEXP = "^01[016789](-\\d{3,4}-\\d{4}|\\d{7,8})$";
-    public static final String PHONE_MESSAGE = "전화번호 형식이 올바르지 않습니다. (예: 010-1234-5678)";
-
     /** MBTI 16가지 타입만 허용 — FunResponseSubmitRequest 등 정확한 MBTI 타입이 필요한 곳 */
     public static final String MBTI_REGEXP = "^(E|I)(S|N)(T|F)(J|P)$";
 

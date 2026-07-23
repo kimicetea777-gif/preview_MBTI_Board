@@ -18,7 +18,6 @@ interface Props {
   onContentChange: (value: string) => void;
   onUpload?: (url: string) => void;
   onUploadingChange?: (count: number) => void;
-  contentLabel?: string;
   contentPlaceholder?: string;
   children?: React.ReactNode;
 }
@@ -38,7 +37,6 @@ export default function PostWriteForm({
   onContentChange,
   onUpload,
   onUploadingChange,
-  contentLabel,
   contentPlaceholder = "내용을 입력하세요.",
   children,
 }: Props) {
@@ -56,27 +54,25 @@ export default function PostWriteForm({
           maxLength={MAX_TITLE_LENGTH}
           disabled={isPending}
         />
+
         {/* Target MBTI */}
         <div className="flex items-center gap-3">
           <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap px-1">
-            이 유형의 MBTI가 봤으면 좋겠어요  :
+            이 MBTI가 봤으면 좋겠어요  :
           </label>
           <MbtiSelect
             value={targetMbti === MBTI_ALL ? undefined : targetMbti}
             onChange={(v) => onTargetMbtiChange(v ?? MBTI_ALL)}
             placeholder="모든 MBTI"
+            className="font-semibold"
             disabled={isPending}
           />
         </div>
 
-        {contentLabel ? (
-          <div className="space-y-1.5">
-            <RichContentEditor onChange={onContentChange} placeholder={contentPlaceholder} onUpload={onUpload} onUploadingChange={onUploadingChange} />
-          </div>
-        ) : (
-          <RichContentEditor onChange={onContentChange} placeholder={contentPlaceholder} onUpload={onUpload} onUploadingChange={onUploadingChange} />
-        )}
+        {/* 본문 입력 박스 (tiptap) */}
+        <RichContentEditor onChange={onContentChange} placeholder={contentPlaceholder} onUpload={onUpload} onUploadingChange={onUploadingChange} />
 
+        {/* Debate / Vote 게시물 전용 */}
         {children}
 
         <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-3 pt-4 border-t border-border">

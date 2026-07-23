@@ -138,6 +138,8 @@ public class CommentService {
             authorMbti = user.getMbti();
         } else {
             GuestPasswordHelper.requirePassword(request.guestPassword());
+            GuestPasswordHelper.requireTermsAgreement(
+                    request.termsAgreed(), request.privacyAgreed(), request.age14Agreed());
             user = null;
             authorMbti = findNoneMbtiOrThrow();
         }

@@ -34,21 +34,21 @@ export function MbtiIntroPhase({ totalQuestions, onStart }: Props) {
             </span>
           </div>
 
-          <div className="relative w-full flex justify-center m-6">
+          <div className="relative w-full flex justify-center m-6 mb-15">
             <button
               onClick={onStart}
-              className="rounded-xl bg-primary-container absolute -bottom-10 px-6 py-3.5 text-sm font-medium text-primary-foreground hover:bg-primary/80 transition-colors"
+              className="rounded-xl bg-primary-container absolute -bottom-10 z-10 px-6 py-3.5 text-sm font-medium text-primary-foreground hover:bg-primary/80 transition-colors"
             >
               MBTI 검사하기
             </button>
             <Image
-              src="/images/mbti/elements/animals_backhome.png"
+              src="/images/mbti/elements/animals_backhome.webp"
               alt=""
               aria-hidden="true"
               width={160}
               height={54}
               style={{ height: "auto" }}
-              className="select-none absolute -bottom-12 -right-4"
+              className="select-none absolute -bottom-26 -right-4"
               draggable={false}
             />
           </div>

@@ -49,3 +49,7 @@ export async function requestPasswordReset(data: PasswordResetRequest): Promise<
 export async function confirmPasswordReset(data: PasswordResetConfirmRequest): Promise<void> {
   await apiClient.post<ApiResponse<void>>(API.auth.passwordResetConfirm, data);
 }
+
+export async function logoutAll(): Promise<void> {
+  await apiClient.post<ApiResponse<void>>(API.auth.logoutAll);
+}

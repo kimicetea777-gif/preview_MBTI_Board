@@ -1,7 +1,10 @@
 package com.board.kimicetea.domain.post.repository;
 
+import com.board.kimicetea.domain.post.dto.PostSitemapResponse;
 import com.board.kimicetea.domain.post.entity.Post;
 import com.board.kimicetea.domain.post.entity.PostType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -22,6 +25,23 @@ public interface PostRepository extends JpaRepository<Post, Long>, PostRepositor
 
     @Query("SELECT p FROM Post p JOIN FETCH p.authorMbti LEFT JOIN FETCH p.user LEFT JOIN FETCH p.targetMbti WHERE p.id = :id AND p.isVisible = true")
     Optional<Post> findWithDetailsById(@Param("id") Long id);
+
+    /** 어드민 전용 — 숨김(isVisible=false) 게시글도 조회 가능 */
+    @Query("SELECT p FROM Post p JOIN FETCH p.authorMbti LEFT JOIN FETCH p.user LEFT JOIN FETCH p.targetMbti WHERE p.id = :id")
+    Optional<Post> findWithDetailsByIdForAdmin(@Param("id") Long id);
+
+    /** SEO/OG 메타데이터 전용 — title·contentPreview·imageUrls는 스칼라 컬럼이라 JOIN 불필요 */
+    @Query("SELECT p FROM Post p WHERE p.id = :id AND p.isVisible = true")
+    Optional<Post> findVisibleById(@Param("id") Long id);
+
+    /**
+     * sitemap.xml 생성 전용 — id·createdAt만 조회, authorMbti/user/votePost/debatePost JOIN 전부 제외
+     * 주의: ORDER BY 없이 OFFSET/LIMIT만 쓰면 페이지 간 행 순서가 보장되지 않아 누락·중복이 생길 수 있음 — id 기준 정렬 필수
+     */
+    @Query(value = "SELECT new com.board.kimicetea.domain.post.dto.PostSitemapResponse(p.id, p.createdAt) "
+            + "FROM Post p WHERE p.isVisible = true AND p.postType = :postType ORDER BY p.id ASC",
+            countQuery = "SELECT COUNT(p) FROM Post p WHERE p.isVisible = true AND p.postType = :postType")
+    Page<PostSitemapResponse> findSitemapEntries(@Param("postType") PostType postType, Pageable pageable);
 
     /** 댓글 목록 조회 전용 — PostType 스칼라만 조회해 불필요한 JOIN 제거 */
     @Query("SELECT p.postType FROM Post p WHERE p.id = :id AND p.isVisible = true")

@@ -7,7 +7,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Image from "@tiptap/extension-image";
 import Youtube from "@tiptap/extension-youtube";
-import { LuX } from "react-icons/lu";
+import { LuX, LuMoveDiagonal2 } from "react-icons/lu";
 import { useEffect, useRef } from "react";
 import { MAX_POST_IMAGES } from "@/types/post";
 import { ALLOWED_IMAGE_TYPES, ALLOWED_IMAGE_TYPES_LABEL, MAX_IMAGE_BYTES, MAX_IMAGE_BYTES_LABEL } from "@/constants/imageUpload";
@@ -23,16 +23,53 @@ interface Props {
   onUploadingChange?: (count: number) => void;
 }
 
+const MIN_IMAGE_WIDTH = 80;
+
 /* Custom Image Componet */
-function ImageNodeView({ node, deleteNode }: NodeViewProps) {
+function ImageNodeView({ node, deleteNode, updateAttributes }: NodeViewProps) {
   const isUploading = node.attrs.uploading as boolean;
+  const width = node.attrs.width as number | null;
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const handleResizeStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
+    const startX = e.clientX;
+    const startWidth = wrapper.offsetWidth;
+    const maxWidth = wrapper.closest(".ProseMirror")?.clientWidth ?? Infinity;
+    const handle = e.currentTarget;
+    handle.setPointerCapture(e.pointerId);
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      const nextWidth = startWidth + (moveEvent.clientX - startX);
+      const clamped = Math.round(Math.min(Math.max(nextWidth, MIN_IMAGE_WIDTH), maxWidth));
+      updateAttributes({ width: clamped });
+    };
+    const handlePointerUp = () => {
+      handle.releasePointerCapture(e.pointerId);
+      handle.removeEventListener("pointermove", handlePointerMove);
+      handle.removeEventListener("pointerup", handlePointerUp);
+    };
+    handle.addEventListener("pointermove", handlePointerMove);
+    handle.addEventListener("pointerup", handlePointerUp);
+  };
+
   return (
-    <NodeViewWrapper className="relative inline-block group my-2" contentEditable={false}>
+    <NodeViewWrapper
+      ref={wrapperRef}
+      className="relative inline-block group my-2"
+      contentEditable={false}
+      style={width ? { width } : undefined}
+    >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={node.attrs.src}
         alt={node.attrs.alt ?? ""}
         className={`max-w-full rounded${isUploading ? " opacity-60" : ""}`}
+        style={width ? { width: "100%" } : undefined}
       />
       {isUploading && (
         <div className="absolute inset-0 flex items-center justify-center rounded">
@@ -40,14 +77,27 @@ function ImageNodeView({ node, deleteNode }: NodeViewProps) {
         </div>
       )}
       {!isUploading && (
-        <button
-          type="button"
-          onClick={deleteNode}
-          aria-label="이미지 삭제"
-          className="absolute top-1.5 right-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-        >
-          <LuX className="size-3.5" />
-        </button>
+        <>
+          <button
+            type="button"
+            onClick={deleteNode}
+            aria-label="이미지 삭제"
+            className="absolute top-1.5 right-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full p-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+          >
+            <LuX className="size-3.5" />
+          </button>
+          <div
+            onPointerDown={handleResizeStart}
+            role="slider"
+            aria-label="이미지 크기 조절"
+            aria-valuenow={width ?? undefined}
+            className="absolute bottom-0 right-0 p-2 touch-none cursor-nwse-resize opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+          >
+            <div className="flex items-center justify-center size-5 rounded-sm border border-dashed border-amber-400 bg-black/60">
+              <LuMoveDiagonal2 className="size-3 text-amber-400" />
+            </div>
+          </div>
+        </>
       )}
     </NodeViewWrapper>
   );
@@ -89,6 +139,17 @@ const CustomImage = Image.extend({
         default: false,
         parseHTML: () => false,
         renderHTML: () => ({}),
+      },
+      width: {
+        default: null,
+        parseHTML: (element) => {
+          const value = element.style.width || element.getAttribute("width");
+          return value ? parseInt(value, 10) : null;
+        },
+        renderHTML: (attributes) => {
+          if (!attributes.width) return {};
+          return { style: `width: ${attributes.width}px` };
+        },
       },
     };
   },

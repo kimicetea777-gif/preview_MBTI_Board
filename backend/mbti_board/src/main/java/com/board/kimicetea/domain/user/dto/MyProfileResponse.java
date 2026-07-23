@@ -19,7 +19,7 @@ public record MyProfileResponse(
         String role,
         String state,
         boolean isSocialOnly,
-        boolean hasPhone,
+        boolean hasRecoveryEmail,
         Instant createdAt,
         Instant lastLoginAt
 ) {
@@ -34,7 +34,7 @@ public record MyProfileResponse(
                 user.getRole().name(),
                 user.getState().name(),
                 user.getSocialProvider() != null,
-                user.getPhoneHash() != null,
+                user.getRecoveryEmail() != null,
                 user.getCreatedAt(),
                 user.getLastLoginAt()
         );

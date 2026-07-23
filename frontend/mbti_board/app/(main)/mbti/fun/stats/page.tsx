@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import QueryResetErrorBoundary from "@/components/common/QueryResetErrorBoundary";
 import FunStatsContent from "./FunStatsContent";
 
+export const dynamic = "force-dynamic";
+
 export default function FunStatsPage() {
   return (
     <article className="mt-5 mb-10">

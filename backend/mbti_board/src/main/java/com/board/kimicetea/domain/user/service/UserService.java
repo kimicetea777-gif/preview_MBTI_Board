@@ -8,7 +8,8 @@ import com.board.kimicetea.domain.mbti.repository.MbtiTestHistoryRepository;
 import com.board.kimicetea.domain.post.repository.PostRepository;
 import com.board.kimicetea.domain.user.dto.ChangePasswordRequest;
 import com.board.kimicetea.domain.user.dto.MyProfileResponse;
-import com.board.kimicetea.domain.user.dto.UpdatePhoneRequest;
+import com.board.kimicetea.domain.user.dto.RecoveryEmailConfirmRequest;
+import com.board.kimicetea.domain.user.dto.RecoveryEmailSendRequest;
 import com.board.kimicetea.domain.user.dto.UpdateProfileRequest;
 import com.board.kimicetea.domain.user.dto.UserActivityStatsResponse;
 import com.board.kimicetea.domain.user.dto.UserProfileResponse;
@@ -25,12 +26,15 @@ import com.board.kimicetea.global.audit.AuditLogService;
 import com.board.kimicetea.global.common.exception.CustomException;
 import com.board.kimicetea.global.common.exception.ErrorCode;
 import com.board.kimicetea.global.common.util.RequestUtils;
-import com.board.kimicetea.global.crypto.PhoneHashService;
 import com.board.kimicetea.global.mail.EmailService;
+import com.board.kimicetea.global.ratelimit.RateLimitEndpoints;
+import com.board.kimicetea.global.ratelimit.RateLimitService;
 import com.board.kimicetea.global.security.jwt.JwtProvider;
 import com.board.kimicetea.global.security.redis.TokenRedisService;
+import com.board.kimicetea.global.security.redis.TokenRedisService.RecoveryEmailTokenPayload;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -57,17 +61,17 @@ public class UserService {
     private final CommentRepository commentRepository;
     private final MbtiTestHistoryRepository mbtiTestHistoryRepository;
     private final PasswordEncoder passwordEncoder;
-    private final PhoneHashService phoneHashService;
     private final RetentionEncryptionService retentionEncryptionService;
     private final TokenRedisService tokenRedisService;
     private final JwtProvider jwtProvider;
     private final EmailService emailService;
     private final AuditLogService auditLogService;
+    private final RateLimitService rateLimitService;
 
-    /**
-     * 어드민 유저 직접 생성 — 이메일 인증 없이 role·state 직접 지정
-     * 주의: phone은 저장하지 않음 (어드민 생성 계정은 이메일 찾기 불필요)
-     */
+    @Value("${site.url}")
+    private String siteUrl;
+
+    /** 어드민 유저 직접 생성 — 이메일 인증 없이 role·state 직접 지정 */
     @Transactional
     public void adminCreateUser(final String email, final String rawPassword,
             final String nickname, final String mbtiId, final UserRole role, final UserState state) {
@@ -90,22 +94,14 @@ public class UserService {
                 .build());
     }
 
-    /** 회원가입 — AuthService에서 위임받아 유저 엔티티 생성. phone은 null 허용 (이메일 찾기 전용) */
+    /** 회원가입 — AuthService에서 위임받아 유저 엔티티 생성. 복구 이메일은 가입 후 마이페이지에서만 등록 */
     @Transactional
     public User registerUser(final String email, final String rawPassword,
-            final String nickname, final String mbtiId, final String phone) {
+            final String nickname, final String mbtiId) {
         if (userRepository.existsByEmail(email)) {
             throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
         }
         validateNicknameNotDuplicate(nickname);
-
-        String phoneHash = null;
-        if (phone != null && !phone.isBlank()) {
-            phoneHash = phoneHashService.hash(phone);
-            if (userRepository.existsByPhoneHash(phoneHash)) {
-                throw new CustomException(ErrorCode.DUPLICATE_PHONE);
-            }
-        }
 
         final MbtiMetadata mbti = findMbtiOrThrow(mbtiId);
         final MbtiVerified mbtiVerified = mbti.isNone() ? MbtiVerified.DEFAULT : MbtiVerified.SELF;
@@ -114,12 +110,17 @@ public class UserService {
                 .email(email)
                 .password(passwordEncoder.encode(rawPassword))
                 .nickname(nickname)
-                .phoneHash(phoneHash)
                 .mbtiVerified(mbtiVerified)
                 .role(UserRole.USER)
                 .state(UserState.NORMAL)
                 .mbti(mbti)
                 .build());
+    }
+
+    /** 닉네임 실시간 중복 체크 — 회원가입 폼에서 제출 전 확인용 */
+    @Transactional(readOnly = true)
+    public boolean isNicknameAvailable(final String nickname) {
+        return !userRepository.existsByNickname(nickname);
     }
 
     @Transactional(readOnly = true)
@@ -251,37 +252,65 @@ public class UserService {
     }
 
     /**
-     * 전화번호 등록/변경 — 중복 검증 후 HMAC 해시로 저장
-     * 주의: 원본 전화번호는 저장하지 않으므로 현재 번호 조회 불가
+     * 복구 이메일 인증 링크 발송 — 등록/변경 공용. 소유권 확인 전에는 실제로 반영되지 않음
+     * 주의: 링크는 프론트엔드 /my/account/recovery-email/verify?token={uuid} 로 연결
+     */
+    @Transactional(readOnly = true)
+    public void sendRecoveryEmailVerification(final UUID userId, final RecoveryEmailSendRequest request,
+                                              final HttpServletRequest httpRequest) {
+        rateLimitService.check(RateLimitEndpoints.RECOVERY_EMAIL, httpRequest, 3, 600);
+        rateLimitService.checkByEmail(RateLimitEndpoints.RECOVERY_EMAIL, request.email(), 3, 600);
+
+        final User user = findUserOrThrow(userId);
+        if (user.getEmail().equalsIgnoreCase(request.email())) {
+            throw new CustomException(ErrorCode.RECOVERY_EMAIL_SAME_AS_LOGIN);
+        }
+        if (userRepository.existsByRecoveryEmail(request.email())) {
+            throw new CustomException(ErrorCode.DUPLICATE_RECOVERY_EMAIL);
+        }
+
+        final String token = UUID.randomUUID().toString();
+        tokenRedisService.saveRecoveryEmailToken(token, userId.toString(), request.email());
+        emailService.sendRecoveryEmailVerification(request.email(),
+                siteUrl + "/my/account/recovery-email/verify?token=" + token);
+    }
+
+    /**
+     * 복구 이메일 인증 토큰 확인 — 토큰 자체가 (userId, email) 페어를 증명하므로 로그인 불필요(공개 엔드포인트)
+     * 주의: 메일 인박스를 다른 브라우저/기기에서 열 수 있으므로 현재 세션과 대조하지 않음 (email-verify/confirm과 동일 패턴)
+     * 주의: 발송 시점 이후 다른 유저가 같은 이메일을 선점했을 수 있으므로 재검증 필요
      */
     @Transactional
-    public void updatePhone(final UUID userId, final UpdatePhoneRequest request,
-                            final HttpServletRequest httpRequest) {
-        final User user = findUserOrThrow(userId);
-        final String phoneHash = phoneHashService.hash(request.phone());
-        if (userRepository.existsByPhoneHashAndIdNot(phoneHash, userId)) {
-            throw new CustomException(ErrorCode.DUPLICATE_PHONE);
+    public void confirmRecoveryEmailVerification(final RecoveryEmailConfirmRequest request,
+                                                 final HttpServletRequest httpRequest) {
+        final RecoveryEmailTokenPayload payload = tokenRedisService.getRecoveryEmailPayload(request.token())
+                .orElseThrow(() -> new CustomException(ErrorCode.RECOVERY_EMAIL_TOKEN_INVALID));
+        final UUID userId = UUID.fromString(payload.userId());
+        if (userRepository.existsByRecoveryEmailAndIdNot(payload.email(), userId)) {
+            throw new CustomException(ErrorCode.DUPLICATE_RECOVERY_EMAIL);
         }
-        user.changePhone(phoneHash);
-        auditLogService.record(AuditEvent.PHONE_CHANGE, userId,
-                user.getRole().name(), RequestUtils.extractClientIp(httpRequest));
-    }
+        tokenRedisService.deleteRecoveryEmailToken(request.token(), payload.userId());
 
-    /** 전화번호 삭제 */
-    @Transactional
-    public void removePhone(final UUID userId, final HttpServletRequest httpRequest) {
         final User user = findUserOrThrow(userId);
-        user.changePhone(null);
-        auditLogService.record(AuditEvent.PHONE_CHANGE, userId,
+        user.changeRecoveryEmail(payload.email());
+        auditLogService.record(AuditEvent.RECOVERY_EMAIL_CHANGE, userId,
                 user.getRole().name(), RequestUtils.extractClientIp(httpRequest));
     }
 
-    /** anonymize() 이전에 호출 — 원본 email·phoneHash가 필요하므로 순서 변경 금지 */
+    /** 복구 이메일 삭제 */
+    @Transactional
+    public void removeRecoveryEmail(final UUID userId, final HttpServletRequest httpRequest) {
+        final User user = findUserOrThrow(userId);
+        user.changeRecoveryEmail(null);
+        auditLogService.record(AuditEvent.RECOVERY_EMAIL_CHANGE, userId,
+                user.getRole().name(), RequestUtils.extractClientIp(httpRequest));
+    }
+
+    /** anonymize() 이전에 호출 — 원본 email이 필요하므로 순서 변경 금지 */
     private void saveRetentionLog(final User user, final String ip) {
         userRetentionLogRepository.save(Objects.requireNonNull(UserRetentionLog.of(
                 user.getId(),
                 retentionEncryptionService.encrypt(user.getEmail()),
-                user.getPhoneHash(),
                 ip
         )));
     }

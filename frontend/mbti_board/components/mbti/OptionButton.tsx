@@ -9,7 +9,7 @@ interface Props {
 export function OptionButton({ isSelected, onClick, children }: Props) {
   return (
     <button onClick={onClick} className="group w-full text-left">
-      <div className={`flex items-center gap-4 p-5 storybook-border border-2 transition-all duration-200 hover:-translate-y-0.5 ${
+      <div className={`flex items-center gap-4 p-3 storybook-border border-2 transition-all duration-200 hover:-translate-y-0.5 ${
         isSelected ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/50"
       }`}>
         <div className={`size-6 shrink-0 rounded-full border-2 flex items-center justify-center transition-colors ${

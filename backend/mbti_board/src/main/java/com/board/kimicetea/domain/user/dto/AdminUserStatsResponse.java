@@ -11,7 +11,7 @@ public record AdminUserStatsResponse(
         long localLoginCount,
         long thisMonthNewUsers,
         long lastMonthNewUsers,
-        long phoneVerifiedCount,
+        long recoveryEmailCount,
         long longPendingCount,
         List<CountEntry> byState,
         List<CountEntry> byRole,

@@ -22,11 +22,11 @@ public interface UserRepository extends JpaRepository<User, UUID>, UserRepositor
 
     Optional<User> findBySocialProviderAndProviderId(String socialProvider, String providerId);
 
-    Optional<User> findByPhoneHash(String phoneHash);
+    Optional<User> findByRecoveryEmail(String recoveryEmail);
 
-    boolean existsByPhoneHash(String phoneHash);
+    boolean existsByRecoveryEmail(String recoveryEmail);
 
-    boolean existsByPhoneHashAndIdNot(String phoneHash, UUID id);
+    boolean existsByRecoveryEmailAndIdNot(String recoveryEmail, UUID id);
 
     @EntityGraph(attributePaths = { "mbti" })
     Optional<User> findWithMbtiById(UUID id);
@@ -74,9 +74,9 @@ public interface UserRepository extends JpaRepository<User, UUID>, UserRepositor
     @Query("SELECT COUNT(u) FROM User u WHERE u.createdAt >= :from AND u.createdAt < :to")
     long countByCreatedAtBetween(@Param("from") Instant from, @Param("to") Instant to);
 
-    /** 전화번호 인증 완료 유저 수 — phoneHash가 존재하면 인증 완료 */
-    @Query("SELECT COUNT(u) FROM User u WHERE u.phoneHash IS NOT NULL")
-    long countHasPhone();
+    /** 복구 이메일 등록 완료 유저 수 */
+    @Query("SELECT COUNT(u) FROM User u WHERE u.recoveryEmail IS NOT NULL")
+    long countHasRecoveryEmail();
 
     /** state가 :state이면서 가입일이 :cutoff 이전인 유저 수 — PENDING 장기 체류 감지용 */
     @Query("SELECT COUNT(u) FROM User u WHERE u.state = :state AND u.createdAt < :cutoff")

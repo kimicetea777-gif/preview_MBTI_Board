@@ -14,12 +14,6 @@ const PROVIDER_CONFIG = {
     className:
       "border border-gray-300 text-gray-700 hover:bg-gray-50",
   },
-  kakao: {
-    label: "Kakao로 계속하기",
-    path: "/oauth2/authorization/kakao",
-    className:
-      "bg-yellow-300 text-gray-900 hover:bg-yellow-400",
-  },
 } as const;
 
 type Provider = keyof typeof PROVIDER_CONFIG;

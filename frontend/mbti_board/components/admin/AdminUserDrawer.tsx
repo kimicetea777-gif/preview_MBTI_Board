@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { FiX, FiTrash2, FiRotateCcw } from "react-icons/fi";
 import { useAdminUpdateUser } from "@/hooks/useAdmin";
 import { getMbtiColor } from "@/constants/mbtiData";
@@ -24,22 +24,18 @@ interface Props {
 }
 
 export default function AdminUserDrawer({ user, onClose }: Props) {
-  const [draftNickname, setDraftNickname] = useState("");
-  const [draftRole, setDraftRole] = useState<UserRole>("USER");
-  const [draftState, setDraftState] = useState<UserState>("NORMAL");
+  if (!user) return null;
+  // key로 유저가 바뀔 때마다 아래 컴포넌트를 새로 마운트해 draft 상태를 초기화
+  return <AdminUserDrawerContent key={user.id} user={user} onClose={onClose} />;
+}
+
+function AdminUserDrawerContent({ user, onClose }: { user: AdminUserSummaryResponse; onClose: () => void }) {
+  const [draftNickname, setDraftNickname] = useState(user.nickname);
+  const [draftRole, setDraftRole] = useState<UserRole>(user.role);
+  const [draftState, setDraftState] = useState<UserState>(user.state);
   const [clearProfileImage, setClearProfileImage] = useState(false);
 
   const updateUser = useAdminUpdateUser();
-
-  useEffect(() => {
-    if (!user) return;
-    setDraftNickname(user.nickname);
-    setDraftRole(user.role);
-    setDraftState(user.state);
-    setClearProfileImage(false);
-  }, [user]);
-
-  if (!user) return null;
 
   const nicknameChanged = draftNickname.trim() !== user.nickname;
   const roleChanged = draftRole !== user.role;
@@ -49,7 +45,7 @@ export default function AdminUserDrawer({ user, onClose }: Props) {
   const isPending = updateUser.isPending;
 
   function handleSave() {
-    if (!user || !hasChanges || isPending) return;
+    if (!hasChanges || isPending) return;
     updateUser.mutate({
       id: user.id,
       data: {
@@ -121,8 +117,8 @@ export default function AdminUserDrawer({ user, onClose }: Props) {
               <dd className="font-medium text-on-surface">{user.isSocialLogin ? "소셜 로그인" : "로컬 로그인"}</dd>
             </div>
             <div className="flex justify-between px-3 py-2">
-              <dt className="text-on-surface-variant">전화번호</dt>
-              <dd className="font-medium text-on-surface">{user.hasPhone ? "등록됨" : "미등록"}</dd>
+              <dt className="text-on-surface-variant">복구 이메일</dt>
+              <dd className="font-medium text-on-surface">{user.hasRecoveryEmail ? "등록됨" : "미등록"}</dd>
             </div>
             <div className="flex justify-between px-3 py-2">
               <dt className="text-on-surface-variant">가입일</dt>

@@ -6,7 +6,7 @@ import { isAxiosError } from "axios";
 import { useAuthStore } from "@/store/authStore";
 import { createComment } from "@/lib/api/comment";
 import { commentKeys } from "@/hooks/useComments";
-import GuestPasswordModal, { MODAL_ACTION } from "@/components/post/GuestPasswordModal";
+import GuestPasswordModal, { MODAL_ACTION, type GuestAgreement } from "@/components/post/GuestPasswordModal";
 import ErrorMessage from "@/components/common/ErrorMessage";
 import { toast } from "@/components/common/Toast";
 import type { DebateStance } from "@/types/comment";
@@ -39,12 +39,15 @@ export default function CommentForm({ postId, debateStance, parentId, onSuccess 
   );
 
   const mutation = useMutation({
-    mutationFn: (guestPassword?: string) =>
+    mutationFn: (params?: { guestPassword?: string; agreement?: GuestAgreement }) =>
       createComment(postId, {
         content: content.trim(),
         parentId,
         debateStance: isLoggedIn ? debateStance : undefined,
-        guestPassword,
+        guestPassword: params?.guestPassword,
+        termsAgreed: params?.agreement?.termsAgreed,
+        privacyAgreed: params?.agreement?.privacyAgreed,
+        age14Agreed: params?.agreement?.age14Agreed,
       }),
     onSuccess: () => {
       setContent("");
@@ -93,6 +96,10 @@ export default function CommentForm({ postId, debateStance, parentId, onSuccess 
     }
   };
 
+  const handleGuestConfirm = (guestPassword: string, agreement?: GuestAgreement) => {
+    mutation.mutate({ guestPassword, agreement });
+  };
+
   const isButtonDisabled = mutation.isPending || !content.trim();
 
   return (
@@ -127,7 +134,7 @@ export default function CommentForm({ postId, debateStance, parentId, onSuccess 
       <GuestPasswordModal
         open={modalOpen}
         action={MODAL_ACTION.CREATE}
-        onConfirm={(password) => mutation.mutate(password)}
+        onConfirm={handleGuestConfirm}
         onClose={() => setModalOpen(false)}
         isPending={mutation.isPending}
         error={modalError}

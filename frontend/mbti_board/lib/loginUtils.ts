@@ -5,7 +5,6 @@ const LAST_LOGIN_METHOD_KEY = "last_login_method";
 export const LOGIN_METHOD = {
   EMAIL: "email",
   GOOGLE: "google",
-  KAKAO: "kakao",
 } as const;
 
 export type LoginMethod = typeof LOGIN_METHOD[keyof typeof LOGIN_METHOD];
@@ -22,5 +21,4 @@ export function setLastLoginMethod(method: LoginMethod): void {
 export const LOGIN_METHOD_LABEL: Record<LoginMethod, string> = {
   [LOGIN_METHOD.EMAIL]: "이메일",
   [LOGIN_METHOD.GOOGLE]: "Google",
-  [LOGIN_METHOD.KAKAO]: "Kakao",
 };

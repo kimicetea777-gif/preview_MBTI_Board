@@ -1,6 +1,12 @@
+"use client";
+
 import { Suspense } from "react";
-import MyPostsSection from "@/components/my/MyPostsSection";
+import nextDynamic from "next/dynamic";
 import QueryResetErrorBoundary from "@/components/common/QueryResetErrorBoundary";
+
+const MyPostsSection = nextDynamic(() => import("@/components/my/MyPostsSection"), { ssr: false });
+
+export const dynamic = "force-dynamic";
 
 function MyPostsFallback() {
   return (
@@ -23,3 +29,4 @@ export default function MyPostsPage() {
     </QueryResetErrorBoundary>
   );
 }
+

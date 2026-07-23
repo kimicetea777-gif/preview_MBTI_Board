@@ -50,6 +50,18 @@ public class EmailService {
         ));
     }
 
+    /** 복구 이메일 인증 링크 발송 — 마이페이지에서 복구 이메일 등록/변경 시 소유권 확인용 */
+    @Async
+    public void sendRecoveryEmailVerification(@NonNull final String to, @NonNull final String verificationLink) {
+        send(to, "[" + appName + "] 복구 이메일 인증", buildLinkEmail(
+                "복구 이메일 인증",
+                "아래 버튼을 클릭해 계정 복구용 이메일 인증을 완료하세요.",
+                "10분 이내에 완료해야 합니다.",
+                verificationLink,
+                "이메일 인증하기"
+        ));
+    }
+
     /** 회원 탈퇴 OTP 발송 — 동기 처리: 실패 즉시 HTTP 500 반환, 레이스 컨디션 방지 */
     public void sendWithdrawalOtp(@NonNull final String to, @NonNull final String otp) {
         send(to, "[" + appName + "] 회원 탈퇴 인증 코드", buildOtpEmail(otp));

@@ -5,7 +5,6 @@
 | `AlertFlagRegistry` | `global/alert` | AlertType별 이메일 알림 활성화 플래그 레지스트리 — 발송 후 auto-mute, 서버 재시작 시 초기화 |
 | `AlertMarkers` | `global/alert` | SLF4J Marker 상수 보관 — log.error(AlertMarkers.JWT_TAMPER, ...) 형태로 알림 타입 지정 |
 | `ValidationConstants` | `global/common` | 비밀번호·전화번호 정책 등 공통 검증 상수 모음 (PASSWORD_REGEXP, PHONE_REGEXP 등) |
-| `PhoneHashService` | `global/crypto` | 전화번호 HMAC-SHA256 해싱 서비스 — DB 조회 키용 결정적 해시 생성 (시크릿 키로 역추적 방지, 최소 32자 검증) |
 | `RateLimitService` | `global/ratelimit` | Redis INCR 기반 Rate Limiting — IP별(check)·이메일별(checkByEmail) 두 방식 지원, 엔드포인트·최대 횟수·시간 창 지정 가능 (Cloudflare X-Forwarded-For 지원) |
 | `RateLimit` | `global/ratelimit` | IP 기반 Rate Limit 선언 어노테이션 — endpoint·max·windowSecs 지정, RateLimitAspect가 메서드 진입 전 자동 처리 |
 | `RateLimitAspect` | `global/ratelimit` | @RateLimit 어노테이션 AOP 처리기 — RequestContextHolder로 HttpServletRequest 획득 후 RateLimitService.check() 호출 |
@@ -17,10 +16,12 @@
 | `DebateSummaryResponse` | `domain/post/dto` | 토론 게시글 요약 응답 DTO (찬반 레이블, 카운트, 마감 여부) |
 | `MyProfileResponse` | `domain/user/dto` | 내 프로필 조회 응답 DTO (이메일·MBTI·역할·소셜여부 포함) |
 | `UserProfileResponse` | `domain/user/dto` | 타인 공개 프로필 응답 DTO (민감 정보 제외) |
+| `NicknameCheckResponse` | `domain/user/dto` | 닉네임 실시간 중복 체크 응답 DTO (available boolean) |
 | `UpdateProfileRequest` | `domain/user/dto` | 프로필 수정 요청 DTO (닉네임·이미지·MBTI 선택적 수정) |
 | `ChangePasswordRequest` | `domain/user/dto` | 비밀번호 변경 요청 DTO (현재·새 비밀번호) |
 | `UserService` | `domain/user/service` | 유저 프로필 비즈니스 로직 (조회·수정·탈퇴 OTP 발송·탈퇴·비밀번호 변경·전화번호 등록/삭제) |
-| `UpdatePhoneRequest` | `domain/user/dto` | 전화번호 등록/변경 요청 DTO (HMAC 해싱 전 원본 전화번호, PHONE_REGEXP 검증) |
+| `RecoveryEmailSendRequest` | `domain/user/dto` | 복구 이메일 등록/변경 인증 링크 발송 요청 DTO (email, @Email 검증) |
+| `RecoveryEmailConfirmRequest` | `domain/user/dto` | 복구 이메일 인증 토큰 확인 요청 DTO (token) |
 | `UserController` | `domain/user/controller` | 유저 프로필 API 컨트롤러 (GET·PATCH /me, GET /{id}, POST·DELETE /me/withdrawal-verify·/me, PATCH /me/password, PATCH·DELETE /me/phone) |
 | `WithdrawalRequest` | `domain/user/dto` | 회원 탈퇴 요청 DTO (6자리 OTP 코드) |
 | `EmailService` | `global/mail` | 이메일 발송 서비스 (탈퇴 OTP 발송) |
@@ -134,7 +135,7 @@
 | `ImageController` | `global/image/controller` | 이미지 API 컨트롤러 (POST /upload 업로드, POST /pending PENDING 등록(내부 키 필수), DELETE / 취소) |
 | `ImageUploadResponse` | `global/image/dto` | 이미지 업로드 응답 DTO — Tiptap Image src로 사용 가능한 공개 URL |
 | `UserActivityStatsResponse` | `domain/user/dto` | 내 활동 통계 응답 DTO (작성 게시글 수·댓글 수·최근 검사 MBTI) |
-| `FindEmailRequest` | `domain/auth/dto` | 이메일 찾기 요청 DTO (닉네임) |
+| `FindEmailRequest` | `domain/auth/dto` | 이메일 찾기 요청 DTO (recoveryEmail, @Email 검증) |
 | `FindEmailResponse` | `domain/auth/dto` | 이메일 찾기 응답 DTO (마스킹 이메일·소셜 전용 여부) |
 | `PasswordResetRequestBody` | `domain/auth/dto` | 비밀번호 재설정 이메일 발송 요청 DTO (이메일) |
 | `PasswordResetConfirmRequest` | `domain/auth/dto` | 비밀번호 재설정 확인 요청 DTO (토큰·새 비밀번호, @Size(min=8)) |
@@ -157,7 +158,7 @@
 | `UserCleanupService` | `domain/user/service` | WITHDRAWN 유저 정기 삭제·법적 보존 로그 만료 삭제 스케줄러 — 04:00 유저 배치, 04:05 retention 배치 |
 | `WithdrawalLog` | `domain/user/entity` | 탈퇴 이벤트 기록 엔티티 — PII 없이 withdrawn_at 타임스탬프만 보관, 탈퇴 추이 통계 전용 |
 | `WithdrawalLogRepository` | `domain/user/repository` | 탈퇴 로그 레포지토리 — MM-DD 기준 일별 탈퇴 수 집계 네이티브 쿼리 (findTrendRaw) |
-| `UserRetentionLog` | `domain/user/entity` | 탈퇴 유저 법적 보존 로그 엔티티 — email(AES 암호화)·phone_hash·탈퇴 IP를 12개월 보관 (전기통신사업법 §83의3) |
+| `UserRetentionLog` | `domain/user/entity` | 탈퇴 유저 법적 보존 로그 엔티티 — email(AES 암호화)·탈퇴 IP를 12개월 보관 (전기통신사업법 §83의3) |
 | `UserRetentionLogRepository` | `domain/user/repository` | 법적 보존 로그 레포지토리 — deleteAllByExpiresAtBefore로 만료 로그 일괄 삭제 |
 | `RetentionEncryptionService` | `global/crypto` | 법적 보존 로그용 가역 암호화 서비스 — Spring Security Encryptors(AES-256/CBC), 환경변수 password·salt 주입 필수 |
 | `AdminMbtiQuestionUpdateRequest` | `domain/mbti/dto` | 어드민 MBTI 문항 수정 요청 DTO (title·category·isReverse, testVersion 변경 불가) |
@@ -173,7 +174,7 @@
 | `InternalOnly` | `global/internal` | Next.js 서버 등 내부 호출 전용 엔드포인트 선언 어노테이션 — X-Internal-Key 헤더 검증을 InternalOnlyAspect가 자동 처리 |
 | `InternalOnlyAspect` | `global/internal` | @InternalOnly 어노테이션 AOP 처리기 — RequestContextHolder로 HttpServletRequest 획득 후 X-Internal-Key 헤더 검증 |
 | `InternalApiConstants` | `global/internal` | 내부 API 프로토콜 상수 모음 — INTERNAL_KEY_HEADER("X-Internal-Key") |
-| `AuditEvent` | `global/audit` | 감사 로그 이벤트 유형 Enum — SIGNUP·OAUTH2_SIGNUP·LOGIN·OAUTH2_LOGIN·PASSWORD_CHANGE·PHONE_CHANGE·WITHDRAWAL |
+| `AuditEvent` | `global/audit` | 감사 로그 이벤트 유형 Enum — SIGNUP·OAUTH2_SIGNUP·LOGIN·OAUTH2_LOGIN·PASSWORD_CHANGE·RECOVERY_EMAIL_CHANGE·WITHDRAWAL |
 | `AuditLog` | `global/audit` | 개인정보보호법 시행령 제30조 접속 기록 엔티티 — actor_id·event·ip·created_at 저장, of()/ofWithTarget() 팩토리 |
 | `AuditLogRepository` | `global/audit` | 감사 로그 JPA 레포지토리 (audit_logs 테이블, 커스텀 쿼리 없음) |
 | `AuditLogEvent` | `global/audit` | 감사 로그 기록 요청 Spring 이벤트 레코드 — event·actorId·actorRole·ip 전달 |

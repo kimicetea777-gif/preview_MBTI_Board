@@ -14,7 +14,7 @@ export default function MyPageContent() {
       <section className="lg:col-span-8 flex flex-col gap-3.5">
         <MyRecentlyViewedPreview />
         <MyPostsPreview />
-        {/* <MyMbtiHistorySection /> */}
+        <MyMbtiHistorySection />
       </section>
     </div>
   );

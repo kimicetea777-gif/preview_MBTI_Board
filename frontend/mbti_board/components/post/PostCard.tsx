@@ -1,42 +1,11 @@
 import Link from "next/link";
 import Image from "next/image";
-import { MdChatBubbleOutline, MdBarChart , MdHowToVote, MdOutlineCheckCircle, MdPlayCircleOutline } from "react-icons/md";
+import { MdChatBubbleOutline, MdBarChart, MdHowToVote, MdOutlineCheckCircle, MdPlayCircleOutline } from "react-icons/md";
 import MbtiBadge from "@/components/common/MbtiBadge";
 import { formatRelativeTime } from "@/lib/dateUtils";
-import { calcDebatePct } from "@/lib/debateUtils";
-import DebateProgressBar from "@/components/post/DebateProgressBar";
 import { POST_TYPE } from "@/types/post";
-import type { PostSummaryResponse } from "@/types/post";
-import PostTypeBadge from "@/components/common/PostTypeBadge";
-
-interface PostCardProps extends PostSummaryResponse {
-  href: string;
-  showType?: boolean;
-  card?: boolean;
-}
-
-function DebateBar({ proLabel, conLabel, proCount, conCount, isClosed }: {
-  proLabel: string;
-  conLabel: string;
-  proCount: number;
-  conCount: number;
-  isClosed: boolean;
-}) {
-  const { proPct, conPct } = calcDebatePct(proCount, conCount);
-
-  return (
-    <div className="mt-2 space-y-1">
-      <DebateProgressBar proPct={proPct} conPct={conPct} height="h-2" />
-      <div className="flex justify-between text-xs text-on-surface-variant">
-        <span className="text-chart-1">{proLabel} <span className="font-bold">{proPct}%</span></span>
-        <span className="flex items-center gap-1 text-primary">
-          {isClosed && <span className="text-muted-foreground">[마감]</span>}
-          {conLabel} <span className="font-bold">{conPct}%</span>
-        </span>
-      </div>
-    </div>
-  );
-}
+import { DebateBar, VoteOptionList } from "@/components/post/PostCardShared";
+import type { PostCardBaseProps } from "@/components/post/PostCardShared";
 
 const STAT_ROW_CLS = "flex items-center text-on-surface-variant mt-auto pt-3 mr-2 border-t-2 border-outline-variant/30";
 
@@ -49,78 +18,8 @@ function CommentCount({ count }: { count: number }) {
   );
 }
 
-function VoteOptionList({ options }: { options: { id: number; optionText: string }[] }) {
-  return (
-    <ul className="mt-2 flex flex-wrap gap-1">
-      {options.map((opt) => (
-        <li
-          key={opt.id}
-          className="rounded-md bg-secondary-container/50 px-2.5 py-1 text-xs text-on-secondary-container truncate max-w-48 "
-        >
-          {opt.optionText}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-export default function PostCard({ href, showType, card, ...post }: PostCardProps) {
+export default function PostCard({ href, ...post }: PostCardBaseProps) {
   const thumbnail = post.imageUrls?.[0] ?? null;
-  if(thumbnail != null || thumbnail != undefined) console.log("thumbnail: "+thumbnail)
-  if (!card) {
-    return (
-      <article className="border-b border-border py-4 hover:bg-muted/40 transition-colors">
-        <Link href={href} className="block">
-          <div className="flex gap-3">
-            <div className="flex-1 min-w-0 space-y-2">
-              <div className="flex items-start justify-between gap-2">
-
-                <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                  {showType && (
-                    <PostTypeBadge type={post.typeCode} />
-                  )}
-                  <h2 className="text-sm font-medium text-foreground line-clamp-2">{post.title}</h2>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-on-surface-variant">
-                  <MbtiBadge mbti={post.authorMbtiId} verified={post.mbtiVerified} />
-                  <span>{post.authorNickname}</span>
-                  <span>·</span>
-                  <span>{formatRelativeTime(post.createdAt)}</span>
-                </div>
-              </div>
-              
-              {post.contentPreview && (
-                <p className="text-xs text-on-surface-variant line-clamp-2">{post.contentPreview}</p>
-              )}
-              {post.typeCode === POST_TYPE.DEBATE && post.debateSummary && (
-                <DebateBar {...post.debateSummary} />
-              )}
-              {post.typeCode === POST_TYPE.VOTE && post.voteOptions && post.voteOptions.length > 0 && (
-                <VoteOptionList options={post.voteOptions} />
-              )}
-              
-              <div className="flex justify-between gap-3">
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  <span>댓글 {post.commentCount}</span>
-                  <span>조회 {post.viewCount}</span>
-                </div>
-                {post.targetMbtiId && (
-                  <span className="shrink-0 text-xs rounded-full px-2 py-0.5 bg-outline text-background font-medium">
-                    {post.targetMbtiId}에게
-                  </span>
-                )}
-              </div>
-            </div>
-            {thumbnail && (
-              <div className="shrink-0 w-20 h-20 rounded-md overflow-hidden bg-muted">
-                <Image src={thumbnail} alt="" width={80} height={80} className="w-full h-full object-cover" />
-              </div>
-            )}
-          </div>
-        </Link>
-      </article>
-    );
-  }
 
   return (
     <Link href={href} className="block h-full">
@@ -168,7 +67,7 @@ export default function PostCard({ href, showType, card, ...post }: PostCardProp
         {/* 썸네일 */}
         {thumbnail && (
           <div className="mb-4 w-full rounded-md overflow-hidden bg-muted aspect-video relative">
-            <Image src={thumbnail} alt="" fill className="object-cover" />
+            <Image src={thumbnail} alt="" fill sizes="(min-width: 1024px) 50vw, 100vw" className="object-cover" />
           </div>
         )}
 

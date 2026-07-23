@@ -2,6 +2,7 @@ import { apiClient } from "@/lib/apiClient";
 import { API } from "@/constants/apiEndpoints";
 import type { ApiResponse, PageResponse } from "@/types/api";
 import type { AdminMbtiQuestion, AdminFunQuestion } from "@/types/mbti";
+import type { PostDetailResponse } from "@/types/post";
 import type {
   AdminCreateUserRequest,
   AdminUpdateUserRequest,
@@ -49,6 +50,12 @@ export async function fetchAdminPosts(
   const res = await apiClient.get<ApiResponse<PageResponse<AdminPostSummaryResponse>>>(
     API.admin.posts, { params }
   );
+  return res.data.data;
+}
+
+/** 게시글 단건 조회(어드민) — 숨겨진 게시글도 조회 가능 */
+export async function fetchAdminPost(id: number): Promise<PostDetailResponse> {
+  const res = await apiClient.get<ApiResponse<PostDetailResponse>>(API.admin.post(id));
   return res.data.data;
 }
 

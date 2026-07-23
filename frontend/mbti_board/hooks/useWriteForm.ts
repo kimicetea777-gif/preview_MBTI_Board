@@ -95,7 +95,10 @@ export function useWriteForm(initialType: PostType) {
     setPostType(type);
   };
 
-  const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
+  const handleSubmit = (
+    e: React.SyntheticEvent<HTMLFormElement>,
+    guestAgreement?: { termsAgreed: boolean; privacyAgreed: boolean; age14Agreed: boolean },
+  ) => {
     e.preventDefault();
 
     if (uploadingCount > 0) {
@@ -123,6 +126,9 @@ export function useWriteForm(initialType: PostType) {
         content,
         targetMbti: resolvedTargetMbti,
         guestPassword: !isLoggedIn ? guestPassword : undefined,
+        termsAgreed: !isLoggedIn ? guestAgreement?.termsAgreed : undefined,
+        privacyAgreed: !isLoggedIn ? guestAgreement?.privacyAgreed : undefined,
+        age14Agreed: !isLoggedIn ? guestAgreement?.age14Agreed : undefined,
       });
       return;
     }

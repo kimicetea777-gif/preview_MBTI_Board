@@ -54,7 +54,6 @@ export default function SignupContent({ initialStep, initialEmail }: Props) {
 
   const is409 = getApiErrorStatus(signupMutation.error) === 409;
   const isDuplicateNickname = is409 && !!signupApiErrorMsg?.includes("닉네임");
-  const isDuplicatePhone = is409 && !!signupApiErrorMsg?.includes("전화번호");
   const hasAuthError = getApiErrorStatus(signupMutation.error) === 400;
 
   const goToEmail = () => {
@@ -97,7 +96,6 @@ export default function SignupContent({ initialStep, initialEmail }: Props) {
         isPending={signupMutation.isPending}
         apiErrorMsg={signupApiErrorMsg}
         isDuplicateNickname={isDuplicateNickname}
-        isDuplicatePhone={isDuplicatePhone}
       />
     );
   }

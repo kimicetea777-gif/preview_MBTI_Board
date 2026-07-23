@@ -13,7 +13,8 @@ public enum ErrorCode {
     // Auth
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
     DUPLICATE_NICKNAME(HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다."),
-    DUPLICATE_PHONE(HttpStatus.CONFLICT, "이미 등록된 전화번호입니다."),
+    DUPLICATE_RECOVERY_EMAIL(HttpStatus.CONFLICT, "이미 등록된 이메일입니다."),
+    RECOVERY_EMAIL_SAME_AS_LOGIN(HttpStatus.BAD_REQUEST, "로그인 이메일과 다른 이메일을 입력해 주세요."),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."),
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 토큰입니다."),
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "만료된 토큰입니다."),
@@ -25,7 +26,7 @@ public enum ErrorCode {
     UNSUPPORTED_PROVIDER(HttpStatus.BAD_REQUEST, "지원하지 않는 OAuth2 Provider입니다."),
     OAUTH2_EMAIL_REQUIRED(HttpStatus.BAD_REQUEST, "이메일 제공에 동의해야 소셜 로그인이 가능합니다."),
     OAUTH2_SIGNUP_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "유효하지 않거나 만료된 가입 요청입니다. 소셜 로그인을 다시 시도해 주세요."),
-    TERMS_NOT_AGREED(HttpStatus.BAD_REQUEST, "이용약관과 개인정보처리방침에 모두 동의해야 가입할 수 있습니다."),
+    TERMS_NOT_AGREED(HttpStatus.BAD_REQUEST, "이용약관·개인정보처리방침 동의 및 만 14세 이상 확인이 모두 필요합니다."),
     MISSING_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."),
 
     // User
@@ -34,6 +35,7 @@ public enum ErrorCode {
     MBTI_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 MBTI입니다."),
     EMAIL_NOT_VERIFIED(HttpStatus.BAD_REQUEST, "이메일 인증이 만료되었습니다. 다시 시도해주세요."),
     EMAIL_VERIFY_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "유효하지 않은 인증 링크입니다. 다시 요청해 주세요."),
+    RECOVERY_EMAIL_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "유효하지 않은 인증 링크입니다. 다시 요청해 주세요."),
     WITHDRAWAL_OTP_INVALID(HttpStatus.BAD_REQUEST, "인증 코드가 올바르지 않습니다."),
     WITHDRAWAL_OTP_EXPIRED(HttpStatus.BAD_REQUEST, "인증 코드가 만료되었습니다. 다시 요청해 주세요."),
     WITHDRAWAL_OTP_MAX_ATTEMPTS(HttpStatus.BAD_REQUEST, "인증 코드가 만료되었습니다. 새로운 인증 코드를 요청해 주세요."),

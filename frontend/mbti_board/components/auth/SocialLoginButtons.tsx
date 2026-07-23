@@ -16,11 +16,6 @@ export default function SocialLoginButtons({ redirectTo, lastUsedMethod }: Props
         redirectTo={redirectTo}
         isLastUsed={lastUsedMethod === LOGIN_METHOD.GOOGLE}
       />
-      {/* <SocialLoginButton
-        provider="kakao"
-        redirectTo={redirectTo}
-        isLastUsed={lastUsedMethod === LOGIN_METHOD.KAKAO}
-      /> */}
     </nav>
   );
 }

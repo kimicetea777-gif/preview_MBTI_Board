@@ -40,7 +40,8 @@
 - `components/common/MbtiAvatar.tsx` — MBTI 유형의 colorCode 방사형 그라데이언트 + 마스크 처리된 이미지를 원형으로 표시; `size` prop으로 sm(96px)/lg(160px) 선택, imageUrl 없으면 그라데이언트 원형만 표시
 - `components/common/MbtiBadge.tsx` — MBTI 유형과 인증 상태(`TESTED`/`SELF`/`DEFAULT`)를 색상 배지로 표시; `TESTED`/`SELF` 클릭 시 `MbtiTypeCard` 팝오버(portal, fixed 위치) 표시, 바깥 클릭으로 닫기
 - `components/common/ApiErrorBoundary.tsx` — React 렌더 에러를 포착해 에러 메시지와 재시도 버튼을 표시하는 클래스형 Error Boundary
-- `components/common/Header.tsx` — AT 존재 여부로 로그인/로그아웃 버튼을 전환하는 상단 고정 헤더
+- `components/common/Header.tsx` — AT 존재 여부로 로그인 버튼/마이페이지 아이콘을 전환하는 상단 고정 헤더 (로그아웃은 마이페이지로 이동)
+- `components/common/LogoutButton.tsx` — 로그아웃 처리(로그아웃 API 호출·AT 초기화·로그인 페이지 이동)를 캡슐화한 버튼; `className` prop으로 스타일 주입
 - `components/auth/SocialLoginButtons.tsx` — Google·Kakao 소셜 로그인 버튼 목록; `lastUsedMethod` 전달 시 마지막 로그인 제공자 말풍선 표시
 - `components/common/Sidebar.tsx` — 자유·투표·토론 게시판 탭 링크와 현재 경로 활성화 표시 사이드바
 
@@ -387,7 +388,7 @@
 
 
 - `components/common/Logo.tsx` — `/images/logo.png` 이미지 기반 로고 컴포넌트; `size`(sm/md/lg)·`asLink`(홈 링크 여부) prop 지원, 클릭 시 `/` 이동
-- `components/auth/SocialLoginButton.tsx` — 소셜 로그인 버튼 공용 컴포넌트; `provider`(google/kakao)·`redirectTo` prop으로 OAuth2 리다이렉트 처리, 스타일·경로는 PROVIDER_CONFIG 상수로 관리
+- `components/auth/SocialLoginButton.tsx` — 소셜 로그인 버튼 공용 컴포넌트; `provider`(google)·`redirectTo` prop으로 OAuth2 리다이렉트 처리, 스타일·경로는 PROVIDER_CONFIG 상수로 관리 (카카오는 미구현으로 제거됨)
 - `components/common/Toast.tsx` — 완전 커스텀 토스트 시스템; `ToastProvider`(루트 마운트), `toast.success/error/info/warning()` 모듈 레벨 싱글턴으로 훅 없이 어디서든 호출 가능, 슬라이드인 애니메이션·자동 닫힘·수동 닫기 지원
 - `components/common/FloatingLabelInput.tsx` — 플로팅 라벨 input 베이스 컴포넌트; `rightSlot` prop으로 우측 버튼 주입, `hint` prop으로 포커스 시 힌트 텍스트 표시 지원
 - `components/common/EmailInput.tsx` — FloatingLabelInput 기반 이메일 전용 래퍼; 메일 아이콘·type email·autoComplete email 고정, 자동완성 기능 확장 예정
@@ -397,6 +398,7 @@
 - `components/common/ErrorMessage.tsx` — 폼 에러 메시지 공통 컴포넌트; 빨간 테두리·반투명 배경·아이콘 포함, `message` null/undefined 시 렌더링 안 함
 - `components/post/BoardTypeNav.tsx` — 전체·자유글·투표글·토론글 탭 링크; usePathname으로 현재 경로에 따라 활성 탭 강조
 - `hooks/usePhoneInput.ts` — 전화번호 입력 상태·포맷팅(숫자만 추출 + 하이픈 자동 삽입) 훅; `{ phone, handlePhoneChange }` 반환
+- `hooks/useNicknameCheck.ts` — 닉네임 실시간 중복 체크 훅; 400ms 디바운스 후 GET /api/users/check-nickname 호출, `skipValue`로 본인 기존 닉네임은 체크 생략, `{ available, taken }` 반환 (FormStep·MyProfileCard 공용)
 - `hooks/usePostEditDelete.tsx` — 자유글 전용 수정/삭제 훅; 편집 상태·모달 상태·update/delete mutation·핸들러·menuItems·guestModalProps 반환, redirectPath로 삭제 후 이동 경로 주입
 - `hooks/usePostDelete.tsx` — 투표·토론 전용 삭제 전용 훅; 수정 시 toast 표시(editUnavailableMessage), 삭제 시 게스트 비밀번호 모달 지원, menuItems·guestModalProps 반환
 - `hooks/useImageUpload.ts` — 이미지 업로드 추적 훅; 업로드 URL Set 관리, 언마운트 시 미저장 이미지 PENDING 취소 요청(keepalive), `{ hasImage, handleUpload, markSaved }` 반환
@@ -489,7 +491,12 @@
 ## Components
 
 - `components/post/PostCardSkeleton.tsx` — 게시글 카드 로딩 스켈레톤; BoardPostList Suspense fallback 및 무한 스크롤 로딩 인디케이터로 공용 사용
-- `components/post/BoardPostList.tsx` — 게시판 목록 UI 전담 클라이언트 컴포넌트; useSuspensePostList 기반, 정렬·MBTI 필터·카드/리스트 뷰 모드·무한 스크롤·광고 삽입 담당 (isLoading/isError 제거, Suspense+QueryResetErrorBoundary로 위임)
+- `components/post/BoardPostList.tsx` — 게시판 목록 UI 전담 클라이언트 컴포넌트; useSuspensePostList 기반, 카드/리스트 뷰 모드·무한 스크롤·광고 삽입 담당, type·sort·authorMbti·viewMode는 BoardView로부터 props로 전달받음 (isLoading/isError 제거, Suspense+QueryResetErrorBoundary로 위임)
+- `components/post/BoardListHeader.tsx` — 게시판 제목/설명 + 정렬·뷰모드·MBTI 필터 헤더; BoardPostList의 Suspense 경계 밖에 위치해 데이터 재요청 중에도 깜빡이지 않음, 상태는 상위(BoardView)에서 props로 주입
+- `app/(main)/board/BoardView.tsx` — sort·authorMbti·viewMode state를 보유하는 얇은 래퍼; BoardListHeader + Suspense(BoardPostList) 조합, BoardPageClient에서 board 타입 변경 시 key로 리마운트되어 필터 상태 초기화
+- `components/post/PostCardShared.tsx` — PostCard/PostListItem 공용 서브 컴포넌트(DebateBar, VoteOptionList)와 `PostCardBaseProps` 타입 모음
+- `components/post/PostCard.tsx` — 카드 뷰 전용으로 분리(기존 `card` prop 분기 제거); 헤더+제목+통계 풀 레이아웃
+- `components/post/PostListItem.tsx` — 목록 뷰 전용 컴포넌트(기존 PostCard의 list 분기를 분리); 가로 한 줄 레이아웃, 썸네일 80x80
 - `components/mbti/MbtiTypePreviewCard.tsx` — MbtiBadge 팝오버용 MBTI 유형 미리보기 카드; MbtiAvatar(lg) + 유형 코드 + personalities 아이콘·라벨 4개 표시
 
 ---
@@ -577,4 +584,73 @@
 - `components/auth/TermsAgreementCheckboxes.tsx` — 이용약관/개인정보처리방침 동의 체크박스 쌍 공용 컴포넌트; `FormStep.tsx`·`WriteFormContent.tsx`(비회원 글쓰기) 중복 제거
 - `components/auth/TermsAgreementContent.tsx` — 약관 동의 페이지(라우트/이름을 "소셜 가입" 대신 범용화, 향후 재동의 흐름과 공유 목적); `useSyncExternalStore`로 URL fragment의 `signupToken`을 SSR 안전하게 읽음, 동의 완료 시 AT 저장+`setLastLoginMethod`+원래 목적지 리다이렉트
 - `app/(auth)/terms/agree/page.tsx` — `/terms/agree` 서버 컴포넌트; `TermsAgreementContent` 렌더링
+
+## 페이지네이션 공용 훅 + MyPostsSection 분리
+
+- `hooks/usePagination.ts` — 페이지 번호 배열(`buildPageNumbers`, 생략 부호는 `PAGE_ELLIPSIS` 상수) + `goToPrev`/`goToNext` 핸들러 반환 공용 훅; `MyPostsList`·`AdminUserTable`·`AdminPostTable`·`AdminCommentTable`에서 중복 정의되던 로직 통합
+- `components/my/MyPostsHeader.tsx` — 마이페이지 게시글 섹션 헤더(제목+총 개수) + 전체/자유글/투표/토론 필터 탭; `MyPostsSection`에서 분리된 presentational 컴포넌트
+- `components/my/MyPostsList.tsx` — 게시글 목록(썸네일·뱃지·수정삭제) + 페이지네이션 nav; `usePagination` 사용, 빈 상태 안내 포함; `MyPostsSection`에서 분리된 presentational 컴포넌트
+- `components/my/MyPostsSection.tsx` — 상태(`selectedType`·`page`)·쿼리·삭제 mutation만 소유하고 `MyPostsHeader`·`MyPostsList`를 조립하는 컨테이너로 축소
 - `components/auth/OAuth2CallbackContent.tsx` — `signupToken` 분기 추가; 있으면 sessionStorage 정리 없이 `/terms/agree`로 이동(정리는 동의 완료 페이지가 이어받음)
+
+## Refactor — MyProfileCard 편집 다이얼로그 분리
+
+- `components/my/NicknameEditDialog.tsx` — 별명 변경 다이얼로그; `MyProfileCard`에서 분리된 presentational 컴포넌트, nickname·에러·중복확인 상태를 props로 수신
+- `components/my/MbtiEditDialog.tsx` — MBTI 타입 변경 다이얼로그; `MyProfileCard`에서 분리된 presentational 컴포넌트, mbtiId·mutation 상태를 props로 수신
+
+## Fix — SiteNav/Header 로그인 상태 하이드레이션 불일치
+
+- `hooks/useHasMounted.ts` — `useSyncExternalStore` 기반 마운트 여부 훅; 서버 렌더·클라이언트 첫 하이드레이션은 항상 `false`, 커밋 이후 `true`로 전환 (`useIsDesktop`과 동일 패턴, `setState-in-effect` lint 위반 없이 hydration-safe)
+- `components/common/SiteNav.tsx` — `NavContent`에서 `isLoggedIn` 조건에 `useHasMounted()` 게이트 추가; `AuthSyncProvider`의 silent refresh가 `<Suspense>`로 지연된 이 서브트리의 하이드레이션보다 먼저 끝나 발생하던 하이드레이션 실패 수정
+- `components/common/Header.tsx` — 동일한 `useHasMounted()` 게이트를 로그인 버튼/마이페이지 아이콘 분기에 적용 (잠재적 하이드레이션 불일치 예방)
+
+## 자동 로그인(rememberMe) + 연동 기기 전체 로그아웃
+
+- `components/auth/LoginForm.tsx` — "자동 로그인" 체크박스 추가; 로그인 요청에 `rememberMe` 포함
+- `store/authStore.ts` — `setAccessToken(token, rememberMe?)`으로 확장; `rememberMe=false`면 `session` 힌트 쿠키를 Max-Age 없는 브라우저 세션 쿠키로 발급(RT 쿠키와 동일 정책), `localStorage`에 선택값을 저장해 silent refresh 등 rememberMe를 모르는 호출에서 재사용
+- `components/my/account/MyLogoutAllSection.tsx` — 마이페이지 계정관리에 "연동 기기 전체 로그아웃" 카드+확인 다이얼로그 추가; `POST /api/auth/logout/all` 호출 후 로컬 세션 정리 및 로그인 페이지 이동
+- `components/my/account/MyAccountContent.tsx` — `MyLogoutAllSection` 렌더링 추가
+- `components/my/MyAccountSection.tsx` — 삭제 (과거 리팩터링 때 `MyWithdrawalSection.tsx`로 로직이 이전된 뒤 어디서도 렌더링되지 않던 죽은 컴포넌트)
+
+## 배포 전 정리 — 카카오 로그인 전체 제거
+
+카카오 OAuth2 앱 등록이 안 된 상태로 배포하면 `application.yaml`의 `${KAKAO_CLIENT_ID}` placeholder 해석 실패로 서버 부팅 자체가 실패할 위험이 있어, 미구현 상태였던 카카오 로그인을 완전히 제거함(프론트 버튼은 이전부터 주석 처리되어 있었음).
+
+- `components/auth/SocialLoginButton.tsx` — `PROVIDER_CONFIG`에서 `kakao` 항목 제거, `google`만 남음
+- `components/auth/SocialLoginButtons.tsx` — 주석 처리되어 있던 카카오 버튼 블록 삭제
+- `lib/loginUtils.ts` — `LOGIN_METHOD`/`LOGIN_METHOD_LABEL`에서 `KAKAO` 제거
+- 백엔드 `application.yaml`/`application-test.yaml` — `spring.security.oauth2.client.registration.kakao`, `provider.kakao` 설정 블록 제거
+- `global/security/oauth2/userinfo/KakaoOAuth2UserInfo.java` — 삭제
+- `global/security/oauth2/CustomOAuth2UserService.java` — `resolveUserInfo()`의 `"kakao"` 분기 제거
+- 루트 `.env` — 주석 처리되어 있던 `KAKAO_CLIENT_ID`/`KAKAO_CLIENT_SECRET` 제거
+- `app/(main)/my/page.tsx`, `app/(main)/my/account/page.tsx`, `app/(main)/my/posts/page.tsx` — 클라이언트 전용 데이터(AT는 메모리에만 존재)를 서버에서 렌더링 시도하며 매 요청 401이 발생하던 문제 수정; `next/dynamic(..., { ssr: false })`로 콘텐츠를 클라이언트 전용 렌더링으로 전환(admin 페이지와 동일 패턴), `next/dynamic` import는 라우트 세그먼트 설정 `export const dynamic`과의 이름 충돌을 피하기 위해 `nextDynamic`으로 별칭 처리
+
+## 배포 전 정리 — 죽은 컴포넌트 삭제
+
+배포 전 불필요한 파일 점검 중 발견한, 리팩터링 후 어디서도 렌더링되지 않던 컴포넌트 4개 삭제 (`MyAccountSection.tsx`와 동일한 "로직만 옮겨가고 파일은 안 지워진" 패턴).
+
+- `components/my/MyCommentsPreview.tsx` — 삭제 (`MyRecentlyViewedPreview.tsx`로 대체된 뒤 `MyPageContent.tsx`에서 더 이상 렌더링되지 않던 placeholder)
+- `components/post/PostListFilter.tsx` — 삭제 (정렬·뷰모드·MBTI 필터 기능이 `BoardListHeader.tsx`로 이전됨)
+- `components/common/ValidationCheckBox.tsx` — 삭제 (`MyPasswordSection.tsx`가 더 이상 사용하지 않음 — 문서엔 사용한다고 남아있었으나 실제 코드는 이미 다른 방식으로 리팩터링됨)
+- `components/theme/ThemeSwitcher.tsx` — 삭제 (`Header`/`SiteNav` 어디에도 연결 안 됨; `app/layout.tsx`의 `next-themes` `ThemeProvider` 자체는 유지되어 OS 다크모드 설정은 그대로 반영됨, 수동 전환 버튼만 없었음)
+
+## 핸드폰 번호 기능 전면 제거 → 인증된 복구 이메일로 대체
+
+미인증 전화번호로 이메일 찾기를 하던 방식이 (1) 전화번호 열거로 가입 여부 조회 가능 (2) 타인 번호 입력 시 도용 가능한 문제가 있어, 회원가입 시 phone 입력을 완전히 제거하고 마이페이지에서 소유권 인증(발송+링크 확인)을 거친 복구 이메일로 대체함.
+
+- `hooks/usePhoneInput.ts` — 삭제 (전화번호 포맷팅 훅, 모든 사용처 제거로 unused)
+- `components/auth/steps/FormStep.tsx` — 회원가입 폼에서 전화번호 입력 필드·`usePhoneInput`·중복 검증 로직 제거
+- `components/auth/SignupContent.tsx` — `isDuplicatePhone` 판별 로직 제거
+- `components/auth/FindEmailSection.tsx` — 전화번호 입력 → 복구 이메일 입력으로 교체 (`MdEmail` 아이콘, `EMAIL_REGEX` 검증, `findEmail({ recoveryEmail })`)
+- `components/auth/FindAccountContent.tsx` — 이메일 찾기 탭 안내 문구를 복구 이메일 기준으로 변경
+- `components/my/account/MyPhoneSection.tsx` — 삭제 → `components/my/account/MyRecoveryEmailSection.tsx`로 대체; 즉시 저장 대신 인증 메일 발송(`sendRecoveryEmailVerification`) 후 링크 클릭으로 확정되는 흐름, 삭제는 기존과 동일한 즉시 반영 다이얼로그
+- `components/my/account/RecoveryEmailVerifyContent.tsx` — `SignupVerifyContent.tsx`와 동일한 token 확인 패턴; 성공 시 프로필 캐시 무효화 후 `/my/account`로 리다이렉트
+- `app/(main)/my/account/recovery-email/verify/page.tsx` — 위 컴포넌트를 렌더링하는 인증 링크 착지 페이지 (`searchParams.token` 전달)
+- `components/my/account/MyAccountContent.tsx` — `MyPhoneSection` → `MyRecoveryEmailSection`, `hasRecoveryEmail` prop 전달
+- `components/admin/AdminUserDrawer.tsx` — 전화번호 등록 여부 행 → 복구 이메일 등록 여부로 변경
+- `components/admin/AdminUserStatsContent.tsx` — "전화번호 인증률" 카드 → "복구 이메일 등록률" 카드 (`recoveryEmailCount`/`recoveryEmailPct`, `MdAlternateEmail` 아이콘)
+- `constants/apiEndpoints.ts` — `mePhone` 제거, `meRecoveryEmailSend`/`meRecoveryEmailConfirm`/`meRecoveryEmail` 추가
+- `constants/routes.ts` — `myAccountRecoveryEmailVerify: "/my/account/recovery-email/verify"` 추가
+- `types/auth.ts`, `types/user.ts`, `types/admin.ts` — `SignupRequest.phone` 제거, `FindEmailRequest.phone`→`recoveryEmail`, `hasPhone`→`hasRecoveryEmail`, `phoneVerifiedCount`→`recoveryEmailCount`, `RecoveryEmailSendRequest`/`RecoveryEmailConfirmRequest` 추가
+- `lib/validationConstants.ts` — `PHONE_REGEX`/`PHONE_MESSAGE` 제거, `EMAIL_REGEX`/`EMAIL_MESSAGE` 추가
+- `lib/api/user.ts` — `updatePhone`/`removePhone` → `sendRecoveryEmailVerification`/`confirmRecoveryEmailVerification`/`removeRecoveryEmail`

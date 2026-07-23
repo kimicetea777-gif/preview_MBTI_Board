@@ -164,7 +164,7 @@ class CommentControllerTest {
             mockMvc.perform(post(BASE_URL)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(
-                                    new CommentCreateRequest("테스트 댓글 내용", null, null, null))))
+                                    new CommentCreateRequest("테스트 댓글 내용", null, null, null, true, true, true))))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data.id").value(COMMENT_ID));
@@ -179,7 +179,7 @@ class CommentControllerTest {
             mockMvc.perform(post(BASE_URL)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(
-                                    new CommentCreateRequest("비회원 댓글 내용", null, "guest1234", null))))
+                                    new CommentCreateRequest("비회원 댓글 내용", null, "guest1234", null, true, true, true))))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.success").value(true));
         }
@@ -193,7 +193,7 @@ class CommentControllerTest {
             mockMvc.perform(post(BASE_URL)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(
-                                    new CommentCreateRequest("대댓글 내용", 5L, null, null))))
+                                    new CommentCreateRequest("대댓글 내용", 5L, null, null, true, true, true))))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.success").value(true));
         }
@@ -215,7 +215,7 @@ class CommentControllerTest {
             mockMvc.perform(post(BASE_URL)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(
-                                    new CommentCreateRequest(longContent, null, null, null))))
+                                    new CommentCreateRequest(longContent, null, null, null, true, true, true))))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -226,7 +226,7 @@ class CommentControllerTest {
             mockMvc.perform(post(BASE_URL)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(
-                                    new CommentCreateRequest("댓글 내용", null, "abc", null))))
+                                    new CommentCreateRequest("댓글 내용", null, "abc", null, true, true, true))))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -240,7 +240,7 @@ class CommentControllerTest {
             mockMvc.perform(post(BASE_URL)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(
-                                    new CommentCreateRequest("댓글 내용", null, null, null))))
+                                    new CommentCreateRequest("댓글 내용", null, null, null, true, true, true))))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.success").value(false))
                     .andExpect(jsonPath("$.message").value(ErrorCode.POST_NOT_FOUND.getMessage()));
@@ -255,7 +255,7 @@ class CommentControllerTest {
             mockMvc.perform(post(BASE_URL)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(
-                                    new CommentCreateRequest("대댓글 내용", 5L, null, null))))
+                                    new CommentCreateRequest("대댓글 내용", 5L, null, null, true, true, true))))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false))
                     .andExpect(jsonPath("$.message").value(ErrorCode.COMMENT_REPLY_DEPTH_EXCEEDED.getMessage()));

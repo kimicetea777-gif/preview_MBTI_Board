@@ -15,7 +15,7 @@ const HEADER_CONFIG = {
   [FIND_ACCOUNT_TAB.EMAIL]: {
     icon: <MdPersonSearch className="text-primary text-3xl" />,
     title: "이메일 찾기",
-    description: "가입 시 등록한 전화번호를 입력해주세요. \n이메일을 찾을 수 있어요.",
+    description: "마이페이지에서 등록한 복구 이메일을 입력해주세요. \n이메일을 찾을 수 있어요.",
   },
   [FIND_ACCOUNT_TAB.PASSWORD]: {
     icon: <MdLockReset className="text-primary text-3xl" />,
@@ -62,6 +62,7 @@ export default function FindAccountContent({ initialTab = FIND_ACCOUNT_TAB.EMAIL
           title={title}
           description={<span className="whitespace-pre-line">{description}</span>}
         />
+        {/* 입력창 (이메일 찾기 / 비밀번호 찾기) */}
         <div className="p-8 md:p-12">
           {activeTab === FIND_ACCOUNT_TAB.EMAIL && <FindEmailSection />}
           {activeTab === FIND_ACCOUNT_TAB.PASSWORD && (

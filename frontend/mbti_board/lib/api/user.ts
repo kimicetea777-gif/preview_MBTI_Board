@@ -1,8 +1,15 @@
 import { apiClient } from "@/lib/apiClient";
 import { API } from "@/constants/apiEndpoints";
 import type { ApiResponse } from "@/types/api";
-import type { MyProfileResponse, UpdateUserRequest, UserActivityStats, ChangePasswordRequest, MbtiTestHistory } from "@/types/user";
+import type { MyProfileResponse, UpdateUserRequest, UserActivityStats, ChangePasswordRequest, MbtiTestHistory, NicknameCheckResponse, RecoveryEmailSendRequest, RecoveryEmailConfirmRequest } from "@/types/user";
 import type { MyPostPreview } from "@/types/post";
+
+export async function checkNickname(nickname: string): Promise<NicknameCheckResponse> {
+  const res = await apiClient.get<ApiResponse<NicknameCheckResponse>>(API.users.checkNickname, {
+    params: { nickname },
+  });
+  return res.data.data;
+}
 
 export async function fetchMyProfile(): Promise<MyProfileResponse> {
   const res = await apiClient.get<ApiResponse<MyProfileResponse>>(API.users.me);
@@ -38,12 +45,16 @@ export async function changePassword(data: ChangePasswordRequest): Promise<void>
   await apiClient.patch<ApiResponse<void>>(API.users.mePassword, data);
 }
 
-export async function updatePhone(phone: string): Promise<void> {
-  await apiClient.patch<ApiResponse<void>>(API.users.mePhone, { phone });
+export async function sendRecoveryEmailVerification(data: RecoveryEmailSendRequest): Promise<void> {
+  await apiClient.post<ApiResponse<void>>(API.users.meRecoveryEmailSend, data);
 }
 
-export async function removePhone(): Promise<void> {
-  await apiClient.delete<ApiResponse<void>>(API.users.mePhone);
+export async function confirmRecoveryEmailVerification(data: RecoveryEmailConfirmRequest): Promise<void> {
+  await apiClient.post<ApiResponse<void>>(API.users.meRecoveryEmailConfirm, data);
+}
+
+export async function removeRecoveryEmail(): Promise<void> {
+  await apiClient.delete<ApiResponse<void>>(API.users.meRecoveryEmail);
 }
 
 export async function fetchMyMbtiHistory(): Promise<MbtiTestHistory[]> {

@@ -19,7 +19,7 @@ public record AdminUserSummaryResponse(
         String mbtiId,
         String mbtiVerified,
         boolean isSocialLogin,
-        boolean hasPhone,
+        boolean hasRecoveryEmail,
         Instant lastLoginAt,
         Instant updatedAt,
         Instant createdAt
@@ -36,7 +36,7 @@ public record AdminUserSummaryResponse(
                 user.getMbti().getId(),
                 user.getMbtiVerified().name(),
                 user.getSocialProvider() != null,
-                user.getPhoneHash() != null,
+                user.getRecoveryEmail() != null,
                 user.getLastLoginAt(),
                 user.getUpdatedAt(),
                 user.getCreatedAt()

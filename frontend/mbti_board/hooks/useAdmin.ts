@@ -14,6 +14,7 @@ import {
   fetchAdminUsers,
   fetchAdminUserStats,
   fetchAdminPosts,
+  fetchAdminPost,
   fetchAdminPostStats,
   changePostVisibility,
   deleteAdminPost,
@@ -67,6 +68,7 @@ export const adminKeys = {
 
   postsList: ["admin", "posts", "list"] as const,
   posts: (params: AdminPostListParams) => ["admin", "posts", "list", params] as const,
+  postDetail: (id: number) => ["admin", "posts", "detail", id] as const,
   postStats: ["admin", "posts", "stats"] as const,
 
   commentsList: ["admin", "comments", "list"] as const,
@@ -335,6 +337,14 @@ export function useAdminPosts(params: AdminPostListParams) {
   return useSuspenseQuery({
     queryKey: adminKeys.posts(params),
     queryFn: () => fetchAdminPosts(params),
+  });
+}
+
+/** 게시글 단건 조회(어드민) — 숨겨진 게시글도 조회 가능 */
+export function useAdminPost(id: number) {
+  return useSuspenseQuery({
+    queryKey: adminKeys.postDetail(id),
+    queryFn: () => fetchAdminPost(id),
   });
 }
 

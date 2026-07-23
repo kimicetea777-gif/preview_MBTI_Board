@@ -9,11 +9,12 @@ import { useAuthStore } from "@/store/authStore";
 import { ROUTES } from "@/constants/routes";
 import { MBTI_PENDING_SCORES_KEY } from "@/types/mbti";
 import type { MbtiTestScores } from "@/types/mbti";
-import { isValidScores, computeScores, deriveMbtiId } from "@/lib/mbtiUtils";
+import { isValidScores, deriveMbtiId } from "@/lib/mbtiUtils";
 import { sessionStorage } from "@/lib/storageUtils";
 import { MbtiIntroPhase } from "@/components/mbti/MbtiIntroPhase";
 import { MbtiTestingPhase } from "@/components/mbti/MbtiTestingPhase";
 import { MbtiResultPhase } from "@/components/mbti/MbtiResultPhase";
+import { toast } from "@/components/common/Toast";
 
 const PHASE = {
   INTRO:   "intro",
@@ -44,7 +45,7 @@ function phaseReducer(_: PhaseState, action: PhaseAction): PhaseState {
     case PHASE_ACTION.RETRY:   return { phase: PHASE.INTRO,   scores: null };
   }
 }
-
+/* -------------------------------------------------------------------------- */
 export default function MbtiTestContent() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -52,7 +53,7 @@ export default function MbtiTestContent() {
   const {
     mutate: submitScores,
     isPending: isSubmitting,
-    isError: isSubmitError,
+    isSuccess: saved,
     reset: resetSubmit,
   } = useSubmitMbtiTest();
 
@@ -62,11 +63,8 @@ export default function MbtiTestContent() {
 
   const [{ phase, scores }, dispatch] = useReducer(phaseReducer, { phase: PHASE.INTRO, scores: null });
 
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, number>>({});        // MBTI: id → score
   const [funAnswers, setFunAnswers] = useState<Record<number, number>>({});  // FUN: id → optionId
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
-  const [saved, setSaved] = useState(false);
 
   const totalQuestions = questions.length;
   
@@ -83,9 +81,12 @@ export default function MbtiTestContent() {
     dispatch({ type: PHASE_ACTION.RESTORE, scores: parsed });
     submitScores(parsed, {
       onSuccess: () => {
-        setSaved(true);
+        toast.success("MBTI가 기록되었습니다.");
         queryClient.invalidateQueries({ queryKey: userKeys.myProfile() });
         queryClient.invalidateQueries({ queryKey: userKeys.myActivityStats() });
+      },
+      onError: () => {
+        toast.error("저장에 실패했습니다.");
       },
     });
   // submitScores, queryClient는 안정적인 참조 — 마운트 1회만 실행
@@ -105,22 +106,9 @@ export default function MbtiTestContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, mbtiId]);
 
-  function handleAnswer(value: number) {
-    const question = questions[currentIndex];
-    let newAnswers = answers;
-
-    if (question.type === "MBTI") {
-      newAnswers = { ...answers, [question.id]: value };
-      setAnswers(newAnswers);
-    } else {
-      setFunAnswers((prev) => ({ ...prev, [question.id]: value }));
-    }
-
-    if (currentIndex < totalQuestions - 1) {
-      setCurrentIndex((i) => i + 1);
-    } else {
-      dispatch({ type: PHASE_ACTION.ANSWER, scores: computeScores(questions, newAnswers) });
-    }
+  function handleTestComplete(scores: MbtiTestScores, funAnswers: Record<number, number>) {
+    setFunAnswers(funAnswers);
+    dispatch({ type: PHASE_ACTION.ANSWER, scores });
   }
 
   function handleSaveConfirm() {
@@ -132,16 +120,15 @@ export default function MbtiTestContent() {
     }
     submitScores(scores, {
       onSuccess: () => {
-        setSaved(true);
+        toast.success("MBTI가 기록되었습니다.");
         setSaveDialogOpen(false);
         queryClient.invalidateQueries({ queryKey: userKeys.myProfile() });
         queryClient.invalidateQueries({ queryKey: userKeys.myActivityStats() });
       },
+      onError: () => {
+        toast.error("저장에 실패했습니다.");
+      },
     });
-  }
-
-  function handleNext() {
-    setCurrentIndex((i) => i + 1);
   }
 
   function handleStart() {
@@ -150,10 +137,7 @@ export default function MbtiTestContent() {
 
   function handleRetry() {
     dispatch({ type: PHASE_ACTION.RETRY });
-    setCurrentIndex(0);
-    setAnswers({});
     setFunAnswers({});
-    setSaved(false);
     setSaveDialogOpen(false);
     resetSubmit();
     queryClient.invalidateQueries({ queryKey: mbtiKeys.questions() });
@@ -174,23 +158,14 @@ export default function MbtiTestContent() {
   }
 
   return (
-    <article className={`mx-auto mt-5 p-5 ${phase === PHASE.RESULT ? "max-w-4xl" : "max-w-xl"}`}>
+    <article className={`mx-auto mt-1 p-5 ${phase === PHASE.RESULT ? "max-w-4xl" : "max-w-xl"}`}>
 
       {phase === PHASE.INTRO && (
         <MbtiIntroPhase totalQuestions={totalQuestions} onStart={handleStart} />
       )}
 
       {phase === PHASE.TESTING && (
-        <MbtiTestingPhase
-          questions={questions}
-          currentIndex={currentIndex}
-          totalQuestions={totalQuestions}
-          answers={answers}
-          funAnswers={funAnswers}
-          onAnswer={handleAnswer}
-          onNext={handleNext}
-          onPrev={() => setCurrentIndex((i) => i - 1)}
-        />
+        <MbtiTestingPhase questions={questions} onComplete={handleTestComplete} />
       )}
 
       {phase === PHASE.RESULT && mbtiId && (
@@ -198,7 +173,6 @@ export default function MbtiTestContent() {
           mbtiId={mbtiId}
           saved={saved}
           isSubmitting={isSubmitting}
-          isSubmitError={isSubmitError}
           saveDialogOpen={saveDialogOpen}
           onSaveOpen={() => setSaveDialogOpen(true)}
           onSaveClose={() => setSaveDialogOpen(false)}

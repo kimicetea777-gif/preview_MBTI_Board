@@ -136,7 +136,7 @@ class AdminUserControllerTest {
                     .andExpect(jsonPath("$.data.totalUsers").value(500))
                     .andExpect(jsonPath("$.data.thisMonthNewUsers").value(30))
                     .andExpect(jsonPath("$.data.socialLoginCount").value(100))
-                    .andExpect(jsonPath("$.data.phoneVerifiedCount").value(200));
+                    .andExpect(jsonPath("$.data.recoveryEmailCount").value(200));
         }
 
         @Test

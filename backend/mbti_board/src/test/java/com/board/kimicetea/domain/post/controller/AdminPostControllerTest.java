@@ -3,6 +3,7 @@ package com.board.kimicetea.domain.post.controller;
 import com.board.kimicetea.domain.post.dto.AdminPostStatsResponse;
 import com.board.kimicetea.domain.post.dto.AdminPostSummaryResponse;
 import com.board.kimicetea.domain.post.dto.AdminPostVisibilityRequest;
+import com.board.kimicetea.domain.post.dto.PostDetailResponse;
 import com.board.kimicetea.domain.post.service.AdminPostService;
 import com.board.kimicetea.domain.post.service.AdminPostStatsScheduler;
 import com.board.kimicetea.domain.post.service.AdminPostStatsService;
@@ -104,6 +105,12 @@ class AdminPostControllerTest {
         return new AdminPostSummaryResponse(
                 POST_ID, "FREE", "테스트 게시글", "작성자", "INTJ", "TESTED",
                 null, 10, 2, true, Instant.now());
+    }
+
+    private PostDetailResponse sampleDetail() {
+        return new PostDetailResponse(
+                POST_ID, "FREE", "제목", "내용", "작성자", "INTJ", "TESTED", null,
+                5, 3, false, false, false, Instant.now(), Instant.now(), null, null);
     }
 
     // ────────────────── GET /api/admin/posts/stats ──────────────────
@@ -244,6 +251,37 @@ class AdminPostControllerTest {
             mockMvc.perform(get(BASE_URL).param("size", "200"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true));
+        }
+    }
+
+    // ────────────────── GET /api/admin/posts/{id} ──────────────────
+
+    @Nested
+    @DisplayName("GET /api/admin/posts/{id} — 게시글 단건 조회 (어드민)")
+    class GetPost {
+
+        @Test
+        @DisplayName("성공 — 숨겨진 게시글도 조회 가능 → 200")
+        void success() throws Exception {
+            given(adminPostService.getPost(POST_ID)).willReturn(sampleDetail());
+
+            mockMvc.perform(get(BASE_URL + "/" + POST_ID))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.data.id").value(POST_ID))
+                    .andExpect(jsonPath("$.data.isVisible").value(false));
+        }
+
+        @Test
+        @DisplayName("실패 — 존재하지 않는 게시글 ID → 404")
+        void postNotFound() throws Exception {
+            willThrow(new CustomException(ErrorCode.POST_NOT_FOUND))
+                    .given(adminPostService).getPost(POST_ID);
+
+            mockMvc.perform(get(BASE_URL + "/" + POST_ID))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.message").value(ErrorCode.POST_NOT_FOUND.getMessage()));
         }
     }
 

@@ -10,6 +10,6 @@ public final class PostConstants {
     /** 게시글 본문에 첨부 가능한 최대 이미지 수 */
     public static final int MAX_IMAGE_COUNT = 3;
 
-    /** 투표 선택지 최대 개수 */
-    public static final int VOTE_OPTION_MAX = 10;
+    /** 투표 선택지 최대 개수 (MBTI 16종 대응) */
+    public static final int VOTE_OPTION_MAX = 16;
 }

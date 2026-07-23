@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { updatePost, deletePost } from "@/lib/api/post";
@@ -26,11 +26,16 @@ interface Options {
 
 export function usePostEditDelete({ id, post, redirectPath }: Options) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState("");
-  const [editContent, setEditContent] = useState("");
+  // 목록에서 "?edit=1"로 진입 시 편집 폼을 바로 연 상태로 초기화 — effect 내 동기 setState 방지
+  const [isEditing, setIsEditing] = useState(
+    () => searchParams.get("edit") === "1" && !!post && (post.isOwner || post.isGuest)
+  );
+  const [editTitle, setEditTitle] = useState(() => (isEditing && post ? post.title : ""));
+  const [editContent, setEditContent] = useState(() => (isEditing && post ? post.content ?? "" : ""));
   const [modalOpen, setModalOpen] = useState(false);
   const [modalAction, setModalAction] = useState<ModalAction>(MODAL_ACTION.UPDATE);
   const [modalError, setModalError] = useState<string | undefined>();
@@ -69,6 +74,15 @@ export function usePostEditDelete({ id, post, redirectPath }: Options) {
   };
 
   const handleEditCancel = () => setIsEditing(false);
+
+  // 편집 폼을 연 초기 상태로 만든 뒤에는 URL에 남은 "?edit=1"만 정리
+  useEffect(() => {
+    if (searchParams.get("edit") !== "1") return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("edit");
+    router.replace(params.toString() ? `${pathname}?${params}` : pathname, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSaveClick = () => {
     if (!post || !editTitle.trim() || isTiptapEmpty(editContent)) {

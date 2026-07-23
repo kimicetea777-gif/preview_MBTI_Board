@@ -3,22 +3,22 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { findEmail } from "@/lib/api/auth";
-import { PHONE_REGEX, PHONE_MESSAGE } from "@/lib/validationConstants";
-import { usePhoneInput } from "@/hooks/usePhoneInput";
+import { EMAIL_REGEX, EMAIL_MESSAGE } from "@/lib/validationConstants";
 import type { FindEmailResponse } from "@/types/auth";
 import type { ApiError } from "@/types/api";
-import { MdPhone, MdPersonSearch } from "react-icons/md";
+import { MdEmail, MdPersonSearch } from "react-icons/md";
+import ErrorMessage from "@/components/common/ErrorMessage";
 
 const getEmailErrorMessage = (err: ApiError) => {
   const status = err.response?.status;
   if (status === 404) return "해당 정보로 등록된 계정이 없습니다.";
-  if (status === 400) return PHONE_MESSAGE;
+  if (status === 400) return EMAIL_MESSAGE;
   if (status === 429) return "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.";
   return "오류가 발생했습니다. 다시 시도해 주세요.";
 };
 
 export default function FindEmailSection() {
-  const { phone, handlePhoneChange } = usePhoneInput();
+  const [recoveryEmail, setRecoveryEmail] = useState("");
   const [emailResult, setEmailResult] = useState<FindEmailResponse | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
 
@@ -40,33 +40,36 @@ export default function FindEmailSection() {
         onSubmit={(e) => {
           e.preventDefault();
           setEmailResult(null);
-          if (!PHONE_REGEX.test(phone)) {
-            setEmailError(PHONE_MESSAGE);
+          if (!EMAIL_REGEX.test(recoveryEmail)) {
+            setEmailError(EMAIL_MESSAGE);
             return;
           }
           setEmailError(null);
-          findEmailMutation.mutate({ phone: phone.replace(/-/g, "") });
+          findEmailMutation.mutate({ recoveryEmail });
         }}
         className="space-y-6"
       >
+        {/* 복구 이메일 입력창 */}
         <div className="space-y-2">
-          <label htmlFor="find-email-phone" className="block text-sm font-semibold text-primary">
-            전화번호
+          <label htmlFor="find-email-recovery-email" className="block text-sm font-semibold text-primary">
+            복구 이메일
           </label>
           <div className="relative">
-            <MdPhone className="absolute left-4 top-1/2 -translate-y-1/2 text-outline text-xl pointer-events-none" />
+            <MdEmail className="absolute left-4 top-1/2 -translate-y-1/2 text-outline text-xl pointer-events-none" />
             <input
-              id="find-email-phone"
-              type="tel"
-              value={phone}
-              onChange={handlePhoneChange}
+              id="find-email-recovery-email"
+              type="email"
+              value={recoveryEmail}
+              onChange={(e) => setRecoveryEmail(e.target.value)}
               required
-              placeholder="010-1234-5678"
+              placeholder="recovery@example.com"
               disabled={findEmailMutation.isPending}
               className="w-full h-12 pl-11 pr-4 rounded-lg border border-outline-variant bg-background text-on-surface placeholder:text-outline/60 focus:outline-none focus:ring-2 focus:ring-secondary/40 focus:border-secondary disabled:opacity-50 transition-all text-sm"
             />
           </div>
         </div>
+
+        {/* 이메일 찾기 버튼 */}
         <button
           type="submit"
           disabled={findEmailMutation.isPending}
@@ -83,6 +86,7 @@ export default function FindEmailSection() {
         </button>
       </form>
 
+      {/* 가입된 이메일 확인 */}
       {emailResult && (
         <aside
           className="rounded-xl border border-outline-variant bg-muted p-4 space-y-1"
@@ -96,11 +100,8 @@ export default function FindEmailSection() {
         </aside>
       )}
 
-      {emailError && (
-        <p className="text-sm text-destructive text-center" role="alert">
-          {emailError}
-        </p>
-      )}
+      {/* 에러 메세지 */}
+      <ErrorMessage message={emailError} />
     </section>
   );
 }

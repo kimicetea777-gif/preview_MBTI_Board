@@ -6,6 +6,8 @@ import com.board.kimicetea.domain.post.dto.DebateStanceRequest;
 import com.board.kimicetea.domain.post.dto.PostCreateRequest;
 import com.board.kimicetea.domain.post.dto.PostDeleteRequest;
 import com.board.kimicetea.domain.post.dto.PostDetailResponse;
+import com.board.kimicetea.domain.post.dto.PostMetaResponse;
+import com.board.kimicetea.domain.post.dto.PostSitemapResponse;
 import com.board.kimicetea.domain.post.dto.PostSummaryResponse;
 import com.board.kimicetea.domain.post.dto.PostUpdateRequest;
 import com.board.kimicetea.domain.post.dto.VotePostCreateRequest;
@@ -69,6 +71,21 @@ public class PostController {
                 return ResponseEntity.ok(ApiResponse.ok(result));
         }
 
+        @Operation(summary = "sitemap.xml 생성용 게시글 ID 목록", description = "id·createdAt만 반환하는 경량 엔드포인트 — authorMbti/votePost/debatePost JOIN 없음. type은 필수(FREE/VOTE/DEBATE).")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "유효하지 않은 type")
+        })
+        @GetMapping("/sitemap-entries")
+        public ResponseEntity<ApiResponse<Page<PostSitemapResponse>>> getPostsForSitemap(
+                        @RequestParam final String type,
+                        @RequestParam(defaultValue = "0") @Min(0) final int page,
+                        @RequestParam(defaultValue = "100") @Min(1) @Max(100) final int size) {
+
+                final Page<PostSitemapResponse> result = postService.getPostsForSitemap(type, PageRequest.of(page, size));
+                return ResponseEntity.ok(ApiResponse.ok(result));
+        }
+
         @Operation(summary = "게시글 단건 조회", description = "게시글 ID로 상세 내용을 조회합니다. 조회 시 viewCount가 1 증가합니다.")
         @ApiResponses({
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
@@ -81,6 +98,16 @@ public class PostController {
 
                 final java.util.UUID currentUserId = (userDetails != null) ? userDetails.userId() : null;
                 return ResponseEntity.ok(ApiResponse.ok(postService.getPost(id, currentUserId)));
+        }
+
+        @Operation(summary = "게시글 메타데이터 조회", description = "SEO/OG 미리보기 생성 전용 — viewCount 증가 없이 title·contentPreview·imageUrls만 반환합니다. 인증 여부와 무관하게 항상 동일한 응답.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "게시글 없음")
+        })
+        @GetMapping("/{id}/meta")
+        public ResponseEntity<ApiResponse<PostMetaResponse>> getPostMeta(@PathVariable final Long id) {
+                return ResponseEntity.ok(ApiResponse.ok(postService.getPostMeta(id)));
         }
 
         @Operation(summary = "자유글 작성", description = "회원 또는 비회원(guestPassword 필수)이 자유글(FREE)을 작성합니다. VOTE·DEBATE 타입은 전용 엔드포인트를 사용해야 합니다.")

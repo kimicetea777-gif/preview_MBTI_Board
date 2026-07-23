@@ -22,8 +22,12 @@ CREATE TABLE users (
     role VARCHAR(20) DEFAULT 'USER' NOT NULL,
     state VARCHAR(20) DEFAULT 'NORMAL' NOT NULL,
     last_login_at TIMESTAMPTZ,
-    phone_hash VARCHAR(64),
+    recovery_email VARCHAR(255),
     withdrawn_at TIMESTAMPTZ,
+    terms_agreed_at TIMESTAMPTZ,
+    terms_version INT,
+    privacy_agreed_at TIMESTAMPTZ,
+    privacy_version INT,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     CONSTRAINT fk_users_mbti_metadata FOREIGN KEY (mbti_id) REFERENCES mbti_metadata (id) ON DELETE RESTRICT,
@@ -90,6 +94,7 @@ CREATE TABLE posts (
     content_preview VARCHAR(300),
     image_urls TEXT [],
     guest_password VARCHAR(255),
+    author_ip VARCHAR(45), -- 어뷰징 방지 및 수사 협조 목적, 회원·비회원 모두 저장 (IPv6 포함 최대 45자)
     view_count INT DEFAULT 0 NOT NULL,
     comment_count INT DEFAULT 0 NOT NULL,
     is_visible BOOLEAN DEFAULT TRUE NOT NULL,
@@ -173,6 +178,7 @@ CREATE TABLE comments (
     parent_id BIGINT,
     content TEXT NOT NULL,
     guest_password VARCHAR(255),
+    author_ip VARCHAR(45),
     like_count INT DEFAULT 0 NOT NULL,
     dislike_count INT DEFAULT 0 NOT NULL,
     debate_stance SMALLINT CHECK (debate_stance IN (1, -1)),
@@ -257,15 +263,67 @@ CREATE TABLE deleted_images (
 );
 
 -- ===================================================
--- 7. Image Cleanup Domain
+-- 7. Withdrawal Domain
 -- ===================================================
 
 CREATE TABLE withdrawal_log (
     id BIGSERIAL PRIMARY KEY,
     withdrawn_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
 -- ===================================================
--- 7. Triggers
+-- 8. Audit & Retention Domain
+-- 주의: actor_id/target_id/user_id는 users(id) FK를 의도적으로 걸지 않음 —
+--       UserCleanupService가 탈퇴 회원을 주기적으로 하드 삭제(DELETE FROM users)하는데,
+--       이 두 테이블은 그 이후에도(감사 로그 영구 보존 / 개인정보 12개월 법정 보존) 살아있어야 함.
+--       FK를 걸면 CASCADE 삭제로 보존 목적 자체가 깨지므로 추가하지 말 것.
+-- ===================================================
+
+CREATE TABLE audit_logs (
+    id          BIGSERIAL PRIMARY KEY,
+    actor_id    UUID         NOT NULL,
+    actor_role  VARCHAR(20)  NOT NULL,
+    target_id   UUID,
+    event       VARCHAR(50)  NOT NULL,
+    payload     JSONB,
+    ip          VARCHAR(45)  NOT NULL,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_audit_logs_actor_date ON audit_logs (actor_id, created_at DESC);
+CREATE INDEX idx_audit_logs_event_date ON audit_logs (event,    created_at DESC);
+
+-- 탈퇴 회원의 이메일·전화번호·IP를 수사 협조 및 불법 재가입 방지 목적으로 암호화 보관 (12개월 후 파기)
+CREATE TABLE user_retention_logs (
+    id             BIGSERIAL    PRIMARY KEY,
+    user_id        UUID         NOT NULL,
+    email_enc      TEXT         NOT NULL,
+    withdrawal_ip  VARCHAR(45)  NOT NULL,
+    withdrawn_at   TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    expires_at     TIMESTAMPTZ  NOT NULL,
+    CONSTRAINT chk_retention_expires CHECK (expires_at > withdrawn_at)
+);
+
+CREATE INDEX idx_user_retention_logs_expires ON user_retention_logs (expires_at);
+
+-- ===================================================
+-- 9. Notice Domain
+-- ===================================================
+
+CREATE TABLE notices (
+    id         BIGSERIAL    PRIMARY KEY,
+    title      VARCHAR(200) NOT NULL,
+    content    TEXT         NOT NULL,
+    is_active  BOOLEAN      NOT NULL DEFAULT TRUE,
+    priority   INT          NOT NULL DEFAULT 0,
+    starts_at  TIMESTAMPTZ,
+    ends_at    TIMESTAMPTZ,
+    created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+-- ===================================================
+-- 10. Triggers
 -- ===================================================
 
 CREATE OR REPLACE FUNCTION update_post_comment_count()
@@ -413,7 +471,7 @@ CREATE TRIGGER trg_validate_comment_author
     FOR EACH ROW EXECUTE FUNCTION validate_comment_author();
 
 -- ===================================================
--- 9. Indexes
+-- 11. Indexes
 -- ===================================================
 
 CREATE INDEX idx_posts_user_id ON posts (user_id);
@@ -450,9 +508,9 @@ CREATE UNIQUE INDEX idx_users_provider ON users (social_provider, provider_id)
 WHERE
     social_provider IS NOT NULL;
 
-CREATE UNIQUE INDEX idx_users_phone_hash ON users (phone_hash)
+CREATE UNIQUE INDEX idx_users_recovery_email ON users (recovery_email)
 WHERE
-    phone_hash IS NOT NULL;
+    recovery_email IS NOT NULL;
 
 CREATE INDEX idx_mbti_test_history_user_id_created_at ON mbti_test_history (user_id, created_at DESC);
 
@@ -475,11 +533,10 @@ CREATE INDEX idx_debate_stance_post ON debate_stance_history (post_id);
 CREATE INDEX idx_fun_question_options_question_id ON fun_question_options (question_id);
 
 -- ===================================================
--- 10. Seed
--- 실행 순서: seed/seed_mbti_questions.sql
---           seed/seed_dev_users.sql
---           seed/seed_dev_posts.sql
---           seed/seed_dev_comments.sql
---           seed/seed_dev_vote_history.sql
---           seed/seed_dev_comment_reactions.sql
+-- 12. Seed
+-- 이어지는 버전에서 실행:
+--   V2  seed_fun_questions.sql       — FUN 문항 콘텐츠 (운영 필수)
+--   V3  seed_mbti_metadata.sql       — MBTI 유형 참조 데이터 (운영 필수)
+--   V5  seed_mbti_questions.sql      — MBTI 검사 문항 콘텐츠 (운영 필수)
+--   dev/V4, V6~V10                   — 로컬 개발용 더미 데이터 (prod 프로필에서 제외, application-prod.yaml 참고)
 -- ===================================================

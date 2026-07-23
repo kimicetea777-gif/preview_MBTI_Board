@@ -79,13 +79,6 @@ export function MbtiDetail({ mbtiId, actionSlot }: MbtiDetailProps) {
 
   return (
     <section className="p-6">
-      <style>{`
-        @keyframes gentleFloat {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-8px); }
-        }
-        .animate-gentle-float { animation: gentleFloat 4s ease-in-out infinite; }
-      `}</style>
 
       {/* ---- HEADER ---- */}
       <header className="text-center mb-12">
@@ -104,17 +97,20 @@ export function MbtiDetail({ mbtiId, actionSlot }: MbtiDetailProps) {
 
       <div className="flex flex-col gap-8">
         <div className="flex flex-col items-center gap-4">
+
           {/* ---- IMAGE BOX ---- */}
-          <div className="relative w-100 aspect-square rounded-2xl border border-border bg-secondary-container/10 flex items-center justify-center overflow-hidden animate-gentle-float shadow-sm">
+          <div className="relative w-72 sm:w-80 md:w-100 aspect-square rounded-2xl border border-border bg-secondary-container/10 flex items-center justify-center overflow-hidden shadow-sm">
             {mbtiMeta?.imageBackUrl ? (
               <Image
                 src={mbtiMeta.imageBackUrl}
                 alt={mbtiId}
                 fill
+                sizes="(max-width: 639px) 288px, (max-width: 767px) 320px, 400px"
                 className="object-contain z-10 p-3 rounded-4xl"
               />
             ) : null}
           </div>
+
           {/* ---- SHARE BUNTTON ---- */}
           <div className="flex flex-col items-center gap-2">
             <div className="flex gap-3">

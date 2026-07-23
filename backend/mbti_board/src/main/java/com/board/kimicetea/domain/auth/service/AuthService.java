@@ -16,8 +16,8 @@ import com.board.kimicetea.global.audit.AuditEvent;
 import com.board.kimicetea.global.audit.AuditLogService;
 import com.board.kimicetea.global.common.util.EmailUtils;
 import com.board.kimicetea.global.common.util.RequestUtils;
-import com.board.kimicetea.global.crypto.PhoneHashService;
 import com.board.kimicetea.global.mail.EmailService;
+import com.board.kimicetea.global.ratelimit.RateLimitEndpoints;
 import com.board.kimicetea.global.ratelimit.RateLimitService;
 import com.board.kimicetea.domain.user.entity.User;
 import com.board.kimicetea.domain.user.repository.UserRepository;
@@ -53,7 +53,6 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final UserService userService;
-    private final PhoneHashService phoneHashService;
     private final JwtProvider jwtProvider;
     private final TokenRedisService tokenRedisService;
     private final PasswordEncoder passwordEncoder;
@@ -71,13 +70,12 @@ public class AuthService {
     private String siteUrl;
 
     /**
-     * 전화번호로 이메일 찾기 — INACTIVE·LOCKED·PERMANENT_BAN·WITHDRAWN 상태는 사유를 알리고 차단
+     * 복구 이메일로 이메일 찾기 — INACTIVE·LOCKED·PERMANENT_BAN·WITHDRAWN 상태는 사유를 알리고 차단
      * 주의: 이메일은 @앞 2자만 노출하고 나머지 *** 처리 (개인정보 보호)
      */
     @Transactional(readOnly = true)
     public FindEmailResponse findEmail(final FindEmailRequest request) {
-        final String phoneHash = phoneHashService.hash(request.phone());
-        final User user = userRepository.findByPhoneHash(phoneHash)
+        final User user = userRepository.findByRecoveryEmail(request.recoveryEmail())
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         validateAccountAccessible(user);
@@ -91,7 +89,7 @@ public class AuthService {
      */
     @Transactional(readOnly = true)
     public void requestPasswordReset(final PasswordResetRequestBody request) {
-        rateLimitService.checkByEmail("pw-reset", request.email(), 3, 600);
+        rateLimitService.checkByEmail(RateLimitEndpoints.PASSWORD_RESET, request.email(), 3, 600);
         userRepository.findByEmail(request.email())
                 .filter(u -> u.getSocialProvider() == null)
                 .filter(u -> u.getState() == UserState.NORMAL || u.getState() == UserState.LOCKED)
@@ -133,13 +131,15 @@ public class AuthService {
     /**
      * 이메일 인증 링크 발송 — Key: EV:TOKEN:{uuid}=email (10분)
      * 주의: 링크는 프론트엔드 /signup/verify?token={uuid} 로 연결되며 프론트가 confirm API 호출
-     * 주의: 이미 가입된 이메일이면 DUPLICATE_EMAIL 예외 발생
+     * 주의: 이미 가입된 이메일이면 DUPLICATE_EMAIL 예외 발생 — Rate Limit 카운팅 전에 먼저 검증하여
+     *       이미 가입된 이메일로의 재요청이 스팸 방지용 한도를 갉아먹지 않도록 함
      */
-    public void sendEmailVerification(final EmailVerifySendRequest request) {
+    public void sendEmailVerification(final EmailVerifySendRequest request, final HttpServletRequest httpRequest) {
         if (userRepository.existsByEmail(request.email())) {
             throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
         }
-        rateLimitService.checkByEmail("email-verify", request.email(), 3, 600);
+        rateLimitService.check(RateLimitEndpoints.EMAIL_VERIFY, httpRequest, 3, 600);
+        rateLimitService.checkByEmail(RateLimitEndpoints.EMAIL_VERIFY, request.email(), 3, 600);
 
         final String token = UUID.randomUUID().toString();
         tokenRedisService.saveEmailVerifyToken(token, request.email());
@@ -166,12 +166,12 @@ public class AuthService {
      */
     @Transactional
     public void signup(final SignupRequest request, final HttpServletRequest httpRequest) {
-        validateTermsAgreement(request.termsAgreed(), request.privacyAgreed());
+        validateTermsAgreement(request.termsAgreed(), request.privacyAgreed(), request.age14Agreed());
         if (!tokenRedisService.isEmailVerified(request.email())) {
             throw new CustomException(ErrorCode.EMAIL_NOT_VERIFIED);
         }
         final User user = userService.registerUser(
-                request.email(), request.password(), request.nickname(), request.mbtiId(), request.phone());
+                request.email(), request.password(), request.nickname(), request.mbtiId());
         user.agreeToTerms(Instant.now(), TermsPolicy.CURRENT_TERMS_VERSION, TermsPolicy.CURRENT_PRIVACY_VERSION);
         tokenRedisService.clearEmailVerified(request.email());
         auditLogService.record(AuditEvent.SIGNUP, user.getId(),
@@ -181,6 +181,9 @@ public class AuthService {
     @Transactional
     public LoginResponse login(final LoginRequest request, final HttpServletRequest httpRequest,
             final HttpServletResponse response) {
+        // 계정(이메일) 단위 Rate Limit — IP 우회(프록시·봇넷)로 특정 계정을 노리는 brute force 방지
+        rateLimitService.checkByEmail(RateLimitEndpoints.LOGIN, request.email(), 5, 600);
+
         final User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new CustomException(ErrorCode.INVALID_CREDENTIALS));
 
@@ -193,7 +196,7 @@ public class AuthService {
         validateAccountAccessible(user);
 
         final String deviceId = UUID.randomUUID().toString();
-        final String accessToken = tokenIssuerService.issue(user, deviceId, response);
+        final String accessToken = tokenIssuerService.issue(user, deviceId, response, request.rememberMe());
 
         user.updateLastLoginAt();
         auditLogService.record(AuditEvent.LOGIN, user.getId(),
@@ -210,7 +213,7 @@ public class AuthService {
     @Transactional
     public LoginResponse confirmOAuth2Signup(final OAuth2SignupConfirmRequest request,
             final HttpServletRequest httpRequest, final HttpServletResponse response) {
-        validateTermsAgreement(request.termsAgreed(), request.privacyAgreed());
+        validateTermsAgreement(request.termsAgreed(), request.privacyAgreed(), request.age14Agreed());
 
         final Claims claims = jwtProvider.validateAndParseClaims(request.signupToken())
                 .filter(c -> "OAUTH2_SIGNUP".equals(c.get("purpose", String.class)))
@@ -222,10 +225,7 @@ public class AuthService {
         final User user = userRepository.findBySocialProviderAndProviderId(provider, providerId)
                 .orElseGet(() -> {
                     final User created = oAuth2AccountService.createAccount(
-                            provider, providerId,
-                            claims.get("email", String.class),
-                            claims.get("nickname", String.class),
-                            claims.get("profileImageUrl", String.class));
+                            provider, providerId, claims.get("email", String.class));
                     created.agreeToTerms(Instant.now(),
                             TermsPolicy.CURRENT_TERMS_VERSION, TermsPolicy.CURRENT_PRIVACY_VERSION);
                     auditLogService.record(AuditEvent.OAUTH2_SIGNUP, created.getId(),
@@ -234,7 +234,8 @@ public class AuthService {
                 });
 
         final String deviceId = UUID.randomUUID().toString();
-        final String accessToken = tokenIssuerService.issue(user, deviceId, response);
+        // 소셜 가입 확인 화면엔 자동 로그인 체크박스가 없으므로 기본 유지 로그인으로 발급
+        final String accessToken = tokenIssuerService.issue(user, deviceId, response, true);
 
         return new LoginResponse(accessToken, user.getEmail(), user.getNickname(), user.getRole().name());
     }
@@ -268,7 +269,10 @@ public class AuthService {
         // RT Rotation: 기존 RT 삭제 후 새 AT/RT 발급
         tokenRedisService.deleteRefreshToken(userId, deviceId);
 
-        final String newAccessToken = tokenIssuerService.issue(user, deviceId, response);
+        // 기존 RT의 rememberMe 값을 새 RT/쿠키에도 그대로 유지 (클레임 없는 구버전 토큰은 유지 로그인으로 간주)
+        final Boolean rememberMeClaim = claims.get("rememberMe", Boolean.class);
+        final boolean rememberMe = rememberMeClaim == null || rememberMeClaim;
+        final String newAccessToken = tokenIssuerService.issue(user, deviceId, response, rememberMe);
 
         return new LoginResponse(newAccessToken, user.getEmail(), user.getNickname(), user.getRole().name());
     }
@@ -287,9 +291,24 @@ public class AuthService {
         cookieUtils.clearRefreshTokenCookie(response);
     }
 
+    /**
+     * 연동된 모든 기기 로그아웃 — 현재 AT 블랙리스트 등록 + 전 기기 RT 삭제 + 현재 기기 Cookie 만료 처리
+     * 주의: 공용 PC 등에서 로그아웃을 깜빡한 다른 세션까지 사용자가 직접 정리할 수 있도록 마이페이지에서 제공
+     */
+    public void logoutAll(final String accessToken, final String userId, final HttpServletResponse response) {
+        jwtProvider.validateAndParseClaims(accessToken).ifPresent(claims -> {
+            final long remaining = jwtProvider.getRemainingExpiry(claims);
+            if (remaining > 0) {
+                tokenRedisService.addToBlacklist(claims.getId(), remaining);
+            }
+        });
+        tokenRedisService.deleteAllRefreshTokens(userId);
+        cookieUtils.clearRefreshTokenCookie(response);
+    }
+
     /** 약관 동의 여부 검증 — 향후 동의 항목이 추가되면 이 메소드만 확장하면 됨 (signup·confirmOAuth2Signup 공유) */
-    private void validateTermsAgreement(final boolean termsAgreed, final boolean privacyAgreed) {
-        if (!termsAgreed || !privacyAgreed) {
+    private void validateTermsAgreement(final boolean termsAgreed, final boolean privacyAgreed, final boolean age14Agreed) {
+        if (!termsAgreed || !privacyAgreed || !age14Agreed) {
             throw new CustomException(ErrorCode.TERMS_NOT_AGREED);
         }
     }
