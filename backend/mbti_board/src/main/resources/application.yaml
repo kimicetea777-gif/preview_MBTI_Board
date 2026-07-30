@@ -34,8 +34,11 @@ spring:
     # clean-disabled: false
     enabled: true
     # clean-disabled: false
-    # 로컬 개발용 더미 시드(db/migration/dev)는 기본값에 포함 — prod 프로필에서는 application-prod.yaml이 제외
-    locations: classpath:db/migration,classpath:db/migration/dev
+    # 로컬 개발용 더미 시드(db/migration-dev)는 기본값에 포함 — prod 프로필에서는 application-prod.yaml이 제외
+    # 주의: db/migration-dev는 db/migration의 하위 폴더가 아닌 형제 폴더여야 함 —
+    #       Flyway는 location을 재귀적으로 스캔하므로, 하위 폴더로 두면 prod에서 classpath:db/migration만
+    #       지정해도 그 안에 포함된 것으로 같이 스캔되어 제외가 안 됨 (실제로 겪은 버그)
+    locations: classpath:db/migration,classpath:db/migration-dev
 
   mail:
     host: ${MAIL_HOST}

@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
     const input = Buffer.from(await file.arrayBuffer());
 
     const processed = await sharp(input, { limitInputPixels: 16000 * 16000 })
+      .rotate()
       .resize({
         width: MAX_WIDTH,
         withoutEnlargement: true,

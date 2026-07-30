@@ -32,7 +32,10 @@ function hasSessionCookie(): boolean {
 }
 
 // silent refresh 진행 중이면 그 Promise를 공유(중복 요청 방지)
-function refreshAccessToken(): Promise<string> {
+// 주의: AuthSyncProvider의 마운트 시 silent refresh도 반드시 이 함수를 통해야 함 —
+//       별도 axios 호출로 분리하면 두 요청이 같은(구) RT 쿠키로 동시에 서버에 도달해
+//       하나는 로테이션 성공, 하나는 RT Reuse Detection으로 전체 세션 로그아웃되는 경합이 발생함
+export function refreshAccessToken(): Promise<string> {
   if (!refreshPromise) {
     refreshPromise = axios
       .post(REFRESH_URL, null, { withCredentials: true })

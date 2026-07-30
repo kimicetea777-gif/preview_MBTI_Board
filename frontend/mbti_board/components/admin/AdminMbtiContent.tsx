@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { FiChevronDown, FiChevronUp } from "react-icons/fi";
 import { useAdminMbtiQuestions, useAdminFunQuestions } from "@/hooks/useAdmin";
+import AdminMbtiQuestionCreateModal from "@/components/admin/AdminMbtiQuestionCreateModal";
 import AdminMbtiQuestionDetailModal from "@/components/admin/AdminMbtiQuestionDetailModal";
+import AdminFunQuestionCreateModal from "@/components/admin/AdminFunQuestionCreateModal";
 import AdminFunQuestionDetailModal from "@/components/admin/AdminFunQuestionDetailModal";
 import AdminMbtiVisibilityButton from "@/components/admin/AdminMbtiVisibilityButton";
 import AdminFunVisibilityButton from "@/components/admin/AdminFunVisibilityButton";
@@ -26,6 +28,8 @@ export default function AdminMbtiContent() {
   const [selected, setSelected] = useState<AdminMbtiQuestion | null>(null);
   const [selectedFun, setSelectedFun] = useState<AdminFunQuestion | null>(null);
   const [isMbtiExpanded, setIsMbtiExpanded] = useState(false);
+  const [isCreatingMbti, setIsCreatingMbti] = useState(false);
+  const [isCreatingFun, setIsCreatingFun] = useState(false);
 
   const mbtiHiddenCount = mbtiQuestions.filter((q) => !q.isVisible).length;
   const funHiddenCount  = funQuestions.filter((q) => !q.isVisible).length;
@@ -38,13 +42,22 @@ export default function AdminMbtiContent() {
       <section className="flex flex-col gap-8">
         {/* MBTI 기본 문항 */}
         <div>
-          <h2 className="text-lg font-semibold text-foreground mb-3">
-            MBTI 기본 문항{" "}
-            <span className="text-sm font-normal text-on-surface-variant">
-              ({mbtiQuestions.length}개
-              {mbtiHiddenCount > 0 && <span className="text-destructive"> · 숨김 {mbtiHiddenCount}개</span>})
-            </span>
-          </h2>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-foreground">
+              MBTI 기본 문항{" "}
+              <span className="text-sm font-normal text-on-surface-variant">
+                ({mbtiQuestions.length}개
+                {mbtiHiddenCount > 0 && <span className="text-destructive"> · 숨김 {mbtiHiddenCount}개</span>})
+              </span>
+            </h2>
+            <button
+              type="button"
+              onClick={() => setIsCreatingMbti(true)}
+              className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/80"
+            >
+              문항 추가
+            </button>
+          </div>
           <div className="overflow-x-auto rounded-lg border border-outline-variant">
             <table className="min-w-full text-sm">
               <thead className="bg-surface-container-low text-xs uppercase text-on-surface-variant whitespace-nowrap">
@@ -106,13 +119,22 @@ export default function AdminMbtiContent() {
 
         {/* FUN 문항 */}
         <div>
-          <h2 className="text-lg font-semibold text-foreground mb-3">
-            FUN 문항{" "}
-            <span className="text-sm font-normal text-on-surface-variant">
-              ({funQuestions.length}개
-              {funHiddenCount > 0 && <span className="text-destructive"> · 숨김 {funHiddenCount}개</span>})
-            </span>
-          </h2>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-foreground">
+              FUN 문항{" "}
+              <span className="text-sm font-normal text-on-surface-variant">
+                ({funQuestions.length}개
+                {funHiddenCount > 0 && <span className="text-destructive"> · 숨김 {funHiddenCount}개</span>})
+              </span>
+            </h2>
+            <button
+              type="button"
+              onClick={() => setIsCreatingFun(true)}
+              className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/80"
+            >
+              문항 추가
+            </button>
+          </div>
           <div className="overflow-x-auto rounded-lg border border-outline-variant">
             <table className="min-w-full text-sm">
               <thead className="bg-surface-container-low text-xs uppercase text-on-surface-variant whitespace-nowrap">
@@ -162,6 +184,14 @@ export default function AdminMbtiContent() {
           question={selectedFun}
           onClose={() => setSelectedFun(null)}
         />
+      )}
+
+      {isCreatingMbti && (
+        <AdminMbtiQuestionCreateModal onClose={() => setIsCreatingMbti(false)} />
+      )}
+
+      {isCreatingFun && (
+        <AdminFunQuestionCreateModal onClose={() => setIsCreatingFun(false)} />
       )}
     </>
   );

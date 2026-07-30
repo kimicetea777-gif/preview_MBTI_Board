@@ -24,6 +24,8 @@ public class TokenRedisService {
     private static final String BL_PREFIX = "BL:"; // AT 블랙리스트: {jti} → "logout"
     private static final String WD_PREFIX = "WD:"; // 탈퇴 OTP: {userId} → 6자리 코드
     private static final String WD_CNT_PREFIX = "WD:CNT:"; // 탈퇴 OTP 오답 횟수: {userId} → 시도 횟수
+    private static final String FE_PREFIX = "FE:"; // 이메일 찾기 OTP: {recoveryEmail} → 6자리 코드
+    private static final String FE_CNT_PREFIX = "FE:CNT:"; // 이메일 찾기 OTP 오답 횟수: {recoveryEmail} → 시도 횟수
     private static final String EV_TOKEN_PREFIX = "EV:TOKEN:"; // 이메일 인증 토큰: {token} → email
     private static final String EV_EMAIL_PREFIX = "EV:EMAIL:"; // 이메일 인증 역방향: email → 토큰 (재발급 시 기존 토큰 무효화용)
     private static final String EV_DONE_PREFIX = "EV:DONE:"; // 이메일 인증 완료 마킹: email → "1" (회원가입 완료 전까지 유효)
@@ -33,6 +35,7 @@ public class TokenRedisService {
     private static final String RE_USER_PREFIX = "RE:USER:"; // 복구 이메일 인증 역방향: userId → 토큰 (재요청 시 기존 토큰 무효화용)
     private static final String LOGOUT_VALUE = "logout";
     private static final long WITHDRAWAL_OTP_TTL_MS = 3 * 60 * 1000L; // 3분
+    private static final long FIND_EMAIL_OTP_TTL_MS = 3 * 60 * 1000L; // 3분
     private static final long EMAIL_VERIFY_TOKEN_TTL_MS = 10 * 60 * 1000L; // 10분
     private static final long EMAIL_VERIFIED_TTL_MS = 30 * 60 * 1000L; // 30분
     private static final long PW_RESET_TOKEN_TTL_MS = 30 * 60 * 1000L; // 30분
@@ -45,6 +48,7 @@ public class TokenRedisService {
                     "return c",
             Long.class);
     public static final int WITHDRAWAL_OTP_MAX_ATTEMPTS = 3;
+    public static final int FIND_EMAIL_OTP_MAX_ATTEMPTS = 3;
 
     private final StringRedisTemplate redisTemplate;
 
@@ -125,6 +129,38 @@ public class TokenRedisService {
     public void deleteWithdrawalOtp(final String userId) {
         redisTemplate.delete(wdKey(userId));
         redisTemplate.delete(wdCntKey(userId));
+    }
+
+    /**
+     * 이메일 찾기 OTP 저장 — Key: FE:{recoveryEmail}, TTL: 3분
+     * 주의: 재발급 시 시도 횟수 카운터도 함께 초기화
+     */
+    public void saveFindEmailOtp(final String recoveryEmail, final String otp) {
+        redisTemplate.opsForValue().set(feKey(recoveryEmail), otp, FIND_EMAIL_OTP_TTL_MS, TimeUnit.MILLISECONDS);
+        redisTemplate.delete(feCntKey(recoveryEmail));
+    }
+
+    public String getFindEmailOtp(final String recoveryEmail) {
+        return redisTemplate.opsForValue().get(feKey(recoveryEmail));
+    }
+
+    /**
+     * 잘못된 OTP 시도 횟수 증가 — Key: FE:CNT:{recoveryEmail}, TTL: OTP와 동일
+     *
+     * @return 누적 시도 횟수
+     */
+    public int incrementFindEmailOtpAttempts(final String recoveryEmail) {
+        final Long count = redisTemplate.execute(
+                INCR_WITH_EXPIRE,
+                List.of(feCntKey(recoveryEmail)),
+                String.valueOf(FIND_EMAIL_OTP_TTL_MS / 1000));
+        return count != null ? count.intValue() : 1;
+    }
+
+    /** OTP 및 시도 횟수 카운터 모두 삭제 */
+    public void deleteFindEmailOtp(final String recoveryEmail) {
+        redisTemplate.delete(feKey(recoveryEmail));
+        redisTemplate.delete(feCntKey(recoveryEmail));
     }
 
     // ── 이메일 인증 토큰 ───────────────────────────────────────────
@@ -255,6 +291,16 @@ public class TokenRedisService {
     /** WD:CNT:{userId} — 탈퇴 OTP 실패 횟수 */
     private String wdCntKey(final String userId) {
         return WD_CNT_PREFIX + userId;
+    }
+
+    /** FE:{recoveryEmail} — 이메일 찾기 진행 중 OTP */
+    private String feKey(final String recoveryEmail) {
+        return FE_PREFIX + recoveryEmail;
+    }
+
+    /** FE:CNT:{recoveryEmail} — 이메일 찾기 OTP 실패 횟수 */
+    private String feCntKey(final String recoveryEmail) {
+        return FE_CNT_PREFIX + recoveryEmail;
     }
 
     /** EV:TOKEN:{token} — 회원가입 이메일 인증 토큰 → email */

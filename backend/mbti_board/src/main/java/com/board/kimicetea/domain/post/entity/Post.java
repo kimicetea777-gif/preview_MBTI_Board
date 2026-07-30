@@ -1,6 +1,7 @@
 package com.board.kimicetea.domain.post.entity;
 
 import com.board.kimicetea.domain.mbti.entity.MbtiMetadata;
+import com.board.kimicetea.domain.post.enums.PostHiddenBy;
 import com.board.kimicetea.domain.user.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -73,6 +74,14 @@ public class Post {
     @Column(name = "is_visible", nullable = false)
     private Boolean isVisible = true;
 
+    @Builder.Default
+    @Column(name = "is_pinned", nullable = false)
+    private Boolean isPinned = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "hidden_by", length = 10)
+    private PostHiddenBy hiddenBy;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -109,11 +118,18 @@ public class Post {
 
     public void hide() {
         this.isVisible = false;
+        this.hiddenBy = PostHiddenBy.USER;
     }
 
     /** 어드민 숨김/복구 전용 — 일반 사용자 플로우에서는 hide() 사용 */
     public void changeVisibility(final boolean visible) {
         this.isVisible = visible;
+        this.hiddenBy = visible ? null : PostHiddenBy.ADMIN;
+    }
+
+    /** 어드민 고정/고정 해제 — 목록 조회 시 최상단 노출 여부 */
+    public void changePinned(final boolean pinned) {
+        this.isPinned = pinned;
     }
 
     public void update(final String title, final String content, final String contentPreview, final String[] imageUrls) {

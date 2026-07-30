@@ -6,12 +6,14 @@ import NoticeModal from "@/components/common/NoticeModal";
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="font-jakarta min-h-screen bg-background">
-      <Header />
       <div className="flex mx-auto w-full max-w-300">
         <Suspense>
           <SiteNav />
         </Suspense>
-        <main className="flex-1 min-w-0">{children}</main>
+        <div className="flex-1 min-w-0 flex flex-col">
+          <Header />
+          <main className="flex-1 min-w-0">{children}</main>
+        </div>
       </div>
       <NoticeModal />
     </div>

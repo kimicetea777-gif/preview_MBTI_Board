@@ -31,6 +31,17 @@ export const SORT_OPTIONS: { label: string; value: PostSortType }[] = [
   { label: "댓글순", value: POST_SORT.COMMENTS },
 ];
 
+// posts.hidden_by — is_visible=false로 만든 주체
+export const POST_HIDDEN_BY = {
+  USER:  "USER",
+  ADMIN: "ADMIN",
+} as const;
+export type PostHiddenBy = typeof POST_HIDDEN_BY[keyof typeof POST_HIDDEN_BY];
+export const POST_HIDDEN_BY_LABELS: Record<PostHiddenBy, string> = {
+  USER:  "본인 삭제",
+  ADMIN: "관리자 숨김",
+};
+
 export const VIEW_MODE = {
   CARD: "card",
   LIST: "list",
@@ -130,6 +141,7 @@ export interface PostDetailResponse extends PostSummaryResponse {
   isOwner: boolean;
   isGuest: boolean;
   isVisible: boolean;
+  hiddenBy: PostHiddenBy | null;
   updatedAt: string;
   voteResult?: VoteResult;         // VOTE 타입일 때만 포함
   debateResult?: DebateResult;     // DEBATE 타입일 때만 포함

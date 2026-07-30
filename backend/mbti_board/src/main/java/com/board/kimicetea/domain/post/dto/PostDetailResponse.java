@@ -28,6 +28,8 @@ public record PostDetailResponse(
                 boolean isOwner,
                 boolean isGuest,
                 boolean isVisible,
+                String hiddenBy,
+                boolean isPinned,
                 Instant createdAt,
                 Instant updatedAt,
                 VoteResultResponse voteResult,
@@ -39,7 +41,8 @@ public record PostDetailResponse(
                                 id, typeCode, title,
                                 TiptapContentParser.resolveForResponse(content, r2PublicUrl),
                                 authorNickname, authorMbtiId, mbtiVerified, targetMbtiId,
-                                viewCount, commentCount, isOwner, isGuest, isVisible, createdAt, updatedAt,
+                                viewCount, commentCount, isOwner, isGuest, isVisible, hiddenBy, isPinned,
+                                createdAt, updatedAt,
                                 voteResult, debateResult);
         }
 
@@ -116,6 +119,8 @@ public record PostDetailResponse(
                                 isOwner,
                                 post.getGuestPassword() != null,
                                 post.getIsVisible(),
+                                post.getHiddenBy() != null ? post.getHiddenBy().name() : null,
+                                post.getIsPinned(),
                                 post.getCreatedAt(),
                                 post.getUpdatedAt(),
                                 voteResult,

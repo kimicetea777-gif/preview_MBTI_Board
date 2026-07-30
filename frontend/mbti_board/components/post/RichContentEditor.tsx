@@ -192,10 +192,16 @@ function RichContentEditorInner({ initialContent, onChange, placeholder, onUploa
   });
 
   // 수정 페이지에서 initialContent 또는 editor가 뒤늦게 준비될 때 반영
+  // 주의: 최초 1회만 동기화 — onChange가 매 입력마다 같은 state를 initialContent로 되돌려주는
+  //       상위 컴포넌트 패턴이라, 가드 없이 매번 setContent를 부르면 타이핑/이미지 삽입마다 커서가 초기화됨
+  const hasSyncedInitialContent = useRef(false);
   useEffect(() => {
-    if (!editor || !initialContent) return;
+    if (!editor || !initialContent || hasSyncedInitialContent.current) return;
     const parsed = parseTiptapContent(initialContent);
-    if (parsed) editor.commands.setContent(parsed);
+    if (parsed) {
+      editor.commands.setContent(parsed);
+      hasSyncedInitialContent.current = true;
+    }
   }, [editor, initialContent]);
 
   const active = useEditorState({

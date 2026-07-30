@@ -1,9 +1,12 @@
 package com.board.kimicetea.domain.mbti.controller;
 
+import com.board.kimicetea.domain.mbti.dto.AdminFunOptionCreateRequest;
 import com.board.kimicetea.domain.mbti.dto.AdminFunOptionUpdateRequest;
+import com.board.kimicetea.domain.mbti.dto.AdminFunQuestionCreateRequest;
 import com.board.kimicetea.domain.mbti.dto.AdminFunQuestionResponse;
 import com.board.kimicetea.domain.mbti.dto.AdminFunQuestionUpdateRequest;
 import com.board.kimicetea.domain.mbti.dto.AdminFunQuestionVisibilityRequest;
+import com.board.kimicetea.domain.mbti.dto.AdminMbtiQuestionCreateRequest;
 import com.board.kimicetea.domain.mbti.dto.AdminMbtiQuestionResponse;
 import com.board.kimicetea.domain.mbti.dto.AdminMbtiQuestionUpdateRequest;
 import com.board.kimicetea.domain.mbti.dto.AdminMbtiQuestionVisibilityRequest;
@@ -211,6 +214,67 @@ class AdminMbtiControllerTest {
         }
     }
 
+    // ────────────────── POST /api/admin/mbti/questions ──────────────────
+
+    @Nested
+    @DisplayName("POST /api/admin/mbti/questions — MBTI 문항 생성")
+    class CreateQuestion {
+
+        @Test
+        @DisplayName("성공 — 유효한 생성 요청 → 201")
+        void success() throws Exception {
+            given(adminMbtiQuestionService.createQuestion(any(AdminMbtiQuestionCreateRequest.class)))
+                    .willReturn(sampleQuestion());
+
+            final AdminMbtiQuestionCreateRequest request =
+                    new AdminMbtiQuestionCreateRequest("새로운 질문입니다.", "EI", false);
+
+            mockMvc.perform(post(QUESTIONS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.data.id").value(QUESTION_ID))
+                    .andExpect(jsonPath("$.data.category").value("EI"));
+        }
+
+        @Test
+        @DisplayName("실패 — title 빈 문자열(@NotBlank 위반) → 400")
+        void blankTitle() throws Exception {
+            final AdminMbtiQuestionCreateRequest request =
+                    new AdminMbtiQuestionCreateRequest("", "EI", false);
+
+            mockMvc.perform(post(QUESTIONS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.success").value(false));
+        }
+
+        @Test
+        @DisplayName("실패 — category 허용값 외(@Pattern 위반: 'XY') → 400")
+        void invalidCategory() throws Exception {
+            final AdminMbtiQuestionCreateRequest request =
+                    new AdminMbtiQuestionCreateRequest("질문", "XY", false);
+
+            mockMvc.perform(post(QUESTIONS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.success").value(false));
+        }
+
+        @Test
+        @DisplayName("실패 — isReverse null(@NotNull 위반) → 400")
+        void nullIsReverse() throws Exception {
+            mockMvc.perform(post(QUESTIONS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"title\": \"질문\", \"category\": \"EI\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.success").value(false));
+        }
+    }
+
     // ────────────────── PATCH /api/admin/mbti/questions/{id} ──────────────────
 
     @Nested
@@ -382,6 +446,71 @@ class AdminMbtiControllerTest {
                     .andExpect(jsonPath("$.data[0].id").value(FUN_QUESTION_ID))
                     .andExpect(jsonPath("$.data[0].title").value("재미 질문입니다."))
                     .andExpect(jsonPath("$.data[0].isVisible").value(true));
+        }
+    }
+
+    // ────────────────── POST /api/admin/mbti/fun-questions ──────────────────
+
+    @Nested
+    @DisplayName("POST /api/admin/mbti/fun-questions — FUN 문항 생성")
+    class CreateFunQuestion {
+
+        @Test
+        @DisplayName("성공 — 유효한 생성 요청(제목 + 선택지 2개 이상) → 201")
+        void success() throws Exception {
+            given(adminFunQuestionService.createFunQuestion(any(AdminFunQuestionCreateRequest.class)))
+                    .willReturn(sampleFunQuestion());
+
+            final AdminFunQuestionCreateRequest request = new AdminFunQuestionCreateRequest(
+                    "새로운 재미 질문",
+                    List.of(new AdminFunOptionCreateRequest("선택지 A"), new AdminFunOptionCreateRequest("선택지 B")));
+
+            mockMvc.perform(post(FUN_QUESTIONS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.data.id").value(FUN_QUESTION_ID));
+        }
+
+        @Test
+        @DisplayName("실패 — title 빈 문자열(@NotBlank 위반) → 400")
+        void blankTitle() throws Exception {
+            final AdminFunQuestionCreateRequest request = new AdminFunQuestionCreateRequest(
+                    "",
+                    List.of(new AdminFunOptionCreateRequest("선택지 A"), new AdminFunOptionCreateRequest("선택지 B")));
+
+            mockMvc.perform(post(FUN_QUESTIONS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.success").value(false));
+        }
+
+        @Test
+        @DisplayName("실패 — 선택지 1개뿐(@Size(min=2) 위반) → 400")
+        void tooFewOptions() throws Exception {
+            final AdminFunQuestionCreateRequest request = new AdminFunQuestionCreateRequest(
+                    "제목", List.of(new AdminFunOptionCreateRequest("선택지 A")));
+
+            mockMvc.perform(post(FUN_QUESTIONS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.success").value(false));
+        }
+
+        @Test
+        @DisplayName("실패 — 선택지 텍스트 빈 문자열(@NotBlank 위반) → 400")
+        void blankOptionText() throws Exception {
+            final AdminFunQuestionCreateRequest request = new AdminFunQuestionCreateRequest(
+                    "제목", List.of(new AdminFunOptionCreateRequest(""), new AdminFunOptionCreateRequest("선택지 B")));
+
+            mockMvc.perform(post(FUN_QUESTIONS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.success").value(false));
         }
     }
 

@@ -3,9 +3,8 @@
 import { useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { subscribeAuthChannel } from "@/lib/authChannel";
-import axios from "axios";
+import { refreshAccessToken } from "@/lib/apiClient";
 import { ROUTES } from "@/constants/routes";
-import { API } from "@/constants/apiEndpoints";
 
 /**
  * 앱 최초 마운트 시 silent refresh로 AT 복구,
@@ -25,15 +24,12 @@ export default function AuthSyncProvider({ children }: { children: React.ReactNo
     );
 
     // 새 탭 or 새로고침: AT가 없고 session=1 쿠키가 있으면 silent refresh 시도
-    // apiClient 대신 axios 직접 사용 — 401 인터셉터 개입 방지
-    const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+    // 주의: apiClient의 공유 refreshAccessToken()을 그대로 사용 — 401 인터셉터의 refresh와
+    //       동시에 발생해도 같은 Promise를 공유해 RT Reuse Detection 경합을 피함
     const hasToken = useAuthStore.getState().getAccessToken();
     const hasSession = typeof document !== "undefined" && document.cookie.split(";").some((c) => c.trim() === "session=1");
     if (!hasToken && hasSession) {
-      axios
-        .post<{ data: { accessToken: string } }>(`${BASE_URL}${API.auth.reissue}`, null, { withCredentials: true })
-        .then(({ data }) => setAccessToken(data.data.accessToken))
-        .catch(() => {}); // RT 없으면 비로그인 상태로 유지
+      refreshAccessToken().catch(() => {}); // RT 없으면 비로그인 상태로 유지
     }
 
     return unsubscribe;

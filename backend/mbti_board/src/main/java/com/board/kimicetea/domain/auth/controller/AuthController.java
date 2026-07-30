@@ -2,6 +2,7 @@ package com.board.kimicetea.domain.auth.controller;
 
 import com.board.kimicetea.domain.auth.dto.EmailVerifyConfirmRequest;
 import com.board.kimicetea.domain.auth.dto.EmailVerifySendRequest;
+import com.board.kimicetea.domain.auth.dto.FindEmailConfirmRequest;
 import com.board.kimicetea.domain.auth.dto.FindEmailRequest;
 import com.board.kimicetea.domain.auth.dto.FindEmailResponse;
 import com.board.kimicetea.domain.auth.dto.LoginRequest;
@@ -44,20 +45,35 @@ public class AuthController {
         private final AuthService authService;
 
         /**
-         * 복구 이메일로 이메일 찾기 — WITHDRAWN 계정은 404 반환
-         * 주의: IP당 10분에 5회로 Rate Limit (열거 방지)
+         * 이메일 찾기 OTP 발송 — 복구 이메일 소유권 확인용 6자리 코드 발송. WITHDRAWN 계정은 404 반환
+         * 주의: IP당 10분에 5회로 Rate Limit (열거 방지·메일 스팸 방지)
          */
-        @Operation(summary = "이메일 찾기", description = "인증된 복구 이메일로 마스킹된 로그인 이메일을 조회합니다.")
+        @Operation(summary = "이메일 찾기 OTP 발송", description = "입력한 복구 이메일로 인증 코드를 발송합니다.")
         @ApiResponses({
-                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "이메일 조회 성공"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "발송 성공"),
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "해당 복구 이메일의 사용자 없음"),
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "요청 횟수 초과")
         })
         @RateLimit(endpoint = RateLimitEndpoints.FIND_EMAIL, max = 5, windowSecs = 600)
-        @PostMapping("/find-email")
-        public ResponseEntity<ApiResponse<FindEmailResponse>> findEmail(
+        @PostMapping("/find-email/request")
+        public ResponseEntity<ApiResponse<Void>> requestFindEmailOtp(
                         @Valid @RequestBody final FindEmailRequest request) {
-                return ResponseEntity.ok(ApiResponse.ok(authService.findEmail(request)));
+                authService.requestFindEmailOtp(request);
+                return ResponseEntity.ok(ApiResponse.ok("인증 코드가 발송되었습니다."));
+        }
+
+        /**
+         * 이메일 찾기 OTP 확인 — 코드 검증 성공 시에만 마스킹된 로그인 이메일 반환
+         */
+        @Operation(summary = "이메일 찾기 OTP 확인", description = "발송된 인증 코드를 검증하고 마스킹된 로그인 이메일을 조회합니다.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "이메일 조회 성공"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "인증 코드 불일치 또는 만료")
+        })
+        @PostMapping("/find-email/confirm")
+        public ResponseEntity<ApiResponse<FindEmailResponse>> confirmFindEmail(
+                        @Valid @RequestBody final FindEmailConfirmRequest request) {
+                return ResponseEntity.ok(ApiResponse.ok(authService.confirmFindEmail(request)));
         }
 
         /**

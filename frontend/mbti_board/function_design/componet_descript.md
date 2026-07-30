@@ -275,6 +275,8 @@
 - `components/admin/AdminCommentTable.tsx` — 댓글 관리 테이블; 게시글ID·가시성 필터, 숨김/복구 버튼(useMutation), 페이지네이션
 - `components/admin/AdminMbtiContent.tsx` — MBTI 문항 관리 클라이언트 컴포넌트; AdminMbtiQuestion[] 직접 사용(타입 필터링 불필요), 행 클릭 시 모달 오픈, 노출 열에 AdminMbtiVisibilityButton 삽입
 - `components/admin/AdminMbtiQuestionDetailModal.tsx` — MBTI 문항 상세 보기·수정 모달; AdminMbtiQuestion 타입 사용, title·category·isReverse 편집, isVisible 토글, isDirty 체크로 저장 버튼 비활성
+- `components/admin/AdminMbtiQuestionCreateModal.tsx` — MBTI 문항 생성 모달; title·category·isReverse 입력 후 `useCreateAdminMbtiQuestion`으로 등록 (testVersion은 서버에서 "v1.0" 고정, isVisible 기본 true). 문항 내용은 원래 Flyway 시드 전용이었으나 어드민 생성 기능으로 확장
+- `components/admin/AdminFunQuestionCreateModal.tsx` — FUN 문항 생성 모달; title + 선택지(최소 2개, 동적 추가/삭제) 입력 후 `useCreateAdminFunQuestion`으로 등록. 선택지는 생성 시에만 구성 가능하고 이후 추가·삭제·순서 변경 불가
 - `components/admin/AdminMbtiVisibilityButton.tsx` — MBTI 문항 행별 독립 useMutation 인스턴스를 가진 노출 토글 버튼; 공유 mutation 경쟁 상태(race condition) 방지
 - `components/admin/AdminFunVisibilityButton.tsx` — FUN 문항 행별 독립 useMutation 인스턴스를 가진 노출 토글 버튼; AdminFunVisibilityButton과 동일 패턴
 
@@ -654,3 +656,21 @@
 - `types/auth.ts`, `types/user.ts`, `types/admin.ts` — `SignupRequest.phone` 제거, `FindEmailRequest.phone`→`recoveryEmail`, `hasPhone`→`hasRecoveryEmail`, `phoneVerifiedCount`→`recoveryEmailCount`, `RecoveryEmailSendRequest`/`RecoveryEmailConfirmRequest` 추가
 - `lib/validationConstants.ts` — `PHONE_REGEX`/`PHONE_MESSAGE` 제거, `EMAIL_REGEX`/`EMAIL_MESSAGE` 추가
 - `lib/api/user.ts` — `updatePhone`/`removePhone` → `sendRecoveryEmailVerification`/`confirmRecoveryEmailVerification`/`removeRecoveryEmail`
+
+### 이메일 찾기 OTP 검증 추가
+
+복구 이메일만 알면(추측 포함) 소유권 확인 없이 바로 마스킹된 가입 이메일이 노출되던 문제를 수정. 회원 탈퇴와 동일한 OTP 패턴(6자리 코드, Redis TTL 3분, 오답 3회 제한)을 적용해 복구 이메일로 발송된 코드를 확인해야만 결과를 보여주도록 2단계로 분리.
+
+- `components/auth/FindEmailSection.tsx` — 단일 조회 폼 → 2단계(이메일 입력→OTP 발송, OTP 입력→확인) 플로우로 변경. `findEmail` 대신 `requestFindEmailOtp`/`confirmFindEmail` 사용
+- `constants/apiEndpoints.ts` — `findEmail` → `findEmailRequest`(`/find-email/request`)/`findEmailConfirm`(`/find-email/confirm`)
+- `lib/api/auth.ts` — `findEmail` → `requestFindEmailOtp`/`confirmFindEmail`
+- `types/auth.ts` — `FindEmailConfirmRequest`(recoveryEmail, otp) 추가
+
+### 게시글 hidden_by(숨김 주체) 노출
+
+`posts.hidden_by` 컬럼 추가에 맞춰 어드민 게시글 목록에서 본인 삭제인지 관리자 숨김인지 구분 표시.
+
+- `types/post.ts` — `POST_HIDDEN_BY`/`POST_HIDDEN_BY_LABELS` 추가 (posts 소유 타입이라 admin.ts가 아닌 post.ts에 정의), `PostDetailResponse.hiddenBy` 필드 추가
+- `types/admin.ts` — `AdminPostSummaryResponse.hiddenBy` 필드 추가 (타입은 `post.ts`에서 import)
+- `components/admin/AdminPostTable.tsx` — "숨김" 상태 배지 아래에 `hiddenBy` 라벨("본인 삭제"/"관리자 숨김") 표시
+- `components/admin/AdminPostDetailContent.tsx` — 상세 페이지 상단 "숨김" 배지에도 동일 라벨 표시 (목록에만 있고 상세엔 빠져있던 부분 보완)

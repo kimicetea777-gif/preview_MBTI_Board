@@ -1,5 +1,6 @@
 package com.board.kimicetea.domain.post.controller;
 
+import com.board.kimicetea.domain.post.dto.AdminPostPinRequest;
 import com.board.kimicetea.domain.post.dto.AdminPostStatsResponse;
 import com.board.kimicetea.domain.post.dto.AdminPostSummaryResponse;
 import com.board.kimicetea.domain.post.dto.AdminPostVisibilityRequest;
@@ -114,6 +115,21 @@ public class AdminPostController {
             @Valid @RequestBody final AdminPostVisibilityRequest request) {
         adminPostService.changePostVisibility(id, request.visible());
         final String message = request.visible() ? "게시글이 복구되었습니다." : "게시글이 숨겨졌습니다.";
+        return ResponseEntity.ok(ApiResponse.ok(message));
+    }
+
+    @Operation(summary = "게시글 고정/고정 해제", description = "고정된 게시글은 목록 조회 시 정렬 기준과 무관하게 최상단에 노출됩니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "고정 상태 변경 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ADMIN 권한 없음"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "게시글 없음")
+    })
+    @PatchMapping("/{id}/pin")
+    public ResponseEntity<ApiResponse<Void>> changePostPinned(
+            @PathVariable final long id,
+            @Valid @RequestBody final AdminPostPinRequest request) {
+        adminPostService.changePostPinned(id, request.pinned());
+        final String message = request.pinned() ? "게시글이 상단에 고정되었습니다." : "게시글 고정이 해제되었습니다.";
         return ResponseEntity.ok(ApiResponse.ok(message));
     }
 }

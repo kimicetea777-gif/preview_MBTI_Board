@@ -104,13 +104,13 @@ class AdminPostControllerTest {
     private AdminPostSummaryResponse sampleSummary() {
         return new AdminPostSummaryResponse(
                 POST_ID, "FREE", "테스트 게시글", "작성자", "INTJ", "TESTED",
-                null, 10, 2, true, Instant.now());
+                null, 10, 2, true, null, false, Instant.now());
     }
 
     private PostDetailResponse sampleDetail() {
         return new PostDetailResponse(
                 POST_ID, "FREE", "제목", "내용", "작성자", "INTJ", "TESTED", null,
-                5, 3, false, false, false, Instant.now(), Instant.now(), null, null);
+                5, 3, false, false, false, "ADMIN", false, Instant.now(), Instant.now(), null, null);
     }
 
     // ────────────────── GET /api/admin/posts/stats ──────────────────

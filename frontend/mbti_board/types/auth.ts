@@ -47,6 +47,11 @@ export interface FindEmailRequest {
   recoveryEmail: string;
 }
 
+export interface FindEmailConfirmRequest {
+  recoveryEmail: string;
+  otp: string;
+}
+
 export interface FindEmailResponse {
   maskedEmail: string;
   isSocialOnly: boolean;

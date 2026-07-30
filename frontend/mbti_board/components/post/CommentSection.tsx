@@ -256,6 +256,17 @@ function CommentItem({ comment, postId, isReply = false, debateStance, proLabel,
           {commentBody}
         </article>
 
+        {showReplyForm && (
+          <div className="px-5 pb-5">
+            <CommentForm
+              postId={postId}
+              parentId={comment.id}
+              debateStance={debateStance}
+              onSuccess={() => setShowReplyForm(false)}
+            />
+          </div>
+        )}
+
         {comment.replies.length > 0 && (
           <ul className="px-5 pb-5 space-y-4">
             {comment.replies.map((reply) => (
@@ -278,16 +289,6 @@ function CommentItem({ comment, postId, isReply = false, debateStance, proLabel,
         )}
       </div>
 
-      {showReplyForm && (
-        <div className="ml-8 pl-5 py-3">
-          <CommentForm
-            postId={postId}
-            parentId={comment.id}
-            debateStance={debateStance}
-            onSuccess={() => setShowReplyForm(false)}
-          />
-        </div>
-      )}
       {modal}
     </li>
   );

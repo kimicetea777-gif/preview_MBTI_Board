@@ -2,6 +2,7 @@ package com.board.kimicetea.domain.auth.service;
 
 import com.board.kimicetea.domain.auth.dto.EmailVerifyConfirmRequest;
 import com.board.kimicetea.domain.auth.dto.EmailVerifySendRequest;
+import com.board.kimicetea.domain.auth.dto.FindEmailConfirmRequest;
 import com.board.kimicetea.domain.auth.dto.FindEmailRequest;
 import com.board.kimicetea.domain.auth.dto.FindEmailResponse;
 import com.board.kimicetea.domain.auth.dto.LoginRequest;
@@ -39,6 +40,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.UUID;
@@ -70,17 +72,53 @@ public class AuthService {
     private String siteUrl;
 
     /**
-     * 복구 이메일로 이메일 찾기 — INACTIVE·LOCKED·PERMANENT_BAN·WITHDRAWN 상태는 사유를 알리고 차단
-     * 주의: 이메일은 @앞 2자만 노출하고 나머지 *** 처리 (개인정보 보호)
+     * 이메일 찾기 OTP 발송 — INACTIVE·LOCKED·PERMANENT_BAN·WITHDRAWN 상태는 사유를 알리고 차단
+     * 주의: 복구 이메일 소유권을 확인하기 전까지는 가입 이메일을 노출하지 않음 — OTP는 confirmFindEmail()에서 검증
      */
     @Transactional(readOnly = true)
-    public FindEmailResponse findEmail(final FindEmailRequest request) {
+    public void requestFindEmailOtp(final FindEmailRequest request) {
         final User user = userRepository.findByRecoveryEmail(request.recoveryEmail())
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         validateAccountAccessible(user);
 
+        final String otp = generateOtp();
+        tokenRedisService.saveFindEmailOtp(request.recoveryEmail(), otp);
+        emailService.sendFindEmailOtp(request.recoveryEmail(), otp);
+    }
+
+    /**
+     * 이메일 찾기 OTP 확인 — 검증 성공 시에만 마스킹된 가입 이메일 반환
+     * 주의: 이메일은 @앞 2자만 노출하고 나머지 *** 처리 (개인정보 보호)
+     */
+    @Transactional(readOnly = true)
+    public FindEmailResponse confirmFindEmail(final FindEmailConfirmRequest request) {
+        final String savedOtp = tokenRedisService.getFindEmailOtp(request.recoveryEmail());
+        if (savedOtp == null) {
+            throw new CustomException(ErrorCode.FIND_EMAIL_OTP_EXPIRED);
+        }
+
+        if (!savedOtp.equals(request.otp())) {
+            // 오답 횟수 누적 — 3회 초과 시 OTP·카운터 모두 삭제
+            final int attempts = tokenRedisService.incrementFindEmailOtpAttempts(request.recoveryEmail());
+            if (attempts >= TokenRedisService.FIND_EMAIL_OTP_MAX_ATTEMPTS) {
+                tokenRedisService.deleteFindEmailOtp(request.recoveryEmail());
+                throw new CustomException(ErrorCode.FIND_EMAIL_OTP_MAX_ATTEMPTS);
+            }
+            throw new CustomException(ErrorCode.FIND_EMAIL_OTP_INVALID);
+        }
+
+        tokenRedisService.deleteFindEmailOtp(request.recoveryEmail());
+
+        final User user = userRepository.findByRecoveryEmail(request.recoveryEmail())
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
         return new FindEmailResponse(EmailUtils.mask(user.getEmail()), user.getSocialProvider() != null);
+    }
+
+    /** 6자리 숫자 OTP 생성 — SecureRandom 사용으로 예측 불가 */
+    private String generateOtp() {
+        return String.format("%06d", new SecureRandom().nextInt(1_000_000));
     }
 
     /**

@@ -19,6 +19,8 @@ public record AdminPostSummaryResponse(
         int viewCount,
         int commentCount,
         boolean isVisible,
+        String hiddenBy,
+        boolean isPinned,
         Instant createdAt
 ) {
     public static AdminPostSummaryResponse from(final Post post) {
@@ -34,6 +36,8 @@ public record AdminPostSummaryResponse(
                 post.getViewCount(),
                 post.getCommentCount(),
                 post.getIsVisible(),
+                post.getHiddenBy() != null ? post.getHiddenBy().name() : null,
+                post.getIsPinned(),
                 post.getCreatedAt()
         );
     }

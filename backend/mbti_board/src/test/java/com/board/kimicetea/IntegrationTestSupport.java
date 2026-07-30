@@ -35,7 +35,8 @@ public abstract class IntegrationTestSupport {
     protected static final String REISSUE_URL              = "/api/auth/reissue";
     protected static final String EMAIL_VERIFY_SEND_URL    = "/api/auth/email-verify/send";
     protected static final String EMAIL_VERIFY_CONFIRM_URL = "/api/auth/email-verify/confirm";
-    protected static final String FIND_EMAIL_URL           = "/api/auth/find-email";
+    protected static final String FIND_EMAIL_REQUEST_URL   = "/api/auth/find-email/request";
+    protected static final String FIND_EMAIL_CONFIRM_URL   = "/api/auth/find-email/confirm";
     protected static final String PW_RESET_REQUEST_URL     = "/api/auth/password-reset/request";
     protected static final String PW_RESET_CONFIRM_URL     = "/api/auth/password-reset/confirm";
 

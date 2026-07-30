@@ -122,6 +122,13 @@ export async function fetchAdminMbtiQuestions(): Promise<AdminMbtiQuestion[]> {
   return res.data.data;
 }
 
+export async function createAdminMbtiQuestion(
+  data: { title: string; category: string; isReverse: boolean }
+): Promise<AdminMbtiQuestion> {
+  const res = await apiClient.post<ApiResponse<AdminMbtiQuestion>>(API.admin.mbtiQuestions, data);
+  return res.data.data;
+}
+
 export async function updateAdminMbtiQuestion(
   id: number,
   data: { title: string; category: string; isReverse: boolean }
@@ -138,6 +145,13 @@ export async function changeAdminMbtiQuestionVisibility(
 
 export async function fetchAdminFunQuestions(): Promise<AdminFunQuestion[]> {
   const res = await apiClient.get<ApiResponse<AdminFunQuestion[]>>(API.admin.funQuestions);
+  return res.data.data;
+}
+
+export async function createAdminFunQuestion(
+  data: { title: string; options: { optionText: string }[] }
+): Promise<AdminFunQuestion> {
+  const res = await apiClient.post<ApiResponse<AdminFunQuestion>>(API.admin.funQuestions, data);
   return res.data.data;
 }
 

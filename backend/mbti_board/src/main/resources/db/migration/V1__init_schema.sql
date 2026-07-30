@@ -98,6 +98,7 @@ CREATE TABLE posts (
     view_count INT DEFAULT 0 NOT NULL,
     comment_count INT DEFAULT 0 NOT NULL,
     is_visible BOOLEAN DEFAULT TRUE NOT NULL,
+    hidden_by VARCHAR(10), -- is_visible=false로 만든 주체 (USER: 본인 삭제, ADMIN: 관리자 숨김) — 복구(is_visible=true) 시 NULL로 초기화
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     CONSTRAINT fk_posts_users FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL,
@@ -106,6 +107,9 @@ CREATE TABLE posts (
     CONSTRAINT chk_posts_image_urls_max CHECK (
         image_urls IS NULL
         OR array_length(image_urls, 1) <= 3
+    ),
+    CONSTRAINT chk_posts_hidden_by CHECK (
+        hidden_by IS NULL OR hidden_by IN ('USER', 'ADMIN')
     )
 );
 
@@ -538,5 +542,5 @@ CREATE INDEX idx_fun_question_options_question_id ON fun_question_options (quest
 --   V2  seed_fun_questions.sql       — FUN 문항 콘텐츠 (운영 필수)
 --   V3  seed_mbti_metadata.sql       — MBTI 유형 참조 데이터 (운영 필수)
 --   V5  seed_mbti_questions.sql      — MBTI 검사 문항 콘텐츠 (운영 필수)
---   dev/V4, V6~V10                   — 로컬 개발용 더미 데이터 (prod 프로필에서 제외, application-prod.yaml 참고)
+--   migration-dev/V4, V6~V10          — 로컬 개발용 더미 데이터 (prod 프로필에서 제외, application-prod.yaml 참고)
 -- ===================================================

@@ -149,7 +149,7 @@ export default function GuestPasswordModal({
           )}
           <ErrorMessage message={error} />
 
-          <DialogFooter>
+          <DialogFooter className="flex-row">
             <Button
               type="button"
               variant="outline"

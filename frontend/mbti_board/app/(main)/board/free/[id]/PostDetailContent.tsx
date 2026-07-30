@@ -61,7 +61,7 @@ export default function PostDetailContent({ id }: Props) {
 
         {/* ---- Footer: Save / Cancel (editing only) ---- */}
         {isEditing && (
-          <footer className="pt-4 border-t border-outline-variant">
+          <footer className="pt-4 border-outline-variant">
             {updateMutation.isError && !post.isGuest && (
               <p className="text-xs text-destructive mb-3 text-right">
                 {getApiErrorMessage(updateMutation.error)}

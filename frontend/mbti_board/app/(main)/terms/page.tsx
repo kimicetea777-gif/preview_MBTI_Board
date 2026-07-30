@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { APP_NAME, CONTACT_EMAIL, CONTACT_MAILTO } from "@/constants/site";
 
 export const metadata: Metadata = {
-  title: `이용약관 | ${process.env.NEXT_PUBLIC_APP_NAME ?? "MBTI Board"}`,
+  title: `이용약관 | ${APP_NAME}`,
 };
 
 export const dynamic = "force-static";
@@ -15,14 +16,14 @@ export default function TermsPage() {
       <section className="mb-10">
         <h2 className="text-lg font-semibold mb-3">제1조 (목적)</h2>
         <p className="text-sm leading-relaxed text-on-surface-variant">
-          이 약관은 {process.env.NEXT_PUBLIC_APP_NAME}(이하 &ldquo;서비스&rdquo;)의 이용 조건 및 절차, 회원과 서비스 운영자의 권리·의무 및 책임 사항을 규정함을 목적으로 합니다.
+          이 약관은 {APP_NAME}(이하 &ldquo;서비스&rdquo;)의 이용 조건 및 절차, 회원과 서비스 운영자의 권리·의무 및 책임 사항을 규정함을 목적으로 합니다.
         </p>
       </section>
 
       <section className="mb-10">
         <h2 className="text-lg font-semibold mb-3">제2조 (서비스 소개)</h2>
         <p className="text-sm leading-relaxed text-on-surface-variant">
-          {process.env.NEXT_PUBLIC_APP_NAME}는 MBTI 유형 기반 커뮤니티 플랫폼으로, 자유글·투표·토론 게시판을 제공합니다.
+          {APP_NAME}는 MBTI 유형 기반 커뮤니티 플랫폼으로, 자유글·투표·토론 게시판을 제공합니다.
           회원 및 비회원 모두 게시글·댓글 작성이 가능하며, 투표 및 댓글 반응 기능은 회원 전용입니다.
           회원가입 및 로그인은 이메일 또는 구글 소셜 계정으로 가능합니다.
         </p>
@@ -108,9 +109,9 @@ export default function TermsPage() {
       <section>
         <h2 className="text-lg font-semibold mb-3">제10조 (운영자 정보)</h2>
         <ul className="text-sm leading-relaxed text-on-surface-variant space-y-1">
-          <li>서비스명: {process.env.NEXT_PUBLIC_APP_NAME}</li>
+          <li>서비스명: {APP_NAME}</li>
           <li>운영 형태: 개인 운영</li>
-          <li>문의: kimicetea777@gmail.com</li>
+          <li>문의: <a href={CONTACT_MAILTO} className="underline hover:text-on-surface">{CONTACT_EMAIL}</a></li>
         </ul>
       </section>
     </article>

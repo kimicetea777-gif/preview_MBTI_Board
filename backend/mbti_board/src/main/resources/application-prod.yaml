@@ -3,6 +3,12 @@ spring:
     # 개발용 더미 시드(가짜 유저·게시글·통계) 제외 — db/migration만 적용
     locations: classpath:db/migration
 
+# Cloudflare Tunnel이 TLS를 종료하고 내부로는 http로 전달 — 이 설정이 없으면
+# X-Forwarded-Proto 헤더를 무시해 OAuth2 redirect_uri가 http://로 생성되어
+# Google Cloud Console에 등록된 https:// URI와 불일치(redirect_uri_mismatch) 발생
+server:
+  forward-headers-strategy: framework
+
 logging:
   file:
     path: /var/log/mbti-board
