@@ -23,9 +23,11 @@ import {
   changeCommentVisibility,
   fetchAdminMbtiTestStats,
   fetchAdminMbtiQuestions,
+  createAdminMbtiQuestion,
   updateAdminMbtiQuestion,
   changeAdminMbtiQuestionVisibility,
   fetchAdminFunQuestions,
+  createAdminFunQuestion,
   updateAdminFunQuestion,
   changeAdminFunQuestionVisibility,
   refreshAdminUserStats,
@@ -245,6 +247,23 @@ export function useAdminFunQuestions() {
 }
 
 /** FUN 문항(제목·선택지) 수정 */
+/** FUN 문항 생성 */
+export function useCreateAdminFunQuestion(onSuccess?: () => void) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { title: string; options: { optionText: string }[] }) =>
+      createAdminFunQuestion(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.funQuestions });
+      toast.success("FUN 문항이 추가되었습니다.");
+      onSuccess?.();
+    },
+    onError: (error) => {
+      toast.error(getApiErrorMessage(error, "FUN 문항 추가에 실패했습니다."));
+    },
+  });
+}
+
 export function useUpdateAdminFunQuestion(onSuccess?: () => void) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -277,6 +296,23 @@ export function useChangeAdminFunQuestionVisibility() {
 }
 
 /** MBTI 문항(제목·카테고리·역채점 여부) 수정 */
+/** MBTI 문항 생성 */
+export function useCreateAdminMbtiQuestion(onSuccess?: () => void) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { title: string; category: string; isReverse: boolean }) =>
+      createAdminMbtiQuestion(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.mbtiQuestions });
+      toast.success("문항이 추가되었습니다.");
+      onSuccess?.();
+    },
+    onError: (error) => {
+      toast.error(getApiErrorMessage(error, "문항 추가에 실패했습니다."));
+    },
+  });
+}
+
 export function useUpdateAdminMbtiQuestion(onSuccess?: () => void) {
   const queryClient = useQueryClient();
   return useMutation({

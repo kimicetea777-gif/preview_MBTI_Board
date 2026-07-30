@@ -23,6 +23,7 @@ public record PostSummaryResponse(
         String targetMbtiId,
         int viewCount,
         int commentCount,
+        boolean isPinned,
         Instant createdAt,
         DebateSummaryResponse debateSummary,
         List<VoteOptionResponse> voteOptions
@@ -57,6 +58,7 @@ public record PostSummaryResponse(
                 post.getTargetMbti() != null ? post.getTargetMbti().getId() : null,
                 post.getViewCount(),
                 post.getCommentCount(),
+                post.getIsPinned(),
                 post.getCreatedAt(),
                 debateSummary,
                 voteOptions

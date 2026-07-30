@@ -10,14 +10,19 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
  * FN 질문 커스텀 선택지 엔티티 — fun_question_options 테이블 매핑
- * 주의: optionText만 어드민 수정 가능, 선택지 추가·삭제·순서 변경은 Flyway 시드로 관리
+ * 주의: optionText 수정은 어드민에서 가능. 선택지 자체는 문항 생성 시 builder()로 함께 만들거나
+ *       Flyway 시드로 관리 — 생성 후 개별 추가·삭제·순서 변경은 불가
  */
 @Getter
+@Builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(name = "fun_question_options")

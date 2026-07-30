@@ -126,7 +126,7 @@ export function MbtiTestingPhase({ questions, onComplete }: Props) {
         </div>
 
         {/* Garden IMAGE */}
-        <div className="-mt-8 pointer-events-none hidden sm:block">
+        <div className="-mt-8 pointer-events-none">
           <GardenProgress currentIndex={currentIndex} totalQuestions={totalQuestions} />
         </div>
     </section>

@@ -13,6 +13,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import InfoBanner from "@/components/common/InfoBanner";
+import { SENDER_EMAIL } from "@/constants/site";
 import { LuKeyRound } from "react-icons/lu";
 
 interface Props {
@@ -47,11 +48,11 @@ export default function MyPasswordSection({ isSocialOnly, email }: Props) {
         {isSocialOnly ? (
           <InfoBanner variant="info" text="소셜 로그인 계정은 비밀번호 변경이 지원되지 않습니다." />
         ) : (
-          <div className="relative">
-            <InfoBanner variant="info" text="이메일 인증 링크를 통해 새 비밀번호를 설정합니다." />
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-outline-variant/30 bg-surface-container-low px-4 py-3">
+            <span className="text-xs text-muted-foreground">이메일 인증 링크를 통해 새 비밀번호를 설정합니다.</span>
             <button
               onClick={() => setDialog("confirm")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-outline-variant px-3 py-1 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+              className="shrink-0 rounded-lg border border-outline-variant px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
             >
               변경하기
             </button>
@@ -104,7 +105,7 @@ export default function MyPasswordSection({ isSocialOnly, email }: Props) {
             { variant: "info",    text: "이메일의 링크를 클릭해 새 비밀번호를 설정하세요" },
             { variant: "info",    text: `이메일이 없다면 스팸함을 확인해 주세요` },
             { variant: "warning", text: "링크는 30분간 유효합니다" },
-            { variant: "error",    text: `발신자가 ${process.env.NEXT_PUBLIC_SENDER_EMAIL}인지 확인하세요` },
+            { variant: "error",    text: `발신자가 ${SENDER_EMAIL}인지 확인하세요` },
           ]} />
           <DialogFooter>
             <button

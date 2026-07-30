@@ -50,6 +50,14 @@ public class AdminPostService {
         post.changeVisibility(visible);
     }
 
+    /** 게시글 고정/고정 해제 — 고정 시 목록 조회에서 정렬 기준과 무관하게 최상단 노출 */
+    @Transactional
+    public void changePostPinned(final long postId, final boolean pinned) {
+        final Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
+        post.changePinned(pinned);
+    }
+
     /** 게시글 영구 삭제 — CASCADE로 댓글 전체 함께 삭제 */
     @Transactional
     public void deletePost(final long postId) {

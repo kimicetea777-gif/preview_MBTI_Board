@@ -15,7 +15,7 @@ const layer = (bottom: string) => `absolute ${bottom} left-1/2 -translate-x-1/2 
 const LAYERS: LayerConfig[] = [
   {
     src: "/images/mbti/elements/ground.webp",
-    className: layer("bottom-0"),
+    className: layer("-bottom-3"),
     width: 980,
     height: 440,
     clips: {
@@ -24,7 +24,7 @@ const LAYERS: LayerConfig[] = [
   },
   {
     src: "/images/mbti/elements/vegetable.webp",
-    className: layer("bottom-17"),
+    className: layer("bottom-7 md:bottom-17"),
     width: 980,
     height: 440,
     clips: {
@@ -37,7 +37,7 @@ const LAYERS: LayerConfig[] = [
   },  //inset(시작_Y 끝_X 끝_Y 시작_X)    polygon(X Y, X Y, X Y, ...)
   {
     src: "/images/mbti/elements/animals.webp",
-    className: layer("bottom-10"),
+    className: layer("bottom-2 md:bottom-10"),
     width: 980,
     height: 420,
     clips: {
@@ -49,7 +49,7 @@ const LAYERS: LayerConfig[] = [
   },
   {
     src: "/images/mbti/elements/fence.webp",
-    className: layer("-bottom-4"),
+    className: layer("-bottom-5 md:-bottom-4"),
     width: 980,
     height: 420,
     clips: {
@@ -79,7 +79,7 @@ export function GardenProgress({ currentIndex, totalQuestions }: Props) {
   const idx = currentIndex >= totalQuestions - 1 ? totalQuestions : currentIndex;
 
   return (
-    <div className="relative mx-auto w-80 h-26 md:w-140 md:h-45 select-none overflow-hidden mt-3">
+    <div className="relative mx-auto w-full max-w-80 aspect-40/13 md:max-w-none md:w-140 md:h-45 md:aspect-auto select-none overflow-hidden mt-3">
       {LAYERS.map((layer) => (
         <div
           key={layer.src}

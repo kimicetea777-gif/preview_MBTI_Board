@@ -1,8 +1,10 @@
 package com.board.kimicetea.domain.mbti.controller;
 
+import com.board.kimicetea.domain.mbti.dto.AdminFunQuestionCreateRequest;
 import com.board.kimicetea.domain.mbti.dto.AdminFunQuestionResponse;
 import com.board.kimicetea.domain.mbti.dto.AdminFunQuestionUpdateRequest;
 import com.board.kimicetea.domain.mbti.dto.AdminFunQuestionVisibilityRequest;
+import com.board.kimicetea.domain.mbti.dto.AdminMbtiQuestionCreateRequest;
 import com.board.kimicetea.domain.mbti.dto.AdminMbtiQuestionResponse;
 import com.board.kimicetea.domain.mbti.dto.AdminMbtiQuestionUpdateRequest;
 import com.board.kimicetea.domain.mbti.dto.AdminMbtiQuestionVisibilityRequest;
@@ -17,6 +19,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -74,6 +77,19 @@ public class AdminMbtiController {
         return ResponseEntity.ok(ApiResponse.ok(adminMbtiQuestionService.getAllQuestions()));
     }
 
+    @Operation(summary = "MBTI 문항 생성", description = "새 MBTI 문항을 등록합니다. testVersion은 항상 v1.0으로 고정됩니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "생성 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "유효성 오류"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ADMIN 권한 없음")
+    })
+    @PostMapping("/questions")
+    public ResponseEntity<ApiResponse<AdminMbtiQuestionResponse>> createQuestion(
+            @Valid @RequestBody final AdminMbtiQuestionCreateRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok(adminMbtiQuestionService.createQuestion(request)));
+    }
+
     @Operation(summary = "MBTI 문항 수정", description = "문항의 제목·카테고리·역방향 여부를 수정합니다. testVersion은 변경 불가.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "수정 성공"),
@@ -111,6 +127,19 @@ public class AdminMbtiController {
     @GetMapping("/fun-questions")
     public ResponseEntity<ApiResponse<List<AdminFunQuestionResponse>>> getAllFunQuestions() {
         return ResponseEntity.ok(ApiResponse.ok(adminFunQuestionService.getAllFunQuestions()));
+    }
+
+    @Operation(summary = "FUN 문항 생성", description = "새 FUN 문항과 선택지를 함께 등록합니다. testVersion은 항상 v1.0으로 고정됩니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "생성 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "유효성 오류"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ADMIN 권한 없음")
+    })
+    @PostMapping("/fun-questions")
+    public ResponseEntity<ApiResponse<AdminFunQuestionResponse>> createFunQuestion(
+            @Valid @RequestBody final AdminFunQuestionCreateRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok(adminFunQuestionService.createFunQuestion(request)));
     }
 
     @Operation(summary = "FUN 문항 수정", description = "FUN 문항의 제목과 선택지 텍스트를 수정합니다. 선택지 추가·삭제·순서 변경은 불가합니다.")

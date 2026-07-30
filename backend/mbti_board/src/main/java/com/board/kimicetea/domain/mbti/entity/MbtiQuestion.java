@@ -7,6 +7,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -15,9 +17,12 @@ import java.time.Instant;
 
 /**
  * MBTI 검사 문항 엔티티
- * 주의: 쓰기 기능 없음 — 문항은 Flyway 시드로만 관리
+ * 주의: 문항 내용은 원래 Flyway 시드 전용이었으나, 어드민 생성 기능(AdminMbtiQuestionService.createQuestion) 추가로
+ *       builder()를 통한 생성도 허용 — category별 채점 균형을 위해 testVersion은 항상 고정값("v1.0")만 사용
  */
 @Getter
+@Builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(name = "mbti_questions")
@@ -40,6 +45,7 @@ public class MbtiQuestion {
     @Column(name = "test_version", nullable = false, length = 10)
     private String testVersion;
 
+    @Builder.Default
     @Column(name = "is_visible", nullable = false)
     private boolean isVisible = true;
 

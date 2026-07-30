@@ -110,7 +110,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         role="region"
         aria-label="알림"
         aria-live="polite"
-        className="fixed bottom-4 left-4 z-50 flex flex-col gap-2"
+        className="fixed bottom-8 left-1/2 -translate-x-1/2 z-100 flex flex-col items-center gap-2"
       >
         {toasts.map((t) => (
           <ToastCard key={t.id} item={t} onRemove={remove} />

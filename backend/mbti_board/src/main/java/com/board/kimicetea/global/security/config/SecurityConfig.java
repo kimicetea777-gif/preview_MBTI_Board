@@ -63,7 +63,8 @@ public class SecurityConfig {
                                                                                            // 상태에서 호출됨
                                                                 "/api/auth/email-verify/send",
                                                                 "/api/auth/email-verify/confirm",
-                                                                "/api/auth/find-email",
+                                                                "/api/auth/find-email/request",
+                                                                "/api/auth/find-email/confirm",
                                                                 "/api/auth/password-reset/request",
                                                                 "/api/auth/password-reset/confirm",
 

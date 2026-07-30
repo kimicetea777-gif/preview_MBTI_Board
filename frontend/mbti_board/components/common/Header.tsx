@@ -17,7 +17,7 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 border-outline-variant bg-background">
-      <div className="relative mx-auto flex h-16 max-w-300 items-center justify-between px-8 gap-4">
+      <div className="relative flex h-16 items-center justify-between px-8 gap-4">
         {/* Brand */}
         <div className="flex-1 flex items-center min-w-0">
           <button
@@ -27,11 +27,6 @@ export default function Header() {
           >
             <MdMenu size={24} />
           </button>
-
-          {/* Logo (데스크톱) */}
-          <Link href={ROUTES.board.all} className="hidden md:flex items-center gap-2.5 shrink-0">
-            <Logo size="md" asLink={false}/>
-          </Link>
         </div>
 
         {/* Logo (모바일: 헤더 정중앙 고정 배치) */}

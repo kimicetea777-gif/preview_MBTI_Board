@@ -2,6 +2,7 @@ package com.board.kimicetea.domain.auth.controller;
 
 import com.board.kimicetea.domain.auth.dto.EmailVerifyConfirmRequest;
 import com.board.kimicetea.domain.auth.dto.EmailVerifySendRequest;
+import com.board.kimicetea.domain.auth.dto.FindEmailConfirmRequest;
 import com.board.kimicetea.domain.auth.dto.FindEmailRequest;
 import com.board.kimicetea.domain.auth.dto.FindEmailResponse;
 import com.board.kimicetea.domain.auth.dto.LoginRequest;
@@ -88,7 +89,8 @@ class AuthControllerTest {
     @MockBean
     private JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
-    private static final String FIND_EMAIL_URL           = "/api/auth/find-email";
+    private static final String FIND_EMAIL_REQUEST_URL   = "/api/auth/find-email/request";
+    private static final String FIND_EMAIL_CONFIRM_URL   = "/api/auth/find-email/confirm";
     private static final String PW_RESET_REQUEST_URL     = "/api/auth/password-reset/request";
     private static final String PW_RESET_CONFIRM_URL     = "/api/auth/password-reset/confirm";
     private static final String EMAIL_VERIFY_SEND_URL    = "/api/auth/email-verify/send";
@@ -100,6 +102,7 @@ class AuthControllerTest {
     private static final String LOGOUT_URL               = "/api/auth/logout";
 
     private static final String VALID_RECOVERY_EMAIL = "recovery@example.com";
+    private static final String VALID_OTP = "123456";
     private static final String VALID_EMAIL    = "test@example.com";
     private static final String VALID_PASSWORD = "password123!";
     private static final String VALID_NICKNAME = "테스트유저";
@@ -112,44 +115,28 @@ class AuthControllerTest {
         return new UsernamePasswordAuthenticationToken(details, null, details.getAuthorities());
     }
 
-    // ────────────────────── POST /api/auth/find-email ──────────────────────
+    // ────────────────────── POST /api/auth/find-email/request ──────────────────────
 
     @Nested
-    @DisplayName("POST /api/auth/find-email — 복구 이메일로 이메일 찾기")
-    class FindEmail {
+    @DisplayName("POST /api/auth/find-email/request — 이메일 찾기 OTP 발송")
+    class RequestFindEmailOtp {
 
         @Test
-        @DisplayName("성공 — 유효한 복구 이메일 → 200 및 마스킹된 이메일 반환")
+        @DisplayName("성공 — 유효한 복구 이메일 → 200")
         void success() throws Exception {
-            given(authService.findEmail(any()))
-                    .willReturn(new FindEmailResponse("te***@example.com", false));
+            willDoNothing().given(authService).requestFindEmailOtp(any());
 
-            mockMvc.perform(post(FIND_EMAIL_URL)
+            mockMvc.perform(post(FIND_EMAIL_REQUEST_URL)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(new FindEmailRequest(VALID_RECOVERY_EMAIL))))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.success").value(true))
-                    .andExpect(jsonPath("$.data.maskedEmail").value("te***@example.com"))
-                    .andExpect(jsonPath("$.data.isSocialOnly").value(false));
-        }
-
-        @Test
-        @DisplayName("성공 — 소셜 계정인 경우 isSocialOnly=true 반환")
-        void socialOnlyAccount() throws Exception {
-            given(authService.findEmail(any()))
-                    .willReturn(new FindEmailResponse("te***@example.com", true));
-
-            mockMvc.perform(post(FIND_EMAIL_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(new FindEmailRequest(VALID_RECOVERY_EMAIL))))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.data.isSocialOnly").value(true));
+                    .andExpect(jsonPath("$.success").value(true));
         }
 
         @Test
         @DisplayName("실패 — recoveryEmail 필드 누락(@NotBlank 위반) → 400")
         void missingRecoveryEmail() throws Exception {
-            mockMvc.perform(post(FIND_EMAIL_URL)
+            mockMvc.perform(post(FIND_EMAIL_REQUEST_URL)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{}"))
                     .andExpect(status().isBadRequest())
@@ -159,7 +146,7 @@ class AuthControllerTest {
         @Test
         @DisplayName("실패 — 이메일 형식 오류(@Email 위반) → 400")
         void invalidEmailFormat() throws Exception {
-            mockMvc.perform(post(FIND_EMAIL_URL)
+            mockMvc.perform(post(FIND_EMAIL_REQUEST_URL)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{\"recoveryEmail\":\"not-an-email\"}"))
                     .andExpect(status().isBadRequest())
@@ -169,10 +156,10 @@ class AuthControllerTest {
         @Test
         @DisplayName("실패 — 복구 이메일에 해당하는 사용자 없음 → 404")
         void userNotFound() throws Exception {
-            given(authService.findEmail(any()))
-                    .willThrow(new CustomException(ErrorCode.USER_NOT_FOUND));
+            willThrow(new CustomException(ErrorCode.USER_NOT_FOUND))
+                    .given(authService).requestFindEmailOtp(any());
 
-            mockMvc.perform(post(FIND_EMAIL_URL)
+            mockMvc.perform(post(FIND_EMAIL_REQUEST_URL)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(new FindEmailRequest(VALID_RECOVERY_EMAIL))))
                     .andExpect(status().isNotFound())
@@ -183,14 +170,91 @@ class AuthControllerTest {
         @Test
         @DisplayName("실패 — 탈퇴 처리 중인 계정 → 403")
         void withdrawnAccount() throws Exception {
-            given(authService.findEmail(any()))
-                    .willThrow(new CustomException(ErrorCode.ACCOUNT_WITHDRAWN));
+            willThrow(new CustomException(ErrorCode.ACCOUNT_WITHDRAWN))
+                    .given(authService).requestFindEmailOtp(any());
 
-            mockMvc.perform(post(FIND_EMAIL_URL)
+            mockMvc.perform(post(FIND_EMAIL_REQUEST_URL)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(new FindEmailRequest(VALID_RECOVERY_EMAIL))))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.success").value(false));
+        }
+    }
+
+    // ────────────────────── POST /api/auth/find-email/confirm ──────────────────────
+
+    @Nested
+    @DisplayName("POST /api/auth/find-email/confirm — 이메일 찾기 OTP 확인")
+    class ConfirmFindEmail {
+
+        @Test
+        @DisplayName("성공 — 올바른 OTP → 200 및 마스킹된 이메일 반환")
+        void success() throws Exception {
+            given(authService.confirmFindEmail(any()))
+                    .willReturn(new FindEmailResponse("te***@example.com", false));
+
+            mockMvc.perform(post(FIND_EMAIL_CONFIRM_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(
+                                    new FindEmailConfirmRequest(VALID_RECOVERY_EMAIL, VALID_OTP))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.data.maskedEmail").value("te***@example.com"))
+                    .andExpect(jsonPath("$.data.isSocialOnly").value(false));
+        }
+
+        @Test
+        @DisplayName("성공 — 소셜 계정인 경우 isSocialOnly=true 반환")
+        void socialOnlyAccount() throws Exception {
+            given(authService.confirmFindEmail(any()))
+                    .willReturn(new FindEmailResponse("te***@example.com", true));
+
+            mockMvc.perform(post(FIND_EMAIL_CONFIRM_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(
+                                    new FindEmailConfirmRequest(VALID_RECOVERY_EMAIL, VALID_OTP))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.isSocialOnly").value(true));
+        }
+
+        @Test
+        @DisplayName("실패 — OTP 필드 누락(@NotBlank 위반) → 400")
+        void missingOtp() throws Exception {
+            mockMvc.perform(post(FIND_EMAIL_CONFIRM_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"recoveryEmail\":\"" + VALID_RECOVERY_EMAIL + "\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.success").value(false));
+        }
+
+        @Test
+        @DisplayName("실패 — OTP 불일치 → 400")
+        void otpInvalid() throws Exception {
+            given(authService.confirmFindEmail(any()))
+                    .willThrow(new CustomException(ErrorCode.FIND_EMAIL_OTP_INVALID));
+
+            mockMvc.perform(post(FIND_EMAIL_CONFIRM_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(
+                                    new FindEmailConfirmRequest(VALID_RECOVERY_EMAIL, "000000"))))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.message").value(ErrorCode.FIND_EMAIL_OTP_INVALID.getMessage()));
+        }
+
+        @Test
+        @DisplayName("실패 — OTP 만료 또는 미발급 → 400")
+        void otpExpired() throws Exception {
+            given(authService.confirmFindEmail(any()))
+                    .willThrow(new CustomException(ErrorCode.FIND_EMAIL_OTP_EXPIRED));
+
+            mockMvc.perform(post(FIND_EMAIL_CONFIRM_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(
+                                    new FindEmailConfirmRequest(VALID_RECOVERY_EMAIL, VALID_OTP))))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.message").value(ErrorCode.FIND_EMAIL_OTP_EXPIRED.getMessage()));
         }
     }
 

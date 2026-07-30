@@ -97,13 +97,13 @@ class PostControllerTest {
     private PostDetailResponse sampleDetail() {
         return new PostDetailResponse(
                 POST_ID, "FREE", "제목", "내용", "작성자", "INTJ", "TESTED", null,
-                5, 3, true, false, true, Instant.now(), Instant.now(), null, null);
+                5, 3, true, false, true, null, false, Instant.now(), Instant.now(), null, null);
     }
 
     private PostSummaryResponse sampleSummary() {
         return new PostSummaryResponse(
                 POST_ID, "FREE", "제목", "내용 미리보기", null,
-                "작성자", "INTJ", "TESTED", null, 5, 3, Instant.now(), null, null);
+                "작성자", "INTJ", "TESTED", null, 5, 3, false, Instant.now(), null, null);
     }
 
     // ────────────────── GET /api/posts ──────────────────

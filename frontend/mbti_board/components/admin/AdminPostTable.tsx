@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useAdminPosts, useChangePostVisibility, useDeleteAdminPost } from "@/hooks/useAdmin";
 import { usePagination } from "@/hooks/usePagination";
-import { POST_TYPE, POST_TYPE_LABELS, POST_TYPE_META } from "@/types/post";
+import { POST_TYPE, POST_TYPE_LABELS, POST_TYPE_META, POST_HIDDEN_BY_LABELS } from "@/types/post";
 import type { PostType } from "@/types/post";
 import { SORT_DIR } from "@/types/admin";
 import type { SortDir } from "@/types/admin";
@@ -171,7 +171,14 @@ export default function AdminPostTable() {
                     {post.isVisible ? (
                       <span className="whitespace-nowrap text-xs font-medium text-green-600">공개</span>
                     ) : (
-                      <span className="whitespace-nowrap text-xs font-medium text-red-500">숨김</span>
+                      <div className="flex flex-col">
+                        <span className="whitespace-nowrap text-xs font-medium text-red-500">숨김</span>
+                        {post.hiddenBy && (
+                          <span className="whitespace-nowrap text-xs text-on-surface-variant">
+                            {POST_HIDDEN_BY_LABELS[post.hiddenBy]}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </td>
                   <td className="px-4 py-3 text-on-surface-variant">

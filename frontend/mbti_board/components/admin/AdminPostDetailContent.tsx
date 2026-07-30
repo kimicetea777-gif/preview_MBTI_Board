@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { useAdminPost } from "@/hooks/useAdmin";
-import { POST_TYPE_LABELS, POST_TYPE_META } from "@/types/post";
+import { POST_TYPE_LABELS, POST_TYPE_META, POST_HIDDEN_BY_LABELS } from "@/types/post";
 import { ROUTES } from "@/constants/routes";
 import PostHeader from "@/components/post/PostHeader";
 import RichContentViewer from "@/components/post/RichContentViewer";
@@ -30,7 +30,9 @@ function AdminPostDetailInner({ id }: Props) {
           {post.isVisible ? (
             <span className="rounded px-2 py-0.5 text-xs font-medium text-green-600">공개</span>
           ) : (
-            <span className="rounded px-2 py-0.5 text-xs font-medium text-red-500">숨김</span>
+            <span className="rounded px-2 py-0.5 text-xs font-medium text-red-500">
+              숨김{post.hiddenBy && ` · ${POST_HIDDEN_BY_LABELS[post.hiddenBy]}`}
+            </span>
           )}
         </div>
       </div>

@@ -1,6 +1,7 @@
 import { memo } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { APP_NAME } from "@/constants/site";
 
 interface Props {
   size?: "sm" | "md" | "lg" | "xl";
@@ -20,7 +21,7 @@ export default memo(function Logo({ size = "md", asLink = true }: Props) {
   const content = (
     <Image
       src="/images/logo.png"
-      alt={process.env.NEXT_PUBLIC_APP_NAME ?? "The Blue Butter App"}
+      alt={APP_NAME}
       width={s.width}
       height={s.height}
       style={{ width: "auto" }}

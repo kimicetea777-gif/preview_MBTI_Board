@@ -18,9 +18,22 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 
+import java.util.EnumSet;
+import java.util.Set;
+
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    /**
+     * 정상적인 사용 흐름에서도 자주 발생하는 4xx(글 없음·만료된 링크·중복 이메일 등)는 WARN 대상이 아님 —
+     * 보안/운영상 눈에 띄어야 하는 예외만 여기 추가. 나머지는 INFO로 남김
+     */
+    private static final Set<ErrorCode> NOTABLE_CODES = EnumSet.of(
+            ErrorCode.INTERNAL_KEY_INVALID,
+            ErrorCode.REUSE_DETECTED,
+            ErrorCode.INSUFFICIENT_VISIBLE_QUESTIONS
+    );
 
     @ExceptionHandler(CustomException.class)
     public ResponseEntity<ApiResponse<Void>> handleCustomException(final CustomException e,
@@ -37,8 +50,11 @@ public class GlobalExceptionHandler {
             } else {
                 log.error(AlertMarkers.RATE_LIMIT_EXCEEDED, "Rate limit exceeded: {}", uri);
             }
+        } else if (NOTABLE_CODES.contains(code)) {
+            log.warn("CustomException: {}", e.getMessage());
+        } else {
+            log.info("CustomException: {}", e.getMessage());
         }
-        log.warn("CustomException: {}", e.getMessage());
         return ResponseEntity
                 .status(e.getErrorCode().getHttpStatus().value())
                 .body(ApiResponse.fail(e.getMessage()));

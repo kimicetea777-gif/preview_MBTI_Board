@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { APP_NAME, CONTACT_EMAIL, CONTACT_MAILTO } from "@/constants/site";
 
 export const metadata: Metadata = {
-  title: `개인정보처리방침 | ${process.env.NEXT_PUBLIC_APP_NAME ?? "MBTI Board"}`,
+  title: `개인정보처리방침 | ${APP_NAME}`,
 };
 
 export const dynamic = "force-static";
@@ -147,10 +148,10 @@ export default function PrivacyPage() {
       <section>
         <h2 className="text-lg font-semibold mb-3">9. 개인정보 보호 담당자</h2>
         <ul className="text-sm leading-relaxed text-on-surface-variant space-y-1">
-          <li>서비스명: {process.env.NEXT_PUBLIC_APP_NAME}</li>
+          <li>서비스명: {APP_NAME}</li>
           <li>운영 형태: 개인 운영</li>
           <li>담당자: 김아이스티</li>
-          <li>이메일: kimicetea777@gmail.com</li>
+          <li>이메일: <a href={CONTACT_MAILTO} className="underline hover:text-on-surface">{CONTACT_EMAIL}</a></li>
         </ul>
       </section>
     </article>

@@ -1,5 +1,5 @@
 import type { UserRole, UserState, MbtiVerified } from "./user";
-import type { PostType } from "./post";
+import type { PostType, PostHiddenBy } from "./post";
 
 // GET /api/admin/alerts/status
 export const ALERT_TYPE = {
@@ -62,6 +62,7 @@ export interface AdminPostSummaryResponse {
   viewCount: number;
   commentCount: number;
   isVisible: boolean;
+  hiddenBy: PostHiddenBy | null;
   createdAt: string;
 }
 

@@ -116,6 +116,7 @@
 | `AdminUserController` | `domain/user/controller` | 어드민 유저 관리 API 컨트롤러 (POST /api/admin/users, GET /api/admin/users, PATCH /{id}/state, PATCH /{id}/role, PATCH /{id}/profile) |
 | `AdminPostSummaryResponse` | `domain/post/dto` | 어드민 게시글 목록 응답 DTO (isVisible·typeCode 포함, 숨김 게시글 포함 ADMIN 전용) |
 | `AdminPostVisibilityRequest` | `domain/post/dto` | 어드민 게시글 가시성 변경 요청 DTO (visible 필수, ADMIN 전용) |
+| `AdminPostPinRequest` | `domain/post/dto` | 어드민 게시글 고정/고정 해제 요청 DTO (pinned 필수, ADMIN 전용) |
 | `AdminPostService` | `domain/post/service` | 어드민 게시글 관리 비즈니스 로직 (전체 목록 조회·숨김·복구, isVisible 필터 없음) |
 | `AdminPostController` | `domain/post/controller` | 어드민 게시글 관리 API 컨트롤러 (GET /api/admin/posts, PATCH /{id}/visibility) |
 | `AdminCommentSummaryResponse` | `domain/comment/dto` | 어드민 댓글 목록 응답 DTO (isVisible·postId·parentId 포함, 숨김 댓글 포함 ADMIN 전용) |
@@ -137,6 +138,7 @@
 | `UserActivityStatsResponse` | `domain/user/dto` | 내 활동 통계 응답 DTO (작성 게시글 수·댓글 수·최근 검사 MBTI) |
 | `FindEmailRequest` | `domain/auth/dto` | 이메일 찾기 요청 DTO (recoveryEmail, @Email 검증) |
 | `FindEmailResponse` | `domain/auth/dto` | 이메일 찾기 응답 DTO (마스킹 이메일·소셜 전용 여부) |
+| `FindEmailConfirmRequest` | `domain/auth/dto` | 이메일 찾기 OTP 확인 요청 DTO (recoveryEmail, otp) |
 | `PasswordResetRequestBody` | `domain/auth/dto` | 비밀번호 재설정 이메일 발송 요청 DTO (이메일) |
 | `PasswordResetConfirmRequest` | `domain/auth/dto` | 비밀번호 재설정 확인 요청 DTO (토큰·새 비밀번호, @Size(min=8)) |
 | `TiptapContentParser` | `global/common/util` | Tiptap JSONB content에서 텍스트 미리보기(extractTextPreview)·이미지 key(extractImageKeys) 추출 유틸리티 |
@@ -162,6 +164,10 @@
 | `UserRetentionLogRepository` | `domain/user/repository` | 법적 보존 로그 레포지토리 — deleteAllByExpiresAtBefore로 만료 로그 일괄 삭제 |
 | `RetentionEncryptionService` | `global/crypto` | 법적 보존 로그용 가역 암호화 서비스 — Spring Security Encryptors(AES-256/CBC), 환경변수 password·salt 주입 필수 |
 | `AdminMbtiQuestionUpdateRequest` | `domain/mbti/dto` | 어드민 MBTI 문항 수정 요청 DTO (title·category·isReverse, testVersion 변경 불가) |
+| `AdminMbtiQuestionCreateRequest` | `domain/mbti/dto` | 어드민 MBTI 문항 생성 요청 DTO (title·category·isReverse, testVersion은 서비스에서 "v1.0" 고정) |
+| `AdminFunQuestionCreateRequest` | `domain/mbti/dto` | 어드민 FUN 문항 생성 요청 DTO (title·options[≥2], testVersion은 서비스에서 "v1.0" 고정) |
+| `AdminFunOptionCreateRequest` | `domain/mbti/dto` | 어드민 FUN 선택지 생성 요청 DTO (optionText만 받음, displayOrder는 리스트 순서로 자동 부여) |
+| `FunQuestionOptionRepository` | `domain/mbti/repository` | FUN 선택지 레포지토리 — 문항 생성 시 saveAll()로 일괄 저장 |
 | `AdminMbtiQuestionService` | `domain/mbti/service` | 어드민 MBTI 문항 수정·노출 변경 서비스 — title·category·isReverse 수정, isVisible 토글, QUESTION_NOT_FOUND 예외 처리 |
 | `AdminMbtiQuestionVisibilityRequest` | `domain/mbti/dto` | 어드민 MBTI 문항 노출 여부 변경 요청 DTO (visible 필수) |
 | `AdminFunQuestionResponse` | `domain/mbti/dto` | 어드민 FUN 문항 응답 DTO (id·title·optionCount·isVisible·updatedAt, 공개 엔드포인트 사용 금지) |

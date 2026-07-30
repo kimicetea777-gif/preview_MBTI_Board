@@ -60,7 +60,7 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
                 .leftJoin(post.debatePost).fetchJoin()
                 .leftJoin(post.votePost).fetchJoin()
                 .where(builder)
-                .orderBy(order)
+                .orderBy(post.isPinned.desc(), order)
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
                 .fetch();

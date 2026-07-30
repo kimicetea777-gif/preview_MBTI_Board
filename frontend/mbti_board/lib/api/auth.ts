@@ -9,6 +9,7 @@ import type {
   EmailVerifySendRequest,
   EmailVerifyConfirmRequest,
   FindEmailRequest,
+  FindEmailConfirmRequest,
   FindEmailResponse,
   PasswordResetRequest,
   PasswordResetConfirmRequest,
@@ -37,8 +38,12 @@ export async function confirmEmailVerification(data: EmailVerifyConfirmRequest):
   return res.data.data;
 }
 
-export async function findEmail(data: FindEmailRequest): Promise<FindEmailResponse> {
-  const res = await apiClient.post<ApiResponse<FindEmailResponse>>(API.auth.findEmail, data);
+export async function requestFindEmailOtp(data: FindEmailRequest): Promise<void> {
+  await apiClient.post<ApiResponse<void>>(API.auth.findEmailRequest, data);
+}
+
+export async function confirmFindEmail(data: FindEmailConfirmRequest): Promise<FindEmailResponse> {
+  const res = await apiClient.post<ApiResponse<FindEmailResponse>>(API.auth.findEmailConfirm, data);
   return res.data.data;
 }
 
