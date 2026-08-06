@@ -14,14 +14,13 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * 소셜 로그인 신규 계정 생성 — 약관 동의 완료 API(POST /api/auth/oauth2/signup)에서만 호출됨
- * 주의: 이메일 필수 여부는 CustomOAuth2UserService.loadUser()에서 먼저 검증되지만,
- *       loadUser() 검증 시점과 실제 생성(여기) 사이 최대 signupToken 만료시간(10분) 간극이 있어
- *       그 사이 동일 이메일로 다른 경로가 먼저 가입할 수 있음 — DB UNIQUE 제약 위반을 DUPLICATE_EMAIL로 매핑해 방어
- * 주의: 닉네임·프로필 이미지는 소셜 제공자가 준 값을 쓰지 않음 — 닉네임은 무작위로 부여 후 마이페이지에서 변경,
+ * AS(Authorization Server) 로그인 시 처음 보는 계정(authServerId 미존재)을 즉시(JIT) 생성 —
+ * CustomOAuth2UserService.loadUser()에서만 호출됨. 약관 동의는 AS가 이미 끝낸 뒤이므로 여기선 다루지 않음.
+ * 주의: 닉네임·프로필 이미지는 AS가 준 값을 쓰지 않음 — 닉네임은 무작위로 부여 후 마이페이지에서 변경,
  *       프로필 이미지는 현재 어디에도 노출되지 않아 수집하지 않음(불필요한 개인정보 수집 최소화)
  */
 @Service
@@ -32,13 +31,12 @@ public class OAuth2AccountService {
     private final MbtiMetadataSupport mbtiMetadataSupport;
 
     @Transactional
-    public User createAccount(final String provider, final String providerId, final String email) {
+    public User createAccount(final UUID authServerId, final String email) {
         final MbtiMetadata defaultMbti = mbtiMetadataSupport.getNoneMbti();
 
         final User user = User.builder()
                 .email(email)
-                .socialProvider(provider)
-                .providerId(providerId)
+                .authServerId(authServerId)
                 .nickname(generateRandomNickname())
                 .mbtiVerified(MbtiVerified.DEFAULT)
                 .role(UserRole.USER)

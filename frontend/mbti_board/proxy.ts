@@ -7,8 +7,6 @@ import { ROUTES } from "@/constants/routes";
 function isProtected(request: NextRequest): boolean {
   const { pathname, searchParams } = request.nextUrl;
 
-  // 메일함을 다른 브라우저/기기에서 열 수 있으므로 로그인 여부와 무관하게 접근 허용 (토큰 자체가 인증 수단)
-  if (pathname === ROUTES.myAccountRecoveryEmailVerify) return false;
   if (pathname.startsWith(ROUTES.my)) return true;
   if (pathname.startsWith(ROUTES.admin)) return true;
 

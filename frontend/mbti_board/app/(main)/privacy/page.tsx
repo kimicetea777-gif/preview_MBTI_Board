@@ -26,10 +26,6 @@ export default function PrivacyPage() {
           <ul className="list-disc pl-5 space-y-1">
             <li>MBTI 유형</li>
           </ul>
-          <p><strong className="text-on-surface">가입 후 별도 수집 (선택)</strong></p>
-          <ul className="list-disc pl-5 space-y-1">
-            <li>복구 이메일 (본인 인증 후 등록, 이메일 찾기 기능에만 사용)</li>
-          </ul>
           <p><strong className="text-on-surface">소셜 로그인(구글) 가입 시 제공받는 정보</strong></p>
           <ul className="list-disc pl-5 space-y-1">
             <li>이메일 주소 — 소셜 서비스 제공자로부터 제공받음</li>
@@ -52,7 +48,6 @@ export default function PrivacyPage() {
         <ul className="text-sm leading-relaxed text-on-surface-variant list-disc pl-5 space-y-2">
           <li>회원 식별 및 서비스 제공</li>
           <li>비밀번호 재설정 등 계정 관련 이메일 발송</li>
-          <li>이메일 분실 시 인증된 복구 이메일을 통한 이메일 찾기</li>
           <li>소셜 계정을 통한 간편 가입 및 로그인 제공</li>
           <li>비회원 게시글·댓글의 수정·삭제 시 작성자 본인 확인</li>
           <li>부정 이용 방지 및 서비스 운영</li>
@@ -109,7 +104,7 @@ export default function PrivacyPage() {
           <p><strong className="text-on-surface">구체적인 이용 방법</strong></p>
           <ul className="list-disc pl-5 space-y-1">
             <li>닉네임·MBTI 정보 수정: [마이페이지] 상단 프로필 영역에서 직접 수정</li>
-            <li>비밀번호 변경, 복구 이메일 등록·변경: [마이페이지] &gt; [계정 설정]</li>
+            <li>비밀번호 변경, 이메일 찾기: [마이페이지] &gt; [계정 설정]에서 AS 계정 관리로 이동</li>
             <li>회원 탈퇴: [마이페이지] &gt; [계정 설정] &gt; [회원 탈퇴]</li>
             <li>그 외 열람·정정·처리정지 요구: 9번 항목의 담당자 이메일로 문의</li>
           </ul>

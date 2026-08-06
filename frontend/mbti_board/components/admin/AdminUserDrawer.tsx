@@ -117,10 +117,6 @@ function AdminUserDrawerContent({ user, onClose }: { user: AdminUserSummaryRespo
               <dd className="font-medium text-on-surface">{user.isSocialLogin ? "소셜 로그인" : "로컬 로그인"}</dd>
             </div>
             <div className="flex justify-between px-3 py-2">
-              <dt className="text-on-surface-variant">복구 이메일</dt>
-              <dd className="font-medium text-on-surface">{user.hasRecoveryEmail ? "등록됨" : "미등록"}</dd>
-            </div>
-            <div className="flex justify-between px-3 py-2">
               <dt className="text-on-surface-variant">가입일</dt>
               <dd className="font-medium text-on-surface">{new Date(user.createdAt).toLocaleDateString("ko-KR")}</dd>
             </div>

@@ -6,13 +6,14 @@ import Link from "next/link";
 import { useAuthStore } from "@/store/authStore";
 import { ROUTES } from "@/constants/routes";
 import { toSafeRedirect } from "@/lib/safeRedirect";
-import { setLastLoginMethod, PENDING_SOCIAL_PROVIDER_KEY, type LoginMethod } from "@/lib/loginUtils";
 
 export const OAUTH2_REDIRECT_KEY = "oauth2_redirect";
 
 const ERROR_MESSAGES: Record<string, string> = {
-  DUPLICATE_EMAIL: "이미 이메일/비밀번호로 가입된 계정이 있습니다.\n해당 이메일로 로그인해 주세요.",
-  OAUTH2_EMAIL_REQUIRED: "이메일 제공에 동의해야 소셜 로그인이 가능합니다.",
+  ACCOUNT_LOCKED: "잠긴 계정입니다. 관리자에게 문의해 주세요.",
+  ACCOUNT_BANNED: "이용이 제한된 계정입니다. 관리자에게 문의해 주세요.",
+  ACCOUNT_INACTIVE: "비활성화된 계정입니다. 관리자에게 문의해 주세요.",
+  ACCOUNT_WITHDRAWN: "탈퇴한 계정입니다. 다시 로그인하면 재가입할 수 있습니다.",
   OAUTH2_ERROR: "로그인 중 오류가 발생했습니다.",
 };
 
@@ -28,27 +29,13 @@ export default function OAuth2CallbackContent({ error }: Props) {
     if (error) return;
 
     const params = new URLSearchParams(window.location.hash.slice(1));
-
-    // 신규 소셜 가입 — 계정이 아직 없으므로 약관 동의 페이지로 이동.
-    // OAUTH2_REDIRECT_KEY/PENDING_SOCIAL_PROVIDER_KEY는 여기서 지우지 않고 동의 완료 페이지가 이어받아 처리
-    const signupToken = params.get("signupToken");
-    if (signupToken) {
-      router.replace(`${ROUTES.termsAgree}#signupToken=${signupToken}`);
-      return;
-    }
-
     const accessToken = params.get("accessToken");
     if (!accessToken) return;
 
-    // 소셜 로그인은 별도 체크박스가 없고 백엔드도 항상 유지 로그인으로 RT를 발급함
+    // AS 로그인은 별도 체크박스가 없고 백엔드도 항상 유지 로그인으로 RT를 발급함
     setAccessToken(accessToken, true);
     const raw = sessionStorage.getItem(OAUTH2_REDIRECT_KEY) ?? ROUTES.home;
     sessionStorage.removeItem(OAUTH2_REDIRECT_KEY);
-    const provider = sessionStorage.getItem(PENDING_SOCIAL_PROVIDER_KEY) as LoginMethod | null;
-    if (provider) {
-      setLastLoginMethod(provider);
-      sessionStorage.removeItem(PENDING_SOCIAL_PROVIDER_KEY);
-    }
     router.replace(toSafeRedirect(raw));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

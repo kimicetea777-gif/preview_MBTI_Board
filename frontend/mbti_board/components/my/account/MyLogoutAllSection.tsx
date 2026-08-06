@@ -25,10 +25,15 @@ export default function MyLogoutAllSection() {
 
   const logoutAllMutation = useMutation({
     mutationFn: logoutAll,
-    onSuccess: () => {
+    onSuccess: ({ authServerLogoutUrl }) => {
       setShowConfirm(false);
       setAccessToken(null);
       queryClient.clear();
+      // 소셜 로그인이었다면 현재 기기의 AS 세션도 같이 끝내야 다음 로그인 때 자동 재로그인되지 않는다.
+      if (authServerLogoutUrl) {
+        window.location.href = authServerLogoutUrl;
+        return;
+      }
       toast.success("모든 기기에서 로그아웃되었습니다.");
       router.push(ROUTES.login);
     },

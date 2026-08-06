@@ -6,11 +6,8 @@ import com.board.kimicetea.domain.post.PostSortType;
 import com.board.kimicetea.domain.post.dto.MyPostPreviewResponse;
 import com.board.kimicetea.domain.post.dto.PostSummaryResponse;
 import com.board.kimicetea.domain.post.service.PostService;
-import com.board.kimicetea.domain.user.dto.ChangePasswordRequest;
 import com.board.kimicetea.domain.user.dto.MyProfileResponse;
 import com.board.kimicetea.domain.user.dto.NicknameCheckResponse;
-import com.board.kimicetea.domain.user.dto.RecoveryEmailConfirmRequest;
-import com.board.kimicetea.domain.user.dto.RecoveryEmailSendRequest;
 import com.board.kimicetea.domain.user.dto.UpdateProfileRequest;
 import com.board.kimicetea.domain.user.dto.UserActivityStatsResponse;
 import com.board.kimicetea.domain.user.dto.UserProfileResponse;
@@ -235,77 +232,4 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok(mbtiService.getMyMbtiHistory(userDetails.userId())));
     }
 
-    /**
-     * 복구 이메일 등록/변경 인증 링크 발송 — 소유권 확인 전까지는 실제로 반영되지 않음
-     */
-    @Operation(summary = "복구 이메일 인증 링크 발송", description = "입력한 이메일로 소유권 확인용 인증 링크를 발송합니다.")
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "발송 성공"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "로그인 이메일과 동일한 이메일"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 다른 계정에 등록된 이메일"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "요청 횟수 초과")
-    })
-    @PostMapping("/me/recovery-email/send")
-    public ResponseEntity<ApiResponse<Void>> sendRecoveryEmailVerification(
-            @AuthenticationPrincipal final CustomUserDetails userDetails,
-            @Valid @RequestBody final RecoveryEmailSendRequest request,
-            final HttpServletRequest httpRequest) {
-
-        userService.sendRecoveryEmailVerification(userDetails.userId(), request, httpRequest);
-        return ResponseEntity.ok(ApiResponse.ok("인증 메일이 발송되었습니다."));
-    }
-
-    /**
-     * 복구 이메일 인증 토큰 확인 — 검증 성공 시 계정에 복구 이메일 반영
-     * 주의: 메일 인박스를 다른 브라우저/기기에서 열 수 있으므로 인증 불필요(공개 엔드포인트) — SecurityConfig permitAll 등록됨
-     */
-    @Operation(summary = "복구 이메일 인증 확인", description = "인증 링크의 token을 검증하고 복구 이메일을 계정에 반영합니다. 로그인 불필요.")
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "인증 성공"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "토큰 만료 또는 유효하지 않음"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 다른 계정에 등록된 이메일")
-    })
-    @PostMapping("/me/recovery-email/confirm")
-    public ResponseEntity<ApiResponse<Void>> confirmRecoveryEmailVerification(
-            @Valid @RequestBody final RecoveryEmailConfirmRequest request,
-            final HttpServletRequest httpRequest) {
-
-        userService.confirmRecoveryEmailVerification(request, httpRequest);
-        return ResponseEntity.ok(ApiResponse.ok("복구 이메일이 등록되었습니다."));
-    }
-
-    /**
-     * 복구 이메일 삭제
-     */
-    @Operation(summary = "복구 이메일 삭제", description = "등록된 복구 이메일을 제거합니다.")
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "삭제 성공"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
-    })
-    @DeleteMapping("/me/recovery-email")
-    public ResponseEntity<ApiResponse<Void>> removeRecoveryEmail(
-            @AuthenticationPrincipal final CustomUserDetails userDetails,
-            final HttpServletRequest httpRequest) {
-
-        userService.removeRecoveryEmail(userDetails.userId(), httpRequest);
-        return ResponseEntity.ok(ApiResponse.ok("복구 이메일이 삭제되었습니다."));
-    }
-
-    /**
-     * 비밀번호 변경 — 소셜 전용 계정 차단
-     */
-    @Operation(summary = "비밀번호 변경", description = "현재 비밀번호 확인 후 새 비밀번호로 변경합니다. 소셜 전용 계정은 사용 불가합니다.")
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "변경 성공"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "현재 비밀번호 불일치 또는 소셜 전용 계정")
-    })
-    @PatchMapping("/me/password")
-    public ResponseEntity<ApiResponse<Void>> changePassword(
-            @AuthenticationPrincipal final CustomUserDetails userDetails,
-            @Valid @RequestBody final ChangePasswordRequest request,
-            final HttpServletRequest httpRequest) {
-
-        userService.changePassword(userDetails.userId(), request, httpRequest);
-        return ResponseEntity.ok(ApiResponse.ok("비밀번호가 변경되었습니다."));
-    }
 }

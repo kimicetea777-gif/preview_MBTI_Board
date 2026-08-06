@@ -42,11 +42,6 @@ export interface UpdateUserRequest {
   mbtiId?: string;
 }
 
-export interface ChangePasswordRequest {
-  currentPassword: string;
-  newPassword: string;
-}
-
 export interface MyProfileResponse {
   id: string;
   email: string;
@@ -57,17 +52,8 @@ export interface MyProfileResponse {
   role: UserRole;
   state: UserState;
   isSocialOnly: boolean;
-  hasRecoveryEmail: boolean;
   createdAt: string;
   lastLoginAt: string | null;
-}
-
-export interface RecoveryEmailSendRequest {
-  email: string;
-}
-
-export interface RecoveryEmailConfirmRequest {
-  token: string;
 }
 
 export interface UserActivityStats {

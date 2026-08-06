@@ -1,60 +1,17 @@
 import { apiClient } from "@/lib/apiClient";
 import { API } from "@/constants/apiEndpoints";
 import type { ApiResponse } from "@/types/api";
-import type {
-  LoginRequest,
-  LoginResponse,
-  SignupRequest,
-  OAuth2SignupConfirmRequest,
-  EmailVerifySendRequest,
-  EmailVerifyConfirmRequest,
-  FindEmailRequest,
-  FindEmailConfirmRequest,
-  FindEmailResponse,
-  PasswordResetRequest,
-  PasswordResetConfirmRequest,
-} from "@/types/auth";
 
-export async function login(data: LoginRequest): Promise<LoginResponse> {
-  const res = await apiClient.post<ApiResponse<LoginResponse>>(API.auth.login, data);
-  return res.data.data;
+export interface LogoutResponse {
+  authServerLogoutUrl: string | null;
 }
 
-export async function signup(data: SignupRequest): Promise<void> {
-  await apiClient.post<ApiResponse<void>>(API.auth.signup, data);
+export async function logout(): Promise<LogoutResponse> {
+  const { data } = await apiClient.post<ApiResponse<LogoutResponse>>(API.auth.logout);
+  return data.data;
 }
 
-export async function confirmOAuth2Signup(data: OAuth2SignupConfirmRequest): Promise<LoginResponse> {
-  const res = await apiClient.post<ApiResponse<LoginResponse>>(API.auth.oauth2Signup, data);
-  return res.data.data;
-}
-
-export async function sendEmailVerification(data: EmailVerifySendRequest): Promise<void> {
-  await apiClient.post<ApiResponse<void>>(API.auth.emailVerifySend, data);
-}
-
-export async function confirmEmailVerification(data: EmailVerifyConfirmRequest): Promise<string> {
-  const res = await apiClient.post<ApiResponse<string>>(API.auth.emailVerifyConfirm, data);
-  return res.data.data;
-}
-
-export async function requestFindEmailOtp(data: FindEmailRequest): Promise<void> {
-  await apiClient.post<ApiResponse<void>>(API.auth.findEmailRequest, data);
-}
-
-export async function confirmFindEmail(data: FindEmailConfirmRequest): Promise<FindEmailResponse> {
-  const res = await apiClient.post<ApiResponse<FindEmailResponse>>(API.auth.findEmailConfirm, data);
-  return res.data.data;
-}
-
-export async function requestPasswordReset(data: PasswordResetRequest): Promise<void> {
-  await apiClient.post<ApiResponse<void>>(API.auth.passwordResetRequest, data);
-}
-
-export async function confirmPasswordReset(data: PasswordResetConfirmRequest): Promise<void> {
-  await apiClient.post<ApiResponse<void>>(API.auth.passwordResetConfirm, data);
-}
-
-export async function logoutAll(): Promise<void> {
-  await apiClient.post<ApiResponse<void>>(API.auth.logoutAll);
+export async function logoutAll(): Promise<LogoutResponse> {
+  const { data } = await apiClient.post<ApiResponse<LogoutResponse>>(API.auth.logoutAll);
+  return data.data;
 }

@@ -61,10 +61,19 @@ spring:
     oauth2:
       client:
         registration:
-          google:
-            client-id: ${GOOGLE_CLIENT_ID}
-            client-secret: ${GOOGLE_CLIENT_SECRET}
-            scope: email, profile
+          # AS(Authorization Server, client_id=TypeButter) — 로그인/가입/비밀번호 재설정을 전부 위임.
+          # google 소셜 로그인은 AS가 대신 처리하므로 여기엔 더 이상 필요 없음(connect_manual.md 참고).
+          thebluebutter:
+            client-id: TypeButter
+            client-secret: ${AUTH_SERVER_CLIENT_SECRET}
+            #access token 만료 후 사용자를 다시 로그인 화면으로 안 보내고 backend가 조용히 /oauth2/token에 grant_type=refresh_token으로만 요청해서 새 토큰을 받을 수 있게 허용
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/thebluebutter"
+            scope: openid, profile
+        provider:
+          # thebluebutter는 Spring Boot의 사전 정의 provider 프리셋이 아니므로 issuer-uri를 직접 지정해야 함
+          thebluebutter:
+            issuer-uri: ${AUTH_SERVER_ISSUER_URI:http://localhost:9000}
 
 server:
   port: 8080
@@ -73,7 +82,6 @@ jwt:
   secret: ${JWT_SECRET}
   access-expiry: 1800000 # 30분 (ms)
   refresh-expiry: 604800000 # 7일 (ms)
-  signup-expiry: 600000 # 10분 (ms) — OAuth2 신규 가입 약관 동의 대기용
 
 frontend:
   url: ${FRONTEND_URL:http://localhost:4000}

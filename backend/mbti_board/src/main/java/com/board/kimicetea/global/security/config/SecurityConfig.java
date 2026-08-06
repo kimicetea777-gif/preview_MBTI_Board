@@ -20,6 +20,10 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestCustomizers;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -45,7 +49,8 @@ public class SecurityConfig {
         private String frontendUrl;
 
         @Bean
-        SecurityFilterChain filterChain(final HttpSecurity http) throws Exception {
+        SecurityFilterChain filterChain(final HttpSecurity http,
+                        final ClientRegistrationRepository clientRegistrationRepository) throws Exception {
                 http
                                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                                 .csrf(AbstractHttpConfigurer::disable)
@@ -56,21 +61,7 @@ public class SecurityConfig {
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                                                 .requestMatchers(
-                                                                "/api/auth/signup",
-                                                                "/api/auth/login",
                                                                 "/api/auth/reissue", // RT Cookie 기반 — 인증 없이 접근해야 함
-                                                                "/api/auth/oauth2/signup", // signupToken 기반 — 계정이 아직 없는
-                                                                                           // 상태에서 호출됨
-                                                                "/api/auth/email-verify/send",
-                                                                "/api/auth/email-verify/confirm",
-                                                                "/api/auth/find-email/request",
-                                                                "/api/auth/find-email/confirm",
-                                                                "/api/auth/password-reset/request",
-                                                                "/api/auth/password-reset/confirm",
-
-                                                                // 토큰 자체가 (userId, email) 페어를 증명 — 발송 시 이미 인증된 요청으로만
-                                                                // 발급되므로 확인 시점엔 로그인 불필요
-                                                                "/api/users/me/recovery-email/confirm",
                                                                 "/oauth2/**",
                                                                 "/login/oauth2/**",
                                                                 "/swagger-ui/**",
@@ -117,7 +108,10 @@ public class SecurityConfig {
                                                 .anyRequest().authenticated())
 
                                 .oauth2Login(oauth2 -> oauth2
-                                                .userInfoEndpoint(u -> u.userService(customOAuth2UserService))
+                                                .authorizationEndpoint(endpoint -> endpoint
+                                                                .authorizationRequestResolver(
+                                                                                pkceAuthorizationRequestResolver(clientRegistrationRepository)))
+                                                .userInfoEndpoint(u -> u.oidcUserService(customOAuth2UserService))
                                                 .successHandler(oAuth2AuthenticationSuccessHandler)
                                                 .failureHandler(oAuth2AuthenticationFailureHandler))
 
@@ -130,6 +124,19 @@ public class SecurityConfig {
                                                 UsernamePasswordAuthenticationFilter.class);
 
                 return http.build();
+        }
+
+        /**
+         * AS(thebluebutter) client는 confidential(client_secret_basic)이지만 AS가
+         * require-proof-key로 모든 client에 PKCE를 강제한다 — Spring Security는 public client에만
+         * 기본으로 PKCE를 붙이므로, confidential client에도 강제로 code_challenge를 실어 보내도록 resolver를 커스터마이즈한다(connect_manual.md 참고).
+         */
+        private OAuth2AuthorizationRequestResolver pkceAuthorizationRequestResolver(final ClientRegistrationRepository clientRegistrationRepository) {
+                // Authorization Request에 code_challenge/code_challenge_method 자동 삽입 설정
+                final DefaultOAuth2AuthorizationRequestResolver resolver =
+                                new DefaultOAuth2AuthorizationRequestResolver(clientRegistrationRepository, "/oauth2/authorization");
+                resolver.setAuthorizationRequestCustomizer(OAuth2AuthorizationRequestCustomizers.withPkce());
+                return resolver;
         }
 
         @Bean

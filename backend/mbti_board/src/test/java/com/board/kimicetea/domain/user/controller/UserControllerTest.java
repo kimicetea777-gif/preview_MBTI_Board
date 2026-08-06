@@ -5,10 +5,7 @@ import com.board.kimicetea.domain.mbti.service.MbtiService;
 import com.board.kimicetea.domain.post.PostSortType;
 import com.board.kimicetea.domain.post.dto.MyPostPreviewResponse;
 import com.board.kimicetea.domain.post.service.PostService;
-import com.board.kimicetea.domain.user.dto.ChangePasswordRequest;
 import com.board.kimicetea.domain.user.dto.MyProfileResponse;
-import com.board.kimicetea.domain.user.dto.RecoveryEmailConfirmRequest;
-import com.board.kimicetea.domain.user.dto.RecoveryEmailSendRequest;
 import com.board.kimicetea.domain.user.dto.UpdateProfileRequest;
 import com.board.kimicetea.domain.user.dto.UserActivityStatsResponse;
 import com.board.kimicetea.domain.user.dto.UserProfileResponse;
@@ -95,10 +92,6 @@ class UserControllerTest {
     private static final String ME_STATS_URL         = "/api/users/me/stats";
     private static final String ME_WITHDRAWAL_URL    = "/api/users/me/withdrawal-verify";
     private static final String ME_MBTI_HISTORY_URL  = "/api/users/me/mbti/history";
-    private static final String ME_RECOVERY_EMAIL_SEND_URL    = "/api/users/me/recovery-email/send";
-    private static final String ME_RECOVERY_EMAIL_CONFIRM_URL = "/api/users/me/recovery-email/confirm";
-    private static final String ME_RECOVERY_EMAIL_URL         = "/api/users/me/recovery-email";
-    private static final String ME_PASSWORD_URL      = "/api/users/me/password";
 
     private UUID userId;
     private CustomUserDetails userDetails;
@@ -115,7 +108,7 @@ class UserControllerTest {
         return new MyProfileResponse(
                 userId, "user@example.com", "테스터", null,
                 "INTJ", "TESTED", "USER", "NORMAL",
-                false, false, Instant.now(), Instant.now());
+                Instant.now(), Instant.now());
     }
 
     private UserProfileResponse sampleUserProfile() {
@@ -144,17 +137,6 @@ class UserControllerTest {
                     .andExpect(jsonPath("$.data.nickname").value("테스터"))
                     .andExpect(jsonPath("$.data.mbtiId").value("INTJ"))
                     .andExpect(jsonPath("$.data.role").value("USER"));
-        }
-
-        @Test
-        @DisplayName("성공 — isSocialOnly·hasRecoveryEmail 필드 포함 확인 → 200")
-        void successCheckBooleanFields() throws Exception {
-            given(userService.getMyProfile(userId)).willReturn(sampleMyProfile());
-
-            mockMvc.perform(get(ME_URL))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.data.isSocialOnly").value(false))
-                    .andExpect(jsonPath("$.data.hasRecoveryEmail").value(false));
         }
 
         @Test
@@ -538,239 +520,4 @@ class UserControllerTest {
         }
     }
 
-    // ────────────────── POST /api/users/me/recovery-email/send ──────────────────
-
-    @Nested
-    @DisplayName("POST /api/users/me/recovery-email/send — 복구 이메일 인증 링크 발송")
-    class SendRecoveryEmail {
-
-        @Test
-        @DisplayName("성공 — 유효한 이메일 → 200")
-        void success() throws Exception {
-            willDoNothing().given(userService)
-                    .sendRecoveryEmailVerification(eq(userId), any(RecoveryEmailSendRequest.class), any(HttpServletRequest.class));
-
-            mockMvc.perform(post(ME_RECOVERY_EMAIL_SEND_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(new RecoveryEmailSendRequest("recovery@example.com"))))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.success").value(true))
-                    .andExpect(jsonPath("$.message").value("인증 메일이 발송되었습니다."));
-        }
-
-        @Test
-        @DisplayName("실패 — 이메일 형식 오류(@Email 위반) → 400")
-        void invalidEmailFormat() throws Exception {
-            mockMvc.perform(post(ME_RECOVERY_EMAIL_SEND_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(new RecoveryEmailSendRequest("not-an-email"))))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.success").value(false));
-        }
-
-        @Test
-        @DisplayName("실패 — 이메일 없음(@NotBlank 위반) → 400")
-        void blankEmail() throws Exception {
-            mockMvc.perform(post(ME_RECOVERY_EMAIL_SEND_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(new RecoveryEmailSendRequest(""))))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.success").value(false));
-        }
-
-        @Test
-        @DisplayName("실패 — 다른 계정에 이미 등록된 이메일 → 409")
-        void duplicateRecoveryEmail() throws Exception {
-            willThrow(new CustomException(ErrorCode.DUPLICATE_RECOVERY_EMAIL))
-                    .given(userService).sendRecoveryEmailVerification(
-                            eq(userId), any(RecoveryEmailSendRequest.class), any(HttpServletRequest.class));
-
-            mockMvc.perform(post(ME_RECOVERY_EMAIL_SEND_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(new RecoveryEmailSendRequest("recovery@example.com"))))
-                    .andExpect(status().isConflict())
-                    .andExpect(jsonPath("$.success").value(false))
-                    .andExpect(jsonPath("$.message").value(ErrorCode.DUPLICATE_RECOVERY_EMAIL.getMessage()));
-        }
-
-        @Test
-        @DisplayName("실패 — 로그인 이메일과 동일한 이메일 → 400")
-        void sameAsLoginEmail() throws Exception {
-            willThrow(new CustomException(ErrorCode.RECOVERY_EMAIL_SAME_AS_LOGIN))
-                    .given(userService).sendRecoveryEmailVerification(
-                            eq(userId), any(RecoveryEmailSendRequest.class), any(HttpServletRequest.class));
-
-            mockMvc.perform(post(ME_RECOVERY_EMAIL_SEND_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(new RecoveryEmailSendRequest("user@example.com"))))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.success").value(false))
-                    .andExpect(jsonPath("$.message").value(ErrorCode.RECOVERY_EMAIL_SAME_AS_LOGIN.getMessage()));
-        }
-    }
-
-    // ────────────────── POST /api/users/me/recovery-email/confirm ──────────────────
-
-    @Nested
-    @DisplayName("POST /api/users/me/recovery-email/confirm — 복구 이메일 인증 확인")
-    class ConfirmRecoveryEmail {
-
-        @Test
-        @DisplayName("성공 — 유효한 토큰 → 200")
-        void success() throws Exception {
-            willDoNothing().given(userService)
-                    .confirmRecoveryEmailVerification(any(RecoveryEmailConfirmRequest.class), any(HttpServletRequest.class));
-
-            mockMvc.perform(post(ME_RECOVERY_EMAIL_CONFIRM_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(new RecoveryEmailConfirmRequest("valid-token"))))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.success").value(true))
-                    .andExpect(jsonPath("$.message").value("복구 이메일이 등록되었습니다."));
-        }
-
-        @Test
-        @DisplayName("실패 — token 필드 누락(@NotBlank 위반) → 400")
-        void missingToken() throws Exception {
-            mockMvc.perform(post(ME_RECOVERY_EMAIL_CONFIRM_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("{}"))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.success").value(false));
-        }
-
-        @Test
-        @DisplayName("실패 — 만료되거나 유효하지 않은 토큰 → 400")
-        void invalidToken() throws Exception {
-            willThrow(new CustomException(ErrorCode.RECOVERY_EMAIL_TOKEN_INVALID))
-                    .given(userService).confirmRecoveryEmailVerification(
-                            any(RecoveryEmailConfirmRequest.class), any(HttpServletRequest.class));
-
-            mockMvc.perform(post(ME_RECOVERY_EMAIL_CONFIRM_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(new RecoveryEmailConfirmRequest("expired-token"))))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.success").value(false))
-                    .andExpect(jsonPath("$.message").value(ErrorCode.RECOVERY_EMAIL_TOKEN_INVALID.getMessage()));
-        }
-
-        @Test
-        @DisplayName("실패 — 발송 이후 다른 계정이 선점한 이메일 → 409")
-        void duplicateRecoveryEmail() throws Exception {
-            willThrow(new CustomException(ErrorCode.DUPLICATE_RECOVERY_EMAIL))
-                    .given(userService).confirmRecoveryEmailVerification(
-                            any(RecoveryEmailConfirmRequest.class), any(HttpServletRequest.class));
-
-            mockMvc.perform(post(ME_RECOVERY_EMAIL_CONFIRM_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(new RecoveryEmailConfirmRequest("valid-token"))))
-                    .andExpect(status().isConflict())
-                    .andExpect(jsonPath("$.success").value(false));
-        }
-    }
-
-    // ────────────────── DELETE /api/users/me/recovery-email ──────────────────
-
-    @Nested
-    @DisplayName("DELETE /api/users/me/recovery-email — 복구 이메일 삭제")
-    class RemoveRecoveryEmail {
-
-        @Test
-        @DisplayName("성공 — 복구 이메일 삭제 완료 → 200")
-        void success() throws Exception {
-            willDoNothing().given(userService)
-                    .removeRecoveryEmail(eq(userId), any(HttpServletRequest.class));
-
-            mockMvc.perform(delete(ME_RECOVERY_EMAIL_URL))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.success").value(true))
-                    .andExpect(jsonPath("$.message").value("복구 이메일이 삭제되었습니다."));
-        }
-
-        @Test
-        @DisplayName("실패 — 존재하지 않는 유저 → 404")
-        void userNotFound() throws Exception {
-            willThrow(new CustomException(ErrorCode.USER_NOT_FOUND))
-                    .given(userService).removeRecoveryEmail(eq(userId), any(HttpServletRequest.class));
-
-            mockMvc.perform(delete(ME_RECOVERY_EMAIL_URL))
-                    .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.success").value(false))
-                    .andExpect(jsonPath("$.message").value(ErrorCode.USER_NOT_FOUND.getMessage()));
-        }
-    }
-
-    // ────────────────── PATCH /api/users/me/password ──────────────────
-
-    @Nested
-    @DisplayName("PATCH /api/users/me/password — 비밀번호 변경")
-    class ChangePassword {
-
-        @Test
-        @DisplayName("성공 — 현재 비밀번호 일치 후 변경 → 200")
-        void success() throws Exception {
-            willDoNothing().given(userService)
-                    .changePassword(eq(userId), any(ChangePasswordRequest.class), any(HttpServletRequest.class));
-
-            mockMvc.perform(patch(ME_PASSWORD_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(
-                                    new ChangePasswordRequest("oldPass1234", "newPass5678"))))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.success").value(true))
-                    .andExpect(jsonPath("$.message").value("비밀번호가 변경되었습니다."));
-        }
-
-        @Test
-        @DisplayName("실패 — 새 비밀번호 10자 미만(@Size 위반) → 400")
-        void tooShortNewPassword() throws Exception {
-            mockMvc.perform(patch(ME_PASSWORD_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(
-                                    new ChangePasswordRequest("currentPass1!", "short1"))))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.success").value(false));
-        }
-
-        @Test
-        @DisplayName("실패 — 현재 비밀번호 누락(@NotBlank 위반) → 400")
-        void blankCurrentPassword() throws Exception {
-            mockMvc.perform(patch(ME_PASSWORD_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(
-                                    new ChangePasswordRequest("", "newPass5678abc"))))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.success").value(false));
-        }
-
-        @Test
-        @DisplayName("실패 — 현재 비밀번호 불일치 → 400")
-        void invalidCurrentPassword() throws Exception {
-            willThrow(new CustomException(ErrorCode.INVALID_PASSWORD))
-                    .given(userService).changePassword(eq(userId), any(ChangePasswordRequest.class), any(HttpServletRequest.class));
-
-            mockMvc.perform(patch(ME_PASSWORD_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(
-                                    new ChangePasswordRequest("wrongPass1!", "newPass5678abc"))))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.success").value(false))
-                    .andExpect(jsonPath("$.message").value(ErrorCode.INVALID_PASSWORD.getMessage()));
-        }
-
-        @Test
-        @DisplayName("실패 — 소셜 전용 계정의 비밀번호 변경 시도 → 400")
-        void socialOnlyAccount() throws Exception {
-            willThrow(new CustomException(ErrorCode.SOCIAL_ONLY_ACCOUNT))
-                    .given(userService).changePassword(eq(userId), any(ChangePasswordRequest.class), any(HttpServletRequest.class));
-
-            mockMvc.perform(patch(ME_PASSWORD_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(
-                                    new ChangePasswordRequest("anyPass1234", "newPass5678abc"))))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.success").value(false))
-                    .andExpect(jsonPath("$.message").value(ErrorCode.SOCIAL_ONLY_ACCOUNT.getMessage()));
-        }
-    }
 }
