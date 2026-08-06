@@ -1,6 +1,5 @@
 package com.board.kimicetea.domain.user.service;
 
-import com.board.kimicetea.domain.user.dto.AdminCreateUserRequest;
 import com.board.kimicetea.domain.user.dto.AdminUpdateUserRequest;
 import com.board.kimicetea.domain.user.dto.AdminUserSummaryResponse;
 import com.board.kimicetea.domain.user.entity.User;
@@ -30,18 +29,6 @@ public class AdminUserService {
 
     private final UserRepository userRepository;
     private final TokenRedisService tokenRedisService;
-    private final UserService userService;
-
-    /** 어드민 유저 직접 생성 — 이메일 인증 없이 role·state 직접 지정 */
-    @Transactional
-    public void createUser(final AdminCreateUserRequest request) {
-        if (UserState.WITHDRAWN.equals(request.state())) {
-            throw new CustomException(ErrorCode.ADMIN_INVALID_CREATE_STATE);
-        }
-        userService.adminCreateUser(
-                request.email(), request.password(), request.nickname(),
-                request.mbtiId(), request.role(), request.state());
-    }
 
     /** 이메일·상태·역할 필터로 유저 목록 페이지 조회 */
     @Transactional(readOnly = true)

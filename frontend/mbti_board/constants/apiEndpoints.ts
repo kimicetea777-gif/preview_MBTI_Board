@@ -1,17 +1,8 @@
 export const API = {
   auth: {
-    login: "/api/auth/login",
-    signup: "/api/auth/signup",
-    oauth2Signup: "/api/auth/oauth2/signup",
     reissue: "/api/auth/reissue",
     logout: "/api/auth/logout",
     logoutAll: "/api/auth/logout/all",
-    emailVerifySend: "/api/auth/email-verify/send",
-    emailVerifyConfirm: "/api/auth/email-verify/confirm",
-    findEmailRequest: "/api/auth/find-email/request",
-    findEmailConfirm: "/api/auth/find-email/confirm",
-    passwordResetRequest: "/api/auth/password-reset/request",
-    passwordResetConfirm: "/api/auth/password-reset/confirm",
   },
   users: {
     checkNickname: "/api/users/check-nickname",
@@ -19,10 +10,6 @@ export const API = {
     meStats: "/api/users/me/stats",
     mePosts: "/api/users/me/posts",
     mePostsPreview: "/api/users/me/posts/preview",
-    mePassword: "/api/users/me/password",
-    meRecoveryEmailSend: "/api/users/me/recovery-email/send",
-    meRecoveryEmailConfirm: "/api/users/me/recovery-email/confirm",
-    meRecoveryEmail: "/api/users/me/recovery-email",
     meWithdrawalVerify: "/api/users/me/withdrawal-verify",
     meWithdrawal: "/api/users/me",
     byId: (id: string) => `/api/users/${id}`,

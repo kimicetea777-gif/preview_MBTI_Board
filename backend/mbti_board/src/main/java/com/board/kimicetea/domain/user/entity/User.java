@@ -44,17 +44,9 @@ public class User {
     @Column(name = "email", unique = true, nullable = false)
     private String email;
 
-    @Column(name = "password")
-    private String password;
-
-    @Column(name = "social_provider")
-    private String socialProvider;
-
-    @Column(name = "provider_id")
-    private String providerId;
-
-    @Column(name = "recovery_email")
-    private String recoveryEmail;
+    /** AS(Authorization Server, client_id=TypeButter)가 발급한 사용자 고유 식별자(sub) */
+    @Column(name = "auth_server_id", unique = true, nullable = false)
+    private UUID authServerId;
 
     @Column(name = "profile_image_url")
     private String profileImageUrl;
@@ -76,18 +68,6 @@ public class User {
 
     @Column(name = "last_login_at")
     private Instant lastLoginAt;
-
-    @Column(name = "terms_agreed_at")
-    private Instant termsAgreedAt;
-
-    @Column(name = "terms_version")
-    private Integer termsVersion;
-
-    @Column(name = "privacy_agreed_at")
-    private Instant privacyAgreedAt;
-
-    @Column(name = "privacy_version")
-    private Integer privacyVersion;
 
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
@@ -126,35 +106,15 @@ public class User {
         this.profileImageUrl = profileImageUrl;
     }
 
-    public void changePassword(final String encodedPassword) {
-        this.password = encodedPassword;
-    }
-
-    public void changeRecoveryEmail(final String recoveryEmail) {
-        this.recoveryEmail = recoveryEmail;
-    }
-
     public void changeRole(final UserRole role) {
         this.role = role;
-    }
-
-    /** 최초 가입 시 1회만 호출 — 이미 동의 이력이 있는 계정(재로그인 등)에는 호출하지 않음 */
-    public void agreeToTerms(final Instant agreedAt, final int termsVersion, final int privacyVersion) {
-        this.termsAgreedAt = agreedAt;
-        this.termsVersion = termsVersion;
-        this.privacyAgreedAt = agreedAt;
-        this.privacyVersion = privacyVersion;
     }
 
     /** 탈퇴 시 PII 즉시 제거 — email·nickname은 UNIQUE NOT NULL이므로 고유 플레이스홀더로 대체 */
     public void anonymize() {
         this.email = "withdrawn_" + this.id + "@deleted.invalid";
         this.nickname = "withdrawn_" + this.id.toString().substring(0, 8);
-        this.password = null;
-        this.recoveryEmail = null;
         this.profileImageUrl = null;
-        this.socialProvider = null;
-        this.providerId = null;
         this.lastLoginAt = null;
     }
 }

@@ -6,17 +6,13 @@ import com.board.kimicetea.domain.mbti.entity.MbtiTestHistory;
 import com.board.kimicetea.domain.mbti.repository.MbtiMetadataRepository;
 import com.board.kimicetea.domain.mbti.repository.MbtiTestHistoryRepository;
 import com.board.kimicetea.domain.post.repository.PostRepository;
-import com.board.kimicetea.domain.user.dto.ChangePasswordRequest;
 import com.board.kimicetea.domain.user.dto.MyProfileResponse;
-import com.board.kimicetea.domain.user.dto.RecoveryEmailConfirmRequest;
-import com.board.kimicetea.domain.user.dto.RecoveryEmailSendRequest;
 import com.board.kimicetea.domain.user.dto.UpdateProfileRequest;
 import com.board.kimicetea.domain.user.dto.UserActivityStatsResponse;
 import com.board.kimicetea.domain.user.dto.UserProfileResponse;
 import com.board.kimicetea.domain.user.entity.User;
 import com.board.kimicetea.domain.user.entity.UserRetentionLog;
 import com.board.kimicetea.domain.user.enums.MbtiVerified;
-import com.board.kimicetea.domain.user.enums.UserRole;
 import com.board.kimicetea.domain.user.enums.UserState;
 import com.board.kimicetea.domain.user.repository.UserRepository;
 import com.board.kimicetea.domain.user.repository.UserRetentionLogRepository;
@@ -27,16 +23,11 @@ import com.board.kimicetea.global.common.exception.CustomException;
 import com.board.kimicetea.global.common.exception.ErrorCode;
 import com.board.kimicetea.global.common.util.RequestUtils;
 import com.board.kimicetea.global.mail.EmailService;
-import com.board.kimicetea.global.ratelimit.RateLimitEndpoints;
-import com.board.kimicetea.global.ratelimit.RateLimitService;
 import com.board.kimicetea.global.security.jwt.JwtProvider;
 import com.board.kimicetea.global.security.redis.TokenRedisService;
-import com.board.kimicetea.global.security.redis.TokenRedisService.RecoveryEmailTokenPayload;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,62 +51,11 @@ public class UserService {
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
     private final MbtiTestHistoryRepository mbtiTestHistoryRepository;
-    private final PasswordEncoder passwordEncoder;
     private final RetentionEncryptionService retentionEncryptionService;
     private final TokenRedisService tokenRedisService;
     private final JwtProvider jwtProvider;
     private final EmailService emailService;
     private final AuditLogService auditLogService;
-    private final RateLimitService rateLimitService;
-
-    @Value("${site.url}")
-    private String siteUrl;
-
-    /** 어드민 유저 직접 생성 — 이메일 인증 없이 role·state 직접 지정 */
-    @Transactional
-    public void adminCreateUser(final String email, final String rawPassword,
-            final String nickname, final String mbtiId, final UserRole role, final UserState state) {
-        if (userRepository.existsByEmail(email)) {
-            throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
-        }
-        validateNicknameNotDuplicate(nickname);
-
-        final MbtiMetadata mbti = findMbtiOrThrow(mbtiId);
-        final MbtiVerified mbtiVerified = mbti.isNone() ? MbtiVerified.DEFAULT : MbtiVerified.SELF;
-
-        userRepository.save(User.builder()
-                .email(email)
-                .password(passwordEncoder.encode(rawPassword))
-                .nickname(nickname)
-                .mbtiVerified(mbtiVerified)
-                .role(role)
-                .state(state)
-                .mbti(mbti)
-                .build());
-    }
-
-    /** 회원가입 — AuthService에서 위임받아 유저 엔티티 생성. 복구 이메일은 가입 후 마이페이지에서만 등록 */
-    @Transactional
-    public User registerUser(final String email, final String rawPassword,
-            final String nickname, final String mbtiId) {
-        if (userRepository.existsByEmail(email)) {
-            throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
-        }
-        validateNicknameNotDuplicate(nickname);
-
-        final MbtiMetadata mbti = findMbtiOrThrow(mbtiId);
-        final MbtiVerified mbtiVerified = mbti.isNone() ? MbtiVerified.DEFAULT : MbtiVerified.SELF;
-
-        return userRepository.save(User.builder()
-                .email(email)
-                .password(passwordEncoder.encode(rawPassword))
-                .nickname(nickname)
-                .mbtiVerified(mbtiVerified)
-                .role(UserRole.USER)
-                .state(UserState.NORMAL)
-                .mbti(mbti)
-                .build());
-    }
 
     /** 닉네임 실시간 중복 체크 — 회원가입 폼에서 제출 전 확인용 */
     @Transactional(readOnly = true)
@@ -227,82 +167,6 @@ public class UserService {
         });
 
         auditLogService.record(AuditEvent.WITHDRAWAL, userId,
-                user.getRole().name(), RequestUtils.extractClientIp(httpRequest));
-    }
-
-    /**
-     * 비밀번호 변경
-     * 주의: 소셜 전용 계정(socialProvider != null)은 로컬 비밀번호가 없으므로 차단
-     */
-    @Transactional
-    public void changePassword(final UUID userId, final ChangePasswordRequest request,
-                               final HttpServletRequest httpRequest) {
-        final User user = findUserOrThrow(userId);
-
-        if (user.getSocialProvider() != null) {
-            throw new CustomException(ErrorCode.SOCIAL_ONLY_ACCOUNT);
-        }
-        if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
-            throw new CustomException(ErrorCode.INVALID_PASSWORD);
-        }
-
-        user.changePassword(passwordEncoder.encode(request.newPassword()));
-        auditLogService.record(AuditEvent.PASSWORD_CHANGE, userId,
-                user.getRole().name(), RequestUtils.extractClientIp(httpRequest));
-    }
-
-    /**
-     * 복구 이메일 인증 링크 발송 — 등록/변경 공용. 소유권 확인 전에는 실제로 반영되지 않음
-     * 주의: 링크는 프론트엔드 /my/account/recovery-email/verify?token={uuid} 로 연결
-     */
-    @Transactional(readOnly = true)
-    public void sendRecoveryEmailVerification(final UUID userId, final RecoveryEmailSendRequest request,
-                                              final HttpServletRequest httpRequest) {
-        rateLimitService.check(RateLimitEndpoints.RECOVERY_EMAIL, httpRequest, 3, 600);
-        rateLimitService.checkByEmail(RateLimitEndpoints.RECOVERY_EMAIL, request.email(), 3, 600);
-
-        final User user = findUserOrThrow(userId);
-        if (user.getEmail().equalsIgnoreCase(request.email())) {
-            throw new CustomException(ErrorCode.RECOVERY_EMAIL_SAME_AS_LOGIN);
-        }
-        if (userRepository.existsByRecoveryEmail(request.email())) {
-            throw new CustomException(ErrorCode.DUPLICATE_RECOVERY_EMAIL);
-        }
-
-        final String token = UUID.randomUUID().toString();
-        tokenRedisService.saveRecoveryEmailToken(token, userId.toString(), request.email());
-        emailService.sendRecoveryEmailVerification(request.email(),
-                siteUrl + "/my/account/recovery-email/verify?token=" + token);
-    }
-
-    /**
-     * 복구 이메일 인증 토큰 확인 — 토큰 자체가 (userId, email) 페어를 증명하므로 로그인 불필요(공개 엔드포인트)
-     * 주의: 메일 인박스를 다른 브라우저/기기에서 열 수 있으므로 현재 세션과 대조하지 않음 (email-verify/confirm과 동일 패턴)
-     * 주의: 발송 시점 이후 다른 유저가 같은 이메일을 선점했을 수 있으므로 재검증 필요
-     */
-    @Transactional
-    public void confirmRecoveryEmailVerification(final RecoveryEmailConfirmRequest request,
-                                                 final HttpServletRequest httpRequest) {
-        final RecoveryEmailTokenPayload payload = tokenRedisService.getRecoveryEmailPayload(request.token())
-                .orElseThrow(() -> new CustomException(ErrorCode.RECOVERY_EMAIL_TOKEN_INVALID));
-        final UUID userId = UUID.fromString(payload.userId());
-        if (userRepository.existsByRecoveryEmailAndIdNot(payload.email(), userId)) {
-            throw new CustomException(ErrorCode.DUPLICATE_RECOVERY_EMAIL);
-        }
-        tokenRedisService.deleteRecoveryEmailToken(request.token(), payload.userId());
-
-        final User user = findUserOrThrow(userId);
-        user.changeRecoveryEmail(payload.email());
-        auditLogService.record(AuditEvent.RECOVERY_EMAIL_CHANGE, userId,
-                user.getRole().name(), RequestUtils.extractClientIp(httpRequest));
-    }
-
-    /** 복구 이메일 삭제 */
-    @Transactional
-    public void removeRecoveryEmail(final UUID userId, final HttpServletRequest httpRequest) {
-        final User user = findUserOrThrow(userId);
-        user.changeRecoveryEmail(null);
-        auditLogService.record(AuditEvent.RECOVERY_EMAIL_CHANGE, userId,
                 user.getRole().name(), RequestUtils.extractClientIp(httpRequest));
     }
 

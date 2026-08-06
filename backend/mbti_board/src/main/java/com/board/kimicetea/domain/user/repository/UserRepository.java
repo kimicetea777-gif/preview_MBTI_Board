@@ -20,13 +20,7 @@ public interface UserRepository extends JpaRepository<User, UUID>, UserRepositor
 
     boolean existsByNickname(String nickname);
 
-    Optional<User> findBySocialProviderAndProviderId(String socialProvider, String providerId);
-
-    Optional<User> findByRecoveryEmail(String recoveryEmail);
-
-    boolean existsByRecoveryEmail(String recoveryEmail);
-
-    boolean existsByRecoveryEmailAndIdNot(String recoveryEmail, UUID id);
+    Optional<User> findByAuthServerId(UUID authServerId);
 
     @EntityGraph(attributePaths = { "mbti" })
     Optional<User> findWithMbtiById(UUID id);
@@ -51,9 +45,6 @@ public interface UserRepository extends JpaRepository<User, UUID>, UserRepositor
     @Query(value = "SELECT mbti_verified AS name, COUNT(*) AS value FROM users GROUP BY mbti_verified ORDER BY value DESC", nativeQuery = true)
     List<Object[]> countGroupByMbtiVerifiedRaw();
 
-    @Query("SELECT COUNT(u) FROM User u WHERE u.socialProvider IS NOT NULL")
-    long countSocialLogin();
-
     /** state가 NORMAL이면서 마지막 로그인이 :cutoff 이전이거나 없는 유저 수 */
     @Query("SELECT COUNT(u) FROM User u WHERE u.state = :state AND (u.lastLoginAt IS NULL OR u.lastLoginAt < :cutoff)")
     long countByStateAndLastLoginAtBefore(@Param("state") UserState state, @Param("cutoff") Instant cutoff);
@@ -73,10 +64,6 @@ public interface UserRepository extends JpaRepository<User, UUID>, UserRepositor
     /** :from 이상 :to 미만 구간의 신규 가입 수 */
     @Query("SELECT COUNT(u) FROM User u WHERE u.createdAt >= :from AND u.createdAt < :to")
     long countByCreatedAtBetween(@Param("from") Instant from, @Param("to") Instant to);
-
-    /** 복구 이메일 등록 완료 유저 수 */
-    @Query("SELECT COUNT(u) FROM User u WHERE u.recoveryEmail IS NOT NULL")
-    long countHasRecoveryEmail();
 
     /** state가 :state이면서 가입일이 :cutoff 이전인 유저 수 — PENDING 장기 체류 감지용 */
     @Query("SELECT COUNT(u) FROM User u WHERE u.state = :state AND u.createdAt < :cutoff")

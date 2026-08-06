@@ -1,6 +1,5 @@
 package com.board.kimicetea.domain.user.controller;
 
-import com.board.kimicetea.domain.user.dto.AdminCreateUserRequest;
 import com.board.kimicetea.domain.user.dto.AdminUpdateUserRequest;
 import com.board.kimicetea.domain.user.dto.AdminUserStatsResponse;
 import com.board.kimicetea.domain.user.dto.AdminUserSummaryResponse;
@@ -96,7 +95,7 @@ class AdminUserControllerTest {
 
     private AdminUserStatsResponse sampleStats() {
         return new AdminUserStatsResponse(
-                500L, 20L, 15L, 100L, 400L, 30L, 25L, 200L, 5L,
+                500L, 20L, 15L, 30L, 25L, 5L,
                 List.of(new AdminUserStatsResponse.CountEntry("NORMAL", 450L)),
                 List.of(new AdminUserStatsResponse.CountEntry("USER", 480L)),
                 List.of(new AdminUserStatsResponse.CountEntry("INTJ", 50L)),
@@ -110,13 +109,7 @@ class AdminUserControllerTest {
         return new AdminUserSummaryResponse(
                 id, "user@test.com", "테스터", null,
                 "USER", "NORMAL", "INTJ", "TESTED",
-                false, false, Instant.now(), Instant.now(), Instant.now());
-    }
-
-    private AdminCreateUserRequest validCreateRequest() {
-        return new AdminCreateUserRequest(
-                "newuser@test.com", "Password123!", "새유저",
-                "INTJ", UserRole.USER, UserState.NORMAL);
+                Instant.now(), Instant.now(), Instant.now());
     }
 
     // ────────────────── GET /api/admin/users/stats ──────────────────
@@ -134,9 +127,7 @@ class AdminUserControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data.totalUsers").value(500))
-                    .andExpect(jsonPath("$.data.thisMonthNewUsers").value(30))
-                    .andExpect(jsonPath("$.data.socialLoginCount").value(100))
-                    .andExpect(jsonPath("$.data.recoveryEmailCount").value(200));
+                    .andExpect(jsonPath("$.data.thisMonthNewUsers").value(30));
         }
 
         @Test
@@ -181,128 +172,6 @@ class AdminUserControllerTest {
             mockMvc.perform(post(REFRESH_URL))
                     .andExpect(status().isAccepted())
                     .andExpect(jsonPath("$.success").value(true));
-        }
-    }
-
-    // ────────────────── POST /api/admin/users ──────────────────
-
-    @Nested
-    @DisplayName("POST /api/admin/users — 유저 직접 생성")
-    class CreateUser {
-
-        @Test
-        @DisplayName("성공 — 유효한 요청으로 유저 생성 → 201")
-        void success() throws Exception {
-            willDoNothing().given(adminUserService).createUser(any(AdminCreateUserRequest.class));
-
-            mockMvc.perform(post(USERS_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(validCreateRequest())))
-                    .andExpect(status().isCreated())
-                    .andExpect(jsonPath("$.success").value(true))
-                    .andExpect(jsonPath("$.message").value("유저가 생성되었습니다."));
-        }
-
-        @Test
-        @DisplayName("실패 — 이메일 형식 오류(@Email 위반) → 400")
-        void invalidEmail() throws Exception {
-            final AdminCreateUserRequest request = new AdminCreateUserRequest(
-                    "not-an-email", "Password123!", "새유저",
-                    "INTJ", UserRole.USER, UserState.NORMAL);
-
-            mockMvc.perform(post(USERS_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.success").value(false));
-        }
-
-        @Test
-        @DisplayName("실패 — 비밀번호 10자 미만(@Size 위반) → 400")
-        void tooShortPassword() throws Exception {
-            final AdminCreateUserRequest request = new AdminCreateUserRequest(
-                    "newuser@test.com", "Short1!", "새유저",
-                    "INTJ", UserRole.USER, UserState.NORMAL);
-
-            mockMvc.perform(post(USERS_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.success").value(false));
-        }
-
-        @Test
-        @DisplayName("실패 — 닉네임 1자(@Size 위반) → 400")
-        void tooShortNickname() throws Exception {
-            final AdminCreateUserRequest request = new AdminCreateUserRequest(
-                    "newuser@test.com", "Password123!", "닉",
-                    "INTJ", UserRole.USER, UserState.NORMAL);
-
-            mockMvc.perform(post(USERS_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.success").value(false));
-        }
-
-        @Test
-        @DisplayName("실패 — 잘못된 MBTI 형식(@Pattern 위반) → 400")
-        void invalidMbti() throws Exception {
-            final AdminCreateUserRequest request = new AdminCreateUserRequest(
-                    "newuser@test.com", "Password123!", "새유저",
-                    "INVALID", UserRole.USER, UserState.NORMAL);
-
-            mockMvc.perform(post(USERS_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.success").value(false));
-        }
-
-        @Test
-        @DisplayName("실패 — WITHDRAWN 상태로 생성 시도 → 400")
-        void invalidWithdrawnState() throws Exception {
-            willThrow(new CustomException(ErrorCode.ADMIN_INVALID_CREATE_STATE))
-                    .given(adminUserService).createUser(any(AdminCreateUserRequest.class));
-
-            final AdminCreateUserRequest request = new AdminCreateUserRequest(
-                    "newuser@test.com", "Password123!", "새유저",
-                    "INTJ", UserRole.USER, UserState.WITHDRAWN);
-
-            mockMvc.perform(post(USERS_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.success").value(false))
-                    .andExpect(jsonPath("$.message").value(ErrorCode.ADMIN_INVALID_CREATE_STATE.getMessage()));
-        }
-
-        @Test
-        @DisplayName("실패 — 이미 사용 중인 이메일 → 409")
-        void duplicateEmail() throws Exception {
-            willThrow(new CustomException(ErrorCode.DUPLICATE_EMAIL))
-                    .given(adminUserService).createUser(any(AdminCreateUserRequest.class));
-
-            mockMvc.perform(post(USERS_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(validCreateRequest())))
-                    .andExpect(status().isConflict())
-                    .andExpect(jsonPath("$.success").value(false))
-                    .andExpect(jsonPath("$.message").value(ErrorCode.DUPLICATE_EMAIL.getMessage()));
-        }
-
-        @Test
-        @DisplayName("실패 — 이미 사용 중인 닉네임 → 409")
-        void duplicateNickname() throws Exception {
-            willThrow(new CustomException(ErrorCode.DUPLICATE_NICKNAME))
-                    .given(adminUserService).createUser(any(AdminCreateUserRequest.class));
-
-            mockMvc.perform(post(USERS_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(validCreateRequest())))
-                    .andExpect(status().isConflict())
-                    .andExpect(jsonPath("$.success").value(false))
-                    .andExpect(jsonPath("$.message").value(ErrorCode.DUPLICATE_NICKNAME.getMessage()));
         }
     }
 

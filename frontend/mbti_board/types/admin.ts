@@ -26,7 +26,6 @@ export interface AdminUserSummaryResponse {
   mbtiId: string;
   mbtiVerified: MbtiVerified;
   isSocialLogin: boolean;
-  hasRecoveryEmail: boolean;
   lastLoginAt: string | null;
   updatedAt: string;
   createdAt: string;
@@ -118,7 +117,6 @@ export interface AdminUserStatsResponse {
   localLoginCount: number;
   thisMonthNewUsers: number;
   lastMonthNewUsers: number;
-  recoveryEmailCount: number;
   longPendingCount: number;
   byState: CountEntry[];
   byRole: CountEntry[];

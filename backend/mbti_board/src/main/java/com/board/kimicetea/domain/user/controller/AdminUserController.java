@@ -1,6 +1,5 @@
 package com.board.kimicetea.domain.user.controller;
 
-import com.board.kimicetea.domain.user.dto.AdminCreateUserRequest;
 import com.board.kimicetea.domain.user.dto.AdminUpdateUserRequest;
 import com.board.kimicetea.domain.user.dto.AdminUserStatsResponse;
 import com.board.kimicetea.domain.user.dto.AdminUserSummaryResponse;
@@ -20,7 +19,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -67,19 +65,6 @@ public class AdminUserController {
     public ResponseEntity<ApiResponse<Void>> refreshStats() {
         adminUserStatsScheduler.triggerAsync();
         return ResponseEntity.accepted().body(ApiResponse.ok("통계 캐시 갱신을 시작했습니다."));
-    }
-
-    @Operation(summary = "유저 직접 생성", description = "어드민이 이메일 인증 없이 유저를 직접 생성합니다. role·state를 직접 지정할 수 있습니다.")
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "유저 생성 성공"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "입력값 오류 또는 중복"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ADMIN 권한 없음")
-    })
-    @PostMapping
-    public ResponseEntity<ApiResponse<Void>> createUser(
-            @Valid @RequestBody final AdminCreateUserRequest request) {
-        adminUserService.createUser(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("유저가 생성되었습니다."));
     }
 
     @Operation(summary = "유저 목록 조회", description = "이메일·상태·역할 필터, 정렬(createdAt/updatedAt/lastLoginAt), 페이지네이션으로 유저 목록을 조회합니다.")

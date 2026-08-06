@@ -3,8 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { FiLogOut } from "react-icons/fi";
-import { apiClient } from "@/lib/apiClient";
-import { API } from "@/constants/apiEndpoints";
+import { logout } from "@/lib/api/auth";
 import { ROUTES } from "@/constants/routes";
 import { useAuthStore } from "@/store/authStore";
 
@@ -14,12 +13,18 @@ export default function LogoutButton({ className }: { className?: string }) {
   const setAccessToken = useAuthStore((s) => s.setAccessToken);
 
   const handleLogout = async () => {
+    // 소셜 로그인이었다면 AS 세션도 같이 끝내야 다음 로그인 때 (자동 재로그인 없이) 로그인 화면이 뜬다.
+    let authServerLogoutUrl: string | null = null;
     try {
-      await apiClient.post(API.auth.logout);
+      ({ authServerLogoutUrl } = await logout());
     } finally {
       setAccessToken(null);
       queryClient.clear();
-      router.push(ROUTES.login);
+      if (authServerLogoutUrl) {
+        window.location.href = authServerLogoutUrl;
+      } else {
+        router.push(ROUTES.login);
+      }
     }
   };
 

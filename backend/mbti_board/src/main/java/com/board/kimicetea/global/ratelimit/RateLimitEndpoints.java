@@ -10,11 +10,6 @@ public final class RateLimitEndpoints {
     private RateLimitEndpoints() {
     }
 
-    public static final String FIND_EMAIL = "find-email";
-    public static final String PASSWORD_RESET = "password-reset";
-    public static final String LOGIN = "login";
-    public static final String EMAIL_VERIFY = "email-verify";
     public static final String NICKNAME_CHECK = "nickname-check";
     public static final String UPLOAD = "upload";
-    public static final String RECOVERY_EMAIL = "recovery-email";
 }

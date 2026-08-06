@@ -27,13 +27,12 @@ class JwtProviderTest {
     private static final String SECRET = "test-secret-key-that-is-at-least-32bytes!!";
     private static final long ACCESS_EXPIRY  = 1000L * 60 * 60;       // 1시간
     private static final long REFRESH_EXPIRY = 1000L * 60 * 60 * 24;  // 1일
-    private static final long SIGNUP_EXPIRY  = 1000L * 60 * 10;       // 10분
 
     private JwtProvider jwtProvider;
 
     @BeforeEach
     void setUp() {
-        jwtProvider = new JwtProvider(SECRET, ACCESS_EXPIRY, REFRESH_EXPIRY, SIGNUP_EXPIRY);
+        jwtProvider = new JwtProvider(SECRET, ACCESS_EXPIRY, REFRESH_EXPIRY);
     }
 
     @Nested
@@ -64,25 +63,6 @@ class JwtProviderTest {
             final Claims claims = jwtProvider.parseToken(token);
 
             assertThat(claims.getId()).isNotNull();
-        }
-    }
-
-    @Nested
-    @DisplayName("generateOAuth2SignupToken — signupToken 생성 및 파싱")
-    class GenerateOAuth2SignupToken {
-
-        @Test
-        @DisplayName("생성된 signupToken을 파싱하면 전달한 프로필 claims와 일치한다")
-        void claims_match() {
-            final String token = jwtProvider.generateOAuth2SignupToken(
-                    "google", "provider-id-1", "test@test.com");
-            final Claims claims = jwtProvider.parseToken(token);
-
-            assertThat(claims.getSubject()).isEqualTo("google:provider-id-1");
-            assertThat(claims.get("purpose", String.class)).isEqualTo("OAUTH2_SIGNUP");
-            assertThat(claims.get("provider", String.class)).isEqualTo("google");
-            assertThat(claims.get("providerId", String.class)).isEqualTo("provider-id-1");
-            assertThat(claims.get("email", String.class)).isEqualTo("test@test.com");
         }
     }
 

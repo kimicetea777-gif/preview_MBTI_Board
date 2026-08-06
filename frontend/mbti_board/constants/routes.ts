@@ -1,14 +1,9 @@
 export const ROUTES = {
   home: "/",
   login: "/login",
-  signup: "/signup",
-  signupVerify: "/signup/verify",
-  accountFind: "/account/find",
-  accountResetPassword: "/account/reset-password",
   my: "/my",
   myPosts: "/my/posts",
   myAccount: "/my/account",
-  myAccountRecoveryEmailVerify: "/my/account/recovery-email/verify",
   admin: "/admin",
   adminUsers: "/admin/users",
   adminUserStats: "/admin/users/stats",
@@ -22,7 +17,6 @@ export const ROUTES = {
   adminAlerts: "/admin/alerts",
   adminNotices: "/admin/notices",
   terms: "/terms",
-  termsAgree: "/terms/agree",
   privacy: "/privacy",
   mbti: {
     list: "/mbti",

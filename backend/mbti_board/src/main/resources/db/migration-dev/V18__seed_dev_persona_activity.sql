@@ -1,13 +1,11 @@
 -- 2026-07-21 ~ 2026-07-23 기준 활동 시드: 신규 페르소나 6명 + 게시글 7건 + 댓글 13건
--- 테스트 계정 비밀번호: Test1234! (V6과 동일 해시)
+-- auth_server_id는 실제 AS 계정과 매핑되지 않는 더미 UUID다(V13과 동일 원칙) — 콘텐츠 소유권 시드 용도
 
 INSERT INTO
     users (
         id,
         email,
-        password,
-        social_provider,
-        provider_id,
+        auth_server_id,
         nickname,
         mbti_id,
         mbti_verified,
@@ -19,9 +17,7 @@ INSERT INTO
 VALUES (
         'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a21',
         'isfj@mbti.dev',
-        '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lh8i',
-        NULL,
-        NULL,
+        'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a21',
         '헌신적ISFJ',
         'ISFJ',
         'TESTED',
@@ -33,9 +29,7 @@ VALUES (
     (
         'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22',
         'esfp@mbti.dev',
-        '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lh8i',
-        NULL,
-        NULL,
+        'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a22',
         '흥많은ESFP',
         'ESFP',
         'SELF',
@@ -47,9 +41,7 @@ VALUES (
     (
         'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a23',
         'esfj@mbti.dev',
-        '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lh8i',
-        NULL,
-        NULL,
+        'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a23',
         '다정한ESFJ',
         'ESFJ',
         'TESTED',
@@ -61,9 +53,7 @@ VALUES (
     (
         'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a24',
         'istp@mbti.dev',
-        '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lh8i',
-        NULL,
-        NULL,
+        'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a24',
         '해결사ISTP',
         'ISTP',
         'SELF',
@@ -75,9 +65,7 @@ VALUES (
     (
         'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a25',
         'intj@mbti.dev',
-        '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lh8i',
-        NULL,
-        NULL,
+        'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a25',
         '전략가INTJ',
         'INTJ',
         'SELF',
@@ -89,9 +77,7 @@ VALUES (
     (
         'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a26',
         'enfj@mbti.dev',
-        '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lh8i',
-        NULL,
-        NULL,
+        'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a26',
         '분위기ENFJ',
         'ENFJ',
         'TESTED',

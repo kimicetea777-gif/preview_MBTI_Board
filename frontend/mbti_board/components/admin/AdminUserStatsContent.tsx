@@ -8,7 +8,7 @@ import {
 } from "recharts";
 import {
   MdGroup, MdTimerOff, MdTrendingUp, MdTrendingDown,
-  MdAlternateEmail, MdPendingActions,
+  MdPendingActions,
 } from "react-icons/md";
 import StatsRefreshButton from "@/components/admin/StatsRefreshButton";
 import GrowthBadge from "@/components/admin/GrowthBadge";
@@ -63,10 +63,6 @@ export default function AdminUserStatsContent() {
   const inactiveDiff = data.inactiveCount - data.lastMonthInactiveCount;
 
   const { diff: growthDiff, pct: growthPct } = computeGrowth(data.thisMonthNewUsers, data.lastMonthNewUsers);
-
-  const recoveryEmailPct = data.totalUsers > 0
-    ? ((data.recoveryEmailCount / data.totalUsers) * 100).toFixed(1)
-    : "0.0";
 
   const [trendMode, setTrendMode] = useState<TrendMode>("daily");
 
@@ -363,32 +359,6 @@ export default function AdminUserStatsContent() {
                 </div>
               );
             })}
-          </div>
-        </div>
-
-        {/* 전화번호 인증률 */}
-        <div className="col-span-12 md:col-span-6 rounded-2xl border border-outline-variant bg-card p-6 flex flex-col justify-between">
-          <div>
-            <div className="flex justify-between items-start mb-4">
-              <span className="inline-flex p-3 bg-blue-50 rounded-2xl">
-                <MdAlternateEmail size={22} className="text-blue-600" />
-              </span>
-            </div>
-            <p className="text-sm text-on-surface-variant">복구 이메일 등록률</p>
-            <p className="text-4xl font-bold text-foreground mt-1">{recoveryEmailPct}%</p>
-          </div>
-          <div className="mt-4">
-            <div className="h-2.5 w-full rounded-full bg-outline-variant/20 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-blue-500 transition-all duration-700"
-                style={{ width: `${recoveryEmailPct}%` }}
-              />
-            </div>
-            <p className="text-xs text-on-surface-variant mt-2">
-              등록 완료{" "}
-              <span className="font-bold text-foreground">{data.recoveryEmailCount.toLocaleString()}명</span>
-              {" "}/ 전체 {data.totalUsers.toLocaleString()}명
-            </p>
           </div>
         </div>
 

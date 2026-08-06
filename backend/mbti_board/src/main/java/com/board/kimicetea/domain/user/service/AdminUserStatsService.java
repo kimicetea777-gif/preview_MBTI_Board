@@ -65,8 +65,6 @@ public class AdminUserStatsService {
      */
     @Transactional(readOnly = true)
     public AdminUserStatsResponse computeAndCache() {
-        final long socialLoginCount = userRepository.countSocialLogin();
-
         final Instant inactiveCutoff = Instant.now().minus(INACTIVE_DAYS, ChronoUnit.DAYS);
         final long inactiveCount = userRepository.countByStateAndLastLoginAtBefore(
                 UserState.NORMAL, inactiveCutoff);
@@ -80,7 +78,6 @@ public class AdminUserStatsService {
 
         final List<CountEntry> byState = toCountEntries(userRepository.countGroupByStateRaw());
         final long totalUsers = byState.stream().mapToLong(CountEntry::value).sum();
-        final long localLoginCount = totalUsers - socialLoginCount;
 
         final List<CountEntry> byRole         = toCountEntries(userRepository.countGroupByRoleRaw());
         final List<CountEntry> byMbti         = toCountEntries(userRepository.countGroupByMbtiRaw());
@@ -96,15 +93,13 @@ public class AdminUserStatsService {
         final Instant lastMonthStart = now.minusMonths(1).withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS).toInstant();
         final long thisMonthNewUsers  = userRepository.countByCreatedAtBetween(thisMonthStart, Instant.now());
         final long lastMonthNewUsers  = userRepository.countByCreatedAtBetween(lastMonthStart, thisMonthStart);
-        final long recoveryEmailCount = userRepository.countHasRecoveryEmail();
         final long longPendingCount   = userRepository.countByStateAndCreatedAtBefore(
                 UserState.PENDING, Instant.now().minus(7, ChronoUnit.DAYS));
 
         final AdminUserStatsResponse stats = new AdminUserStatsResponse(
                 totalUsers, inactiveCount, lastMonthInactiveCount,
-                socialLoginCount, localLoginCount,
                 thisMonthNewUsers, lastMonthNewUsers,
-                recoveryEmailCount, longPendingCount,
+                longPendingCount,
                 byState, byRole, byMbti, byMbtiVerified, signupTrend, withdrawalTrend, roleTrend);
 
         try {

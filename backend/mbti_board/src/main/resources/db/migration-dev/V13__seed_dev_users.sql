@@ -1,13 +1,10 @@
--- 테스트 계정 비밀번호: Test1234!
--- BCrypt 해시(cost=10): $2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lh8i
-
+-- auth_server_id는 실제 AS(thebluebutter) 계정과 매핑되지 않는 더미 UUID다 — 이 시드 계정으로는
+-- 실제 OAuth2 로그인을 할 수 없고, 게시글/댓글 등 콘텐츠 소유권 시드 용도로만 쓴다.
 INSERT INTO
     users (
         id,
         email,
-        password,
-        social_provider,
-        provider_id,
+        auth_server_id,
         nickname,
         mbti_id,
         mbti_verified,
@@ -19,9 +16,7 @@ INSERT INTO
 VALUES (
         'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
         'admin@mbti.dev',
-        '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lh8i',
-        NULL,
-        NULL,
+        'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
         '관리자',
         'INFJ',
         'DEFAULT',
@@ -33,9 +28,7 @@ VALUES (
     (
         'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12',
         'infp@mbti.dev',
-        '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lh8i',
-        NULL,
-        NULL,
+        'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a12',
         '조용한INFP',
         'INFP',
         'TESTED',
@@ -47,9 +40,7 @@ VALUES (
     (
         'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13',
         'entp@mbti.dev',
-        '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lh8i',
-        NULL,
-        NULL,
+        'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a13',
         '논쟁꾼ENTP',
         'ENTP',
         'SELF',
@@ -61,9 +52,7 @@ VALUES (
     (
         'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14',
         'estj@mbti.dev',
-        '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lh8i',
-        NULL,
-        NULL,
+        'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a14',
         '계획형ESTJ',
         'ESTJ',
         'TESTED',
@@ -75,9 +64,7 @@ VALUES (
     (
         'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a15',
         'isfp@mbti.dev',
-        '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lh8i',
-        NULL,
-        NULL,
+        'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a15',
         '자유로운ISFP',
         'ISFP',
         'SELF',
@@ -89,9 +76,7 @@ VALUES (
     (
         'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a16',
         'entj@mbti.dev',
-        '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lh8i',
-        NULL,
-        NULL,
+        'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a16',
         '리더ENTJ',
         'ENTJ',
         'TESTED',
@@ -103,9 +88,7 @@ VALUES (
     (
         'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a17',
         'intp@mbti.dev',
-        '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lh8i',
-        NULL,
-        NULL,
+        'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a17',
         '분석가INTP',
         'INTP',
         'TESTED',
@@ -117,9 +100,7 @@ VALUES (
     (
         'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a18',
         'enfp@mbti.dev',
-        '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lh8i',
-        NULL,
-        NULL,
+        'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a18',
         '열정ENFP',
         'ENFP',
         'SELF',
@@ -131,9 +112,7 @@ VALUES (
     (
         'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a19',
         'istj@mbti.dev',
-        '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lh8i',
-        NULL,
-        NULL,
+        'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a19',
         '성실한ISTJ',
         'ISTJ',
         'TESTED',
@@ -145,9 +124,7 @@ VALUES (
     (
         'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a20',
         'social@gmail.com',
-        NULL,
-        'google',
-        'google_dummy_provider_12345',
+        'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a20',
         '소셜유저',
         'NONE',
         'DEFAULT',
