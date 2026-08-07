@@ -1,6 +1,5 @@
 export const API = {
   auth: {
-    reissue: "/api/auth/reissue",
     logout: "/api/auth/logout",
     logoutAll: "/api/auth/logout/all",
   },

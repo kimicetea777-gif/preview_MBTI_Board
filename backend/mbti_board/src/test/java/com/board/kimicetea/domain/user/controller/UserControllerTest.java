@@ -16,12 +16,15 @@ import com.board.kimicetea.global.common.exception.CustomException;
 import com.board.kimicetea.global.common.exception.ErrorCode;
 import com.board.kimicetea.global.security.handler.JwtAccessDeniedHandler;
 import com.board.kimicetea.global.security.handler.JwtAuthenticationEntryPoint;
-import com.board.kimicetea.global.security.jwt.JwtProvider;
 import com.board.kimicetea.global.security.oauth2.CustomOAuth2UserService;
 import com.board.kimicetea.global.security.oauth2.OAuth2AuthenticationFailureHandler;
 import com.board.kimicetea.global.security.oauth2.OAuth2AuthenticationSuccessHandler;
 import com.board.kimicetea.global.security.redis.TokenRedisService;
-import com.board.kimicetea.global.security.util.CookieUtils;
+import com.board.kimicetea.domain.user.repository.UserRepository;
+import com.board.kimicetea.global.security.oauth2.AuthorizedClientRefreshService;
+import com.board.kimicetea.global.security.oauth2.RedisOAuth2AuthorizedClientService;
+import com.board.kimicetea.global.security.session.SessionCookieUtils;
+import com.board.kimicetea.global.security.session.SessionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -76,10 +79,22 @@ class UserControllerTest {
     @MockBean private UserService userService;
     @MockBean private MbtiService mbtiService;
     @MockBean private PostService postService;
-    @MockBean private CookieUtils cookieUtils;
+    @MockBean private SessionCookieUtils sessionCookieUtils;
 
-    @MockBean private JwtProvider jwtProvider;
     @MockBean private TokenRedisService tokenRedisService;
+
+    // 세션 아키텍처 마이그레이션(memo2.md) — SecurityConfig 의존성
+    @MockBean
+    private SessionService sessionService;
+
+    @MockBean
+    private AuthorizedClientRefreshService authorizedClientRefreshService;
+
+    @MockBean
+    private RedisOAuth2AuthorizedClientService redisOAuth2AuthorizedClientService;
+
+    @MockBean
+    private UserRepository userRepository;
     @MockBean private CustomOAuth2UserService customOAuth2UserService;
     @MockBean private OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
     @MockBean private OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
@@ -421,11 +436,10 @@ class UserControllerTest {
         @DisplayName("성공 — 유효한 OTP 코드로 탈퇴 처리 → 200")
         void success() throws Exception {
             willDoNothing().given(userService)
-                    .withdraw(eq(userId), eq("test-access-token"), eq("123456"), any(HttpServletRequest.class));
-            willDoNothing().given(cookieUtils).clearRefreshTokenCookie(any(HttpServletResponse.class));
+                    .withdraw(eq(userId), eq("123456"), any(HttpServletRequest.class));
+            willDoNothing().given(sessionCookieUtils).clearSessionCookie(any(HttpServletResponse.class));
 
             mockMvc.perform(delete(ME_URL)
-                            .header("Authorization", "Bearer test-access-token")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(new WithdrawalRequest("123456"))))
                     .andExpect(status().isOk())
@@ -437,7 +451,6 @@ class UserControllerTest {
         @DisplayName("실패 — code 빈 문자열(@NotBlank 위반) → 400")
         void blankCode() throws Exception {
             mockMvc.perform(delete(ME_URL)
-                            .header("Authorization", "Bearer test-access-token")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(new WithdrawalRequest(""))))
                     .andExpect(status().isBadRequest())
@@ -448,7 +461,6 @@ class UserControllerTest {
         @DisplayName("실패 — OTP 코드 5자리(@Size min=6 위반) → 400")
         void codeTooShort() throws Exception {
             mockMvc.perform(delete(ME_URL)
-                            .header("Authorization", "Bearer test-access-token")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(new WithdrawalRequest("12345"))))
                     .andExpect(status().isBadRequest())
@@ -459,10 +471,9 @@ class UserControllerTest {
         @DisplayName("실패 — OTP 불일치 → 400")
         void invalidOtp() throws Exception {
             willThrow(new CustomException(ErrorCode.WITHDRAWAL_OTP_INVALID))
-                    .given(userService).withdraw(eq(userId), any(), any(), any(HttpServletRequest.class));
+                    .given(userService).withdraw(eq(userId), any(), any(HttpServletRequest.class));
 
             mockMvc.perform(delete(ME_URL)
-                            .header("Authorization", "Bearer test-access-token")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(new WithdrawalRequest("000000"))))
                     .andExpect(status().isBadRequest())
@@ -474,10 +485,9 @@ class UserControllerTest {
         @DisplayName("실패 — OTP 만료 → 400")
         void expiredOtp() throws Exception {
             willThrow(new CustomException(ErrorCode.WITHDRAWAL_OTP_EXPIRED))
-                    .given(userService).withdraw(eq(userId), any(), any(), any(HttpServletRequest.class));
+                    .given(userService).withdraw(eq(userId), any(), any(HttpServletRequest.class));
 
             mockMvc.perform(delete(ME_URL)
-                            .header("Authorization", "Bearer test-access-token")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(new WithdrawalRequest("123456"))))
                     .andExpect(status().isBadRequest())

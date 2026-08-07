@@ -18,7 +18,7 @@ import com.board.kimicetea.global.common.ValidationConstants;
 import com.board.kimicetea.global.common.response.ApiResponse;
 import com.board.kimicetea.global.ratelimit.RateLimit;
 import com.board.kimicetea.global.ratelimit.RateLimitEndpoints;
-import com.board.kimicetea.global.security.util.CookieUtils;
+import com.board.kimicetea.global.security.session.SessionCookieUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -40,7 +40,6 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -62,7 +61,7 @@ public class UserController {
     private final UserService userService;
     private final MbtiService mbtiService;
     private final PostService postService;
-    private final CookieUtils cookieUtils;
+    private final SessionCookieUtils sessionCookieUtils;
 
     /**
      * 내 프로필 조회
@@ -206,15 +205,13 @@ public class UserController {
     })
     @DeleteMapping("/me")
     public ResponseEntity<ApiResponse<Void>> withdraw(
-            @RequestHeader("Authorization") final String bearerToken,
             @AuthenticationPrincipal final CustomUserDetails userDetails,
             @Valid @RequestBody final WithdrawalRequest request,
             final HttpServletRequest httpRequest,
             final HttpServletResponse response) {
 
-        final String accessToken = bearerToken.substring("Bearer ".length());
-        userService.withdraw(userDetails.userId(), accessToken, request.code(), httpRequest);
-        cookieUtils.clearRefreshTokenCookie(response);
+        userService.withdraw(userDetails.userId(), request.code(), httpRequest);
+        sessionCookieUtils.clearSessionCookie(response);
         return ResponseEntity.ok(ApiResponse.ok("탈퇴 처리가 완료되었습니다."));
     }
 

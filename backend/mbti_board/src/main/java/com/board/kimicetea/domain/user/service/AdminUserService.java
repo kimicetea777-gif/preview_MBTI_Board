@@ -9,7 +9,7 @@ import com.board.kimicetea.domain.user.enums.UserState;
 import com.board.kimicetea.domain.user.repository.UserRepository;
 import com.board.kimicetea.global.common.exception.CustomException;
 import com.board.kimicetea.global.common.exception.ErrorCode;
-import com.board.kimicetea.global.security.redis.TokenRedisService;
+import com.board.kimicetea.global.security.session.SessionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,7 +28,7 @@ import java.util.UUID;
 public class AdminUserService {
 
     private final UserRepository userRepository;
-    private final TokenRedisService tokenRedisService;
+    private final SessionService sessionService;
 
     /** 이메일·상태·역할 필터로 유저 목록 페이지 조회 */
     @Transactional(readOnly = true)
@@ -66,10 +66,10 @@ public class AdminUserService {
         }
         if (request.state() != null) {
             target.changeState(request.state());
-            // 관리자 강제 탈퇴 시 PII 즉시 익명화 + 전체 기기 RT 폐기
+            // 관리자 강제 탈퇴 시 PII 즉시 익명화 + 전체 기기 세션 폐기
             if (UserState.WITHDRAWN.equals(request.state())) {
                 target.anonymize();
-                tokenRedisService.deleteAllRefreshTokens(targetId.toString());
+                sessionService.deleteAllSessions(target.getAuthServerId());
             }
         }
     }

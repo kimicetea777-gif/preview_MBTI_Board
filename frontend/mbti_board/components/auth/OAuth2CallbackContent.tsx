@@ -23,17 +23,13 @@ interface Props {
 
 export default function OAuth2CallbackContent({ error }: Props) {
   const router = useRouter();
-  const setAccessToken = useAuthStore((s) => s.setAccessToken);
+  const setLoggedIn = useAuthStore((s) => s.setLoggedIn);
 
   useEffect(() => {
     if (error) return;
 
-    const params = new URLSearchParams(window.location.hash.slice(1));
-    const accessToken = params.get("accessToken");
-    if (!accessToken) return;
-
-    // AS 로그인은 별도 체크박스가 없고 백엔드도 항상 유지 로그인으로 RT를 발급함
-    setAccessToken(accessToken, true);
+    // 백엔드가 이 리다이렉트 응답에 세션 쿠키를 이미 심었으므로 여기선 로그인 상태만 반영하고 이동
+    setLoggedIn(true);
     const raw = sessionStorage.getItem(OAUTH2_REDIRECT_KEY) ?? ROUTES.home;
     sessionStorage.removeItem(OAUTH2_REDIRECT_KEY);
     router.replace(toSafeRedirect(raw));

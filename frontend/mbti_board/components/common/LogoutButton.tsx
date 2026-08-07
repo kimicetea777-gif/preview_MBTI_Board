@@ -10,7 +10,7 @@ import { useAuthStore } from "@/store/authStore";
 export default function LogoutButton({ className }: { className?: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const setAccessToken = useAuthStore((s) => s.setAccessToken);
+  const setLoggedIn = useAuthStore((s) => s.setLoggedIn);
 
   const handleLogout = async () => {
     // 소셜 로그인이었다면 AS 세션도 같이 끝내야 다음 로그인 때 (자동 재로그인 없이) 로그인 화면이 뜬다.
@@ -18,7 +18,7 @@ export default function LogoutButton({ className }: { className?: string }) {
     try {
       ({ authServerLogoutUrl } = await logout());
     } finally {
-      setAccessToken(null);
+      setLoggedIn(false);
       queryClient.clear();
       if (authServerLogoutUrl) {
         window.location.href = authServerLogoutUrl;

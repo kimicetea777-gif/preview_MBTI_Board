@@ -1,13 +1,15 @@
 package com.board.kimicetea.global.security.config;
 
+import com.board.kimicetea.domain.user.repository.UserRepository;
 import com.board.kimicetea.global.security.handler.JwtAccessDeniedHandler;
 import com.board.kimicetea.global.security.handler.JwtAuthenticationEntryPoint;
-import com.board.kimicetea.global.security.jwt.JwtAuthenticationFilter;
-import com.board.kimicetea.global.security.jwt.JwtProvider;
+import com.board.kimicetea.global.security.oauth2.AuthorizedClientRefreshService;
 import com.board.kimicetea.global.security.oauth2.CustomOAuth2UserService;
 import com.board.kimicetea.global.security.oauth2.OAuth2AuthenticationFailureHandler;
 import com.board.kimicetea.global.security.oauth2.OAuth2AuthenticationSuccessHandler;
-import com.board.kimicetea.global.security.redis.TokenRedisService;
+import com.board.kimicetea.global.security.oauth2.RedisOAuth2AuthorizedClientService;
+import com.board.kimicetea.global.security.session.SessionAuthenticationFilter;
+import com.board.kimicetea.global.security.session.SessionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -20,6 +22,9 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.AuthorizedClientServiceOAuth2AuthorizedClientManager;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientProviderBuilder;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestCustomizers;
@@ -37,8 +42,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-        private final JwtProvider jwtProvider;
-        private final TokenRedisService tokenRedisService;
+        private final SessionService sessionService;
+        private final AuthorizedClientRefreshService authorizedClientRefreshService;
+        private final UserRepository userRepository;
         private final CustomOAuth2UserService customOAuth2UserService;
         private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
         private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
@@ -61,7 +67,6 @@ public class SecurityConfig {
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                                                 .requestMatchers(
-                                                                "/api/auth/reissue", // RT Cookie 기반 — 인증 없이 접근해야 함
                                                                 "/oauth2/**",
                                                                 "/login/oauth2/**",
                                                                 "/swagger-ui/**",
@@ -120,7 +125,8 @@ public class SecurityConfig {
                                                 .accessDeniedHandler(jwtAccessDeniedHandler))
 
                                 .addFilterBefore(
-                                                new JwtAuthenticationFilter(jwtProvider, tokenRedisService),
+                                                new SessionAuthenticationFilter(
+                                                                sessionService, authorizedClientRefreshService, userRepository),
                                                 UsernamePasswordAuthenticationFilter.class);
 
                 return http.build();
@@ -145,6 +151,22 @@ public class SecurityConfig {
         }
 
         /**
+         * 요청 스레드 밖(세션 조회로 재구성한 principalName만 있는 상황)에서 AS access token을 refresh
+         * 전용으로 갱신하기 위한 매니저 — request-aware한 DefaultOAuth2AuthorizedClientManager가 아님.
+         * AuthorizedClientRefreshService가 이 빈을 통해서만 refresh를 시도한다.
+         */
+        @Bean
+        OAuth2AuthorizedClientManager authorizedClientManager(
+                        final ClientRegistrationRepository clientRegistrationRepository,
+                        final RedisOAuth2AuthorizedClientService authorizedClientService) {
+                final AuthorizedClientServiceOAuth2AuthorizedClientManager manager =
+                                new AuthorizedClientServiceOAuth2AuthorizedClientManager(
+                                                clientRegistrationRepository, authorizedClientService);
+                manager.setAuthorizedClientProvider(OAuth2AuthorizedClientProviderBuilder.builder().refreshToken().build());
+                return manager;
+        }
+
+        /**
          * 주의: allowCredentials(true) 사용 시 allowedOrigins에 "*" 불가 — 출처 명시 필수
          * 주의: frontendUrl은 ${frontend.url} 환경변수에서 주입 — 하드코딩 금지
          */
@@ -154,7 +176,7 @@ public class SecurityConfig {
                 config.setAllowedOrigins(List.of(frontendUrl));
                 config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
                 config.setAllowedHeaders(List.of("*"));
-                config.setAllowCredentials(true); // RT 쿠키 전송을 위해 필수
+                config.setAllowCredentials(true); // 세션 쿠키 전송을 위해 필수
                 UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
                 source.registerCorsConfiguration("/**", config);
                 return source;

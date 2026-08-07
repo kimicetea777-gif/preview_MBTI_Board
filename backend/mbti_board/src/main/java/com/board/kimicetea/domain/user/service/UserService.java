@@ -23,8 +23,8 @@ import com.board.kimicetea.global.common.exception.CustomException;
 import com.board.kimicetea.global.common.exception.ErrorCode;
 import com.board.kimicetea.global.common.util.RequestUtils;
 import com.board.kimicetea.global.mail.EmailService;
-import com.board.kimicetea.global.security.jwt.JwtProvider;
 import com.board.kimicetea.global.security.redis.TokenRedisService;
+import com.board.kimicetea.global.security.session.SessionService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -53,7 +53,7 @@ public class UserService {
     private final MbtiTestHistoryRepository mbtiTestHistoryRepository;
     private final RetentionEncryptionService retentionEncryptionService;
     private final TokenRedisService tokenRedisService;
-    private final JwtProvider jwtProvider;
+    private final SessionService sessionService;
     private final EmailService emailService;
     private final AuditLogService auditLogService;
 
@@ -127,13 +127,12 @@ public class UserService {
     }
 
     /**
-     * 회원 탈퇴 — OTP 검증 후 수사 협조용 보존 로그 저장 → PII 즉시 익명화 → 전체 기기 토큰 무효화
-     * 주의: AT 블랙리스트·RT 삭제는 @Transactional 외부에서 실행 (Redis는 JPA 트랜잭션 미참여)
+     * 회원 탈퇴 — OTP 검증 후 수사 협조용 보존 로그 저장 → PII 즉시 익명화 → 전체 기기 세션 무효화
+     * 주의: 세션 삭제는 @Transactional 외부에서 실행 (Redis는 JPA 트랜잭션 미참여)
      * 주의: 보존 로그는 반드시 anonymize() 호출 전에 저장 — 익명화 후에는 원본 email 소실
      */
     @Transactional
-    public void withdraw(final UUID userId, final String accessToken,
-                         final String otpCode, final HttpServletRequest httpRequest) {
+    public void withdraw(final UUID userId, final String otpCode, final HttpServletRequest httpRequest) {
         final String savedOtp = tokenRedisService.getWithdrawalOtp(userId.toString());
         if (savedOtp == null) {
             throw new CustomException(ErrorCode.WITHDRAWAL_OTP_EXPIRED);
@@ -158,13 +157,7 @@ public class UserService {
         user.changeState(UserState.WITHDRAWN);
         user.anonymize();
 
-        tokenRedisService.deleteAllRefreshTokens(userId.toString());
-        jwtProvider.validateAndParseClaims(accessToken).ifPresent(claims -> {
-            final long remaining = jwtProvider.getRemainingExpiry(claims);
-            if (remaining > 0) {
-                tokenRedisService.addToBlacklist(claims.getId(), remaining);
-            }
-        });
+        sessionService.deleteAllSessions(user.getAuthServerId());
 
         auditLogService.record(AuditEvent.WITHDRAWAL, userId,
                 user.getRole().name(), RequestUtils.extractClientIp(httpRequest));
