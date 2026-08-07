@@ -19,7 +19,7 @@ import { useAuthStore } from "@/store/authStore";
 export default function MyLogoutAllSection() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const setAccessToken = useAuthStore((s) => s.setAccessToken);
+  const setLoggedIn = useAuthStore((s) => s.setLoggedIn);
 
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -27,7 +27,7 @@ export default function MyLogoutAllSection() {
     mutationFn: logoutAll,
     onSuccess: ({ authServerLogoutUrl }) => {
       setShowConfirm(false);
-      setAccessToken(null);
+      setLoggedIn(false);
       queryClient.clear();
       // 소셜 로그인이었다면 현재 기기의 AS 세션도 같이 끝내야 다음 로그인 때 자동 재로그인되지 않는다.
       if (authServerLogoutUrl) {

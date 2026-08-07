@@ -22,7 +22,7 @@ type WithdrawalStep = null | typeof WITHDRAWAL_STEP[keyof typeof WITHDRAWAL_STEP
 export default function MyWithdrawalSection() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const setAccessToken = useAuthStore((s) => s.setAccessToken);
+  const setLoggedIn = useAuthStore((s) => s.setLoggedIn);
 
   const [withdrawalStep, setWithdrawalStep] = useState<WithdrawalStep>(null);
   const [otpCode, setOtpCode] = useState("");
@@ -44,7 +44,7 @@ export default function MyWithdrawalSection() {
     mutationFn: () => withdraw(otpCode),
     onSuccess: () => {
       setWithdrawalStep(null);
-      setAccessToken(null);
+      setLoggedIn(false);
       queryClient.clear();
       toast.success("탈퇴가 완료되었습니다.");
       router.replace("/");

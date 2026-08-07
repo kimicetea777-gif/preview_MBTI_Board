@@ -3,37 +3,20 @@
 import { useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { subscribeAuthChannel } from "@/lib/authChannel";
-import { refreshAccessToken } from "@/lib/apiClient";
 import { ROUTES } from "@/constants/routes";
 
-/**
- * 앱 최초 마운트 시 silent refresh로 AT 복구,
- * 탭 간 BroadcastChannel로 AT/로그아웃 상태 동기화
- */
+/** 탭 간 BroadcastChannel로 로그아웃 상태를 동기화한다 — 로그인 상태 자체는 세션 힌트 쿠키에서 직접 읽으므로 마운트 시 복구 로직이 필요 없다 */
 export default function AuthSyncProvider({ children }: { children: React.ReactNode }) {
-  const setAccessToken = useAuthStore((s) => s.setAccessToken);
+  const setLoggedIn = useAuthStore((s) => s.setLoggedIn);
 
   useEffect(() => {
-    // 탭 간 동기화 구독
-    const unsubscribe = subscribeAuthChannel(
-      (token) => setAccessToken(token),
-      () => {
-        setAccessToken(null);
-        window.location.href = ROUTES.login;
-      },
-    );
-
-    // 새 탭 or 새로고침: AT가 없고 session=1 쿠키가 있으면 silent refresh 시도
-    // 주의: apiClient의 공유 refreshAccessToken()을 그대로 사용 — 401 인터셉터의 refresh와
-    //       동시에 발생해도 같은 Promise를 공유해 RT Reuse Detection 경합을 피함
-    const hasToken = useAuthStore.getState().getAccessToken();
-    const hasSession = typeof document !== "undefined" && document.cookie.split(";").some((c) => c.trim() === "session=1");
-    if (!hasToken && hasSession) {
-      refreshAccessToken().catch(() => {}); // RT 없으면 비로그인 상태로 유지
-    }
+    const unsubscribe = subscribeAuthChannel(() => {
+      setLoggedIn(false);
+      window.location.href = ROUTES.login;
+    });
 
     return unsubscribe;
-  }, [setAccessToken]);
+  }, [setLoggedIn]);
 
   return <>{children}</>;
 }

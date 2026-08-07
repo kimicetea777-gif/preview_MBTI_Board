@@ -1,45 +1,34 @@
 "use client";
 
-import { isBrowser } from "@/lib/utils";
 import { create } from "zustand";
 
-// RT 수명(7일)과 동일하게 설정 — 미들웨어가 읽는 힌트 쿠키 (보안 정보 없음)
-const SESSION_COOKIE_MAX_AGE = 604800;
-// 로그인 시 선택한 자동 로그인 여부 — silent refresh 등 rememberMe를 모르는 호출에서 재사용 (보안 정보 없음)
-const REMEMBER_ME_KEY = "rememberMe";
+const SESSION_HINT_COOKIE = "session=1";
 
-function getStoredRememberMe(): boolean {
-  if (!isBrowser()) return true;
-  return localStorage.getItem(REMEMBER_ME_KEY) !== "false";
+// 실제 세션 값은 HttpOnly 쿠키라 JS가 못 읽음 — 로그인 여부만 알려주는 비-HttpOnly 힌트 쿠키를 대신 읽는다
+// (보안 정보 없음, 서버의 SessionCookieUtils가 실제 세션 쿠키와 같이 발급/삭제)
+function hasSessionHint(): boolean {
+  return typeof document !== "undefined" && document.cookie.split(";").some((c) => c.trim() === SESSION_HINT_COOKIE);
 }
 
-/** RT 쿠키의 영속성(Max-Age 유무)과 동일하게 session 힌트 쿠키도 맞춰서 발급/삭제 */
-function setSessionCookie(active: boolean, rememberMe: boolean) {
-  if (!isBrowser()) return;
-  if (active) {
-    localStorage.setItem(REMEMBER_ME_KEY, String(rememberMe));
-    const maxAge = rememberMe ? `max-age=${SESSION_COOKIE_MAX_AGE}; ` : "";
-    document.cookie = `session=1; path=/; ${maxAge}SameSite=Lax`;
-  } else {
-    localStorage.removeItem(REMEMBER_ME_KEY);
-    document.cookie = "session=; path=/; max-age=0; SameSite=Lax";
-  }
+// 서버가 세션을 강제로 끊었지만(밴 등) 이 브라우저에 Set-Cookie로 알려줄 기회가 없었던 경우를 대비해
+// 로그아웃으로 확정되는 시점엔 힌트 쿠키도 클라이언트에서 같이 지운다 — 안 지우면 다음 새로고침 때
+// hasSessionHint()가 여전히 true를 읽어 "로그인됨" UI가 잠깐 다시 뜨는 문제가 생김
+function clearSessionHint() {
+  if (typeof document === "undefined") return;
+  document.cookie = "session=; path=/; max-age=0; SameSite=Lax";
 }
 
 interface AuthState {
-  accessToken: string | null;
-  /** rememberMe 생략 시(silent refresh 등) 로그인 시점에 저장된 값을 재사용 */
-  setAccessToken: (token: string | null, rememberMe?: boolean) => void;
-  getAccessToken: () => string | null;
+  loggedIn: boolean;
+  setLoggedIn: (loggedIn: boolean) => void;
   isLoggedIn: () => boolean;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
-  accessToken: null,
-  setAccessToken: (token, rememberMe) => {
-    setSessionCookie(token !== null, rememberMe ?? getStoredRememberMe());
-    set({ accessToken: token });
+  loggedIn: hasSessionHint(),
+  setLoggedIn: (loggedIn) => {
+    if (!loggedIn) clearSessionHint();
+    set({ loggedIn });
   },
-  getAccessToken: () => get().accessToken,
-  isLoggedIn: () => !!get().accessToken,
+  isLoggedIn: () => get().loggedIn,
 }));

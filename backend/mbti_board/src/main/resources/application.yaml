@@ -83,6 +83,11 @@ jwt:
   access-expiry: 1800000 # 30분 (ms)
   refresh-expiry: 604800000 # 7일 (ms)
 
+# AS의 refresh token 수명은 프레임워크 기본값이라 명시적 상수가 없음(connect_manual.md 실측: 30일,
+# 매 refresh마다 rotation) — 세션/AC Redis 엔트리 TTL 계산에 씀
+authserver:
+  refresh-token-ttl-days: 30
+
 frontend:
   url: ${FRONTEND_URL:http://localhost:4000}
 

@@ -9,10 +9,10 @@ import { useHasMounted } from "@/hooks/useHasMounted";
 import Logo from "./Logo";
 
 export default function Header() {
-  const accessToken = useAuthStore((s) => s.accessToken);
+  const loggedIn = useAuthStore((s) => s.loggedIn);
   const openDrawer = useNavStore((s) => s.openDrawer);
-  // 서버 렌더·클라이언트 첫 렌더는 항상 비로그인 상태로 고정 — silent refresh로 복구된
-  // accessToken이 하이드레이션 커밋보다 먼저 반영돼 발생하는 하이드레이션 불일치 방지
+  // 서버 렌더·클라이언트 첫 렌더는 항상 비로그인 상태로 고정 — 세션 힌트 쿠키로 복구된 로그인 상태가
+  // 하이드레이션 커밋보다 먼저 반영돼 발생하는 하이드레이션 불일치 방지
   const mounted = useHasMounted();
 
   return (
@@ -51,7 +51,7 @@ export default function Header() {
 
         {/* Actions */}
         <div className="flex-1 flex items-center justify-end gap-1">
-          {mounted && accessToken ? (
+          {mounted && loggedIn ? (
             <Link
               href={ROUTES.my}
               className="p-2 rounded-full text-on-surface-variant hover:bg-accent transition-colors"

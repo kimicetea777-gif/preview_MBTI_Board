@@ -92,8 +92,8 @@ function NavContent({ pathname, currentType, onNavClick, collapsed = false }: {
   collapsed?: boolean;
 }) {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn());
-  // 서버 렌더·클라이언트 첫 렌더는 항상 비로그인 상태로 고정 — silent refresh로 복구된
-  // accessToken이 이 Suspense 서브트리의 하이드레이션보다 먼저 반영돼 발생하는 하이드레이션 불일치 방지
+  // 서버 렌더·클라이언트 첫 렌더는 항상 비로그인 상태로 고정 — 세션 힌트 쿠키로 복구된 로그인 상태가
+  // 이 Suspense 서브트리의 하이드레이션보다 먼저 반영돼 발생하는 하이드레이션 불일치 방지
   const mounted = useHasMounted();
 
   return (

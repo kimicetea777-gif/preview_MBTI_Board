@@ -8,11 +8,14 @@ import com.board.kimicetea.global.image.service.ImageCleanupService;
 import com.board.kimicetea.global.image.service.ImageService;
 import com.board.kimicetea.global.security.handler.JwtAccessDeniedHandler;
 import com.board.kimicetea.global.security.handler.JwtAuthenticationEntryPoint;
-import com.board.kimicetea.global.security.jwt.JwtProvider;
 import com.board.kimicetea.global.security.oauth2.CustomOAuth2UserService;
 import com.board.kimicetea.global.security.oauth2.OAuth2AuthenticationFailureHandler;
 import com.board.kimicetea.global.security.oauth2.OAuth2AuthenticationSuccessHandler;
 import com.board.kimicetea.global.security.redis.TokenRedisService;
+import com.board.kimicetea.domain.user.repository.UserRepository;
+import com.board.kimicetea.global.security.oauth2.AuthorizedClientRefreshService;
+import com.board.kimicetea.global.security.oauth2.RedisOAuth2AuthorizedClientService;
+import com.board.kimicetea.global.security.session.SessionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -64,10 +67,20 @@ class ImageControllerTest {
 
     // SecurityConfig 의존성 — @WebMvcTest가 Security 설정을 로드하므로 필수
     @MockBean
-    private JwtProvider jwtProvider;
+    private TokenRedisService tokenRedisService;
+
+    // 세션 아키텍처 마이그레이션(memo2.md) — SecurityConfig 의존성
+    @MockBean
+    private SessionService sessionService;
 
     @MockBean
-    private TokenRedisService tokenRedisService;
+    private AuthorizedClientRefreshService authorizedClientRefreshService;
+
+    @MockBean
+    private RedisOAuth2AuthorizedClientService redisOAuth2AuthorizedClientService;
+
+    @MockBean
+    private UserRepository userRepository;
 
     @MockBean
     private CustomOAuth2UserService customOAuth2UserService;
