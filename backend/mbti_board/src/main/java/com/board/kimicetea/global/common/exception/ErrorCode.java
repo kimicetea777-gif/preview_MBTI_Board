@@ -27,9 +27,6 @@ public enum ErrorCode {
     // User
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 사용자입니다."),
     MBTI_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 MBTI입니다."),
-    WITHDRAWAL_OTP_INVALID(HttpStatus.BAD_REQUEST, "인증 코드가 올바르지 않습니다."),
-    WITHDRAWAL_OTP_EXPIRED(HttpStatus.BAD_REQUEST, "인증 코드가 만료되었습니다. 다시 요청해 주세요."),
-    WITHDRAWAL_OTP_MAX_ATTEMPTS(HttpStatus.BAD_REQUEST, "인증 코드가 만료되었습니다. 새로운 인증 코드를 요청해 주세요."),
     INTERNAL_KEY_INVALID(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
     ACCOUNT_LOCKED(HttpStatus.FORBIDDEN, "계정이 잠겨 있습니다."),
     ACCOUNT_BANNED(HttpStatus.FORBIDDEN, "정지된 계정입니다."),

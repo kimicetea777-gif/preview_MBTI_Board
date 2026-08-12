@@ -11,8 +11,10 @@ class TiptapContentParserTest {
     private static final String R2_URL = "https://r2.example.com";
     private static final String PLACEHOLDER = TiptapContentParser.PLACEHOLDER_PREFIX;
 
-    private static final String VALID_IMAGE_KEY = "images/550e8400-e29b-41d4-a716-446655440000.webp";
-    private static final String VALID_IMAGE_KEY_2 = "images/6ba7b810-9dad-11d1-80b4-00c04fd430c8.webp";
+    private static final String VALID_IMAGE_KEY = "mbti_board/550e8400-e29b-41d4-a716-446655440000.webp";
+    private static final String VALID_IMAGE_KEY_2 = "mbti_board/6ba7b810-9dad-11d1-80b4-00c04fd430c8.webp";
+    private static final String VALID_IMAGE_ID = "550e8400-e29b-41d4-a716-446655440000";
+    private static final String VALID_IMAGE_ID_2 = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
 
     // ── 공통 JSON 픽스처 ──────────────────────────────────────────────
 
@@ -126,9 +128,63 @@ class TiptapContentParserTest {
         @Test
         @DisplayName("위조된 경로(패턴 불일치)는 포함하지 않는다")
         void invalidKeyPattern_excluded() {
-            final String content = imageDoc(PLACEHOLDER + "images/../../etc/passwd");
+            final String content = imageDoc(PLACEHOLDER + "mbti_board/../../etc/passwd");
 
             assertThat(TiptapContentParser.extractImageKeys(content, 5)).isNull();
+        }
+    }
+
+    // ── extractImageIds ───────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("extractImageIds — Image Server id 추출")
+    class ExtractImageIds {
+
+        @Test
+        @DisplayName("null 입력이면 빈 Set을 반환한다")
+        void null_returnsEmpty() {
+            assertThat(TiptapContentParser.extractImageIds(null, R2_URL)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("플레이스홀더 형식의 src에서 id를 추출한다 (저장된 content)")
+        void placeholderSrc_idExtracted() {
+            final String content = imageDoc(PLACEHOLDER + VALID_IMAGE_KEY);
+
+            assertThat(TiptapContentParser.extractImageIds(content, R2_URL)).containsExactly(VALID_IMAGE_ID);
+        }
+
+        @Test
+        @DisplayName("원본 R2 URL 형식의 src에서 id를 추출한다 (저장 전 raw content)")
+        void rawUrlSrc_idExtracted() {
+            final String content = imageDoc(R2_URL + "/" + VALID_IMAGE_KEY);
+
+            assertThat(TiptapContentParser.extractImageIds(content, R2_URL)).containsExactly(VALID_IMAGE_ID);
+        }
+
+        @Test
+        @DisplayName("여러 이미지의 id를 모두 추출한다")
+        void multipleImages_allIdsExtracted() {
+            final String content = imageDoc(PLACEHOLDER + VALID_IMAGE_KEY, R2_URL + "/" + VALID_IMAGE_KEY_2);
+
+            assertThat(TiptapContentParser.extractImageIds(content, R2_URL))
+                    .containsExactlyInAnyOrder(VALID_IMAGE_ID, VALID_IMAGE_ID_2);
+        }
+
+        @Test
+        @DisplayName("외부 이미지 URL은 포함하지 않는다")
+        void externalUrl_excluded() {
+            final String content = imageDoc("https://external.com/image.png");
+
+            assertThat(TiptapContentParser.extractImageIds(content, R2_URL)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("위조된 경로(패턴 불일치)는 포함하지 않는다")
+        void invalidKeyPattern_excluded() {
+            final String content = imageDoc(PLACEHOLDER + "mbti_board/../../etc/passwd");
+
+            assertThat(TiptapContentParser.extractImageIds(content, R2_URL)).isEmpty();
         }
     }
 

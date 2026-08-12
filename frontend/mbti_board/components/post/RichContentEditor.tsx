@@ -19,7 +19,7 @@ interface Props {
   initialContent?: string;
   onChange: (json: string) => void;
   placeholder?: string;
-  onUpload?: (url: string) => void;
+  onUpload?: (id: string, url: string) => void;
   onUploadingChange?: (count: number) => void;
 }
 
@@ -132,6 +132,10 @@ function YoutubeNodeView({ node, deleteNode }: NodeViewProps) {
 }
 
 const CustomImage = Image.extend({
+  // 노드 셀렉션을 막아서 이미지를 클릭해도 통째로 "잡히지" 않게 함
+  // (선택된 상태에서 타이핑하면 ProseMirror가 선택 노드를 지우고 그 자리에 텍스트를 넣는 기본 동작 때문에
+  //  이미지가 삭제되던 문제 — 삭제/리사이즈 버튼은 NodeView의 자체 클릭 핸들러라 영향 없음)
+  selectable: false,
   addAttributes() {
     return {
       ...this.parent?.(),
@@ -253,8 +257,8 @@ function RichContentEditorInner({ initialContent, onChange, placeholder, onUploa
     onUploadingChange?.(uploadingCountRef.current);
 
     try {
-      // Next.js -> spring -> R2에 저장된 URL
-      const r2Url = await uploadImage(file);
+      // Next.js -> Image Server에 저장된 id/URL
+      const { id, url: r2Url } = await uploadImage(file);
 
       if (!editor.isDestroyed) {
         const tr = editor.state.tr;
@@ -267,7 +271,7 @@ function RichContentEditorInner({ initialContent, onChange, placeholder, onUploa
         editor.view.dispatch(tr);
       }
 
-      onUpload?.(r2Url);
+      onUpload?.(id, r2Url);
     } catch {
       if (!editor.isDestroyed) {
         const tr = editor.state.tr;

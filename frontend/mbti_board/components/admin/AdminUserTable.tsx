@@ -23,6 +23,7 @@ import type { UserSortField, SortDir } from "@/types/admin";
 
 const STATE_OPTIONS: UserState[] = [
   "NORMAL", "PENDING", "INACTIVE", "WITHDRAWN", "LOCKED", "SHADOW_BANNED", "PERMANENT_BAN",
+  "MEMBERSHIP_WITHDRAWAL_PENDING",
 ];
 const ROLE_OPTIONS: UserRole[] = ["ADMIN", "TESTER", "USER", "GUEST"];
 const SORT_FIELD_OPTIONS: UserSortField[] = [

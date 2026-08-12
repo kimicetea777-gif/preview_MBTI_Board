@@ -14,6 +14,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   ACCOUNT_BANNED: "이용이 제한된 계정입니다. 관리자에게 문의해 주세요.",
   ACCOUNT_INACTIVE: "비활성화된 계정입니다. 관리자에게 문의해 주세요.",
   ACCOUNT_WITHDRAWN: "탈퇴한 계정입니다. 다시 로그인하면 재가입할 수 있습니다.",
+  ACCOUNT_WITHDRAWAL_PENDING: "연동이 해제된 계정입니다. 계정 관리 페이지에서 다시 연결하면 그대로 복구됩니다. 계정 복구까지 최대 하루 정도 걸릴 수 있습니다.",
   OAUTH2_ERROR: "로그인 중 오류가 발생했습니다.",
 };
 

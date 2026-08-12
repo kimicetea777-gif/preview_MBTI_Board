@@ -3,11 +3,11 @@ package com.board.kimicetea.global.security.config;
 import com.board.kimicetea.domain.user.repository.UserRepository;
 import com.board.kimicetea.global.security.handler.JwtAccessDeniedHandler;
 import com.board.kimicetea.global.security.handler.JwtAuthenticationEntryPoint;
+import com.board.kimicetea.global.security.oauth2.AppRoleSyncService;
 import com.board.kimicetea.global.security.oauth2.AuthorizedClientRefreshService;
 import com.board.kimicetea.global.security.oauth2.CustomOAuth2UserService;
 import com.board.kimicetea.global.security.oauth2.OAuth2AuthenticationFailureHandler;
 import com.board.kimicetea.global.security.oauth2.OAuth2AuthenticationSuccessHandler;
-import com.board.kimicetea.global.security.oauth2.RedisOAuth2AuthorizedClientService;
 import com.board.kimicetea.global.security.session.SessionAuthenticationFilter;
 import com.board.kimicetea.global.security.session.SessionService;
 import lombok.RequiredArgsConstructor;
@@ -22,9 +22,6 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.client.AuthorizedClientServiceOAuth2AuthorizedClientManager;
-import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
-import org.springframework.security.oauth2.client.OAuth2AuthorizedClientProviderBuilder;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestCustomizers;
@@ -45,6 +42,7 @@ public class SecurityConfig {
         private final SessionService sessionService;
         private final AuthorizedClientRefreshService authorizedClientRefreshService;
         private final UserRepository userRepository;
+        private final AppRoleSyncService appRoleSyncService;
         private final CustomOAuth2UserService customOAuth2UserService;
         private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
         private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
@@ -97,9 +95,6 @@ public class SecurityConfig {
                                                 // MBTI 메타데이터·문항 조회는 완전 공개 (GET 전용)
                                                 .requestMatchers(HttpMethod.GET, "/api/mbti", "/api/mbti/**")
                                                 .permitAll()
-                                                // 이미지 업로드: Security는 permitAll — 실제 인증은 X-Internal-Key 헤더로 컨트롤러에서 처리
-                                                .requestMatchers(HttpMethod.POST, "/api/images/upload").permitAll()
-                                                .requestMatchers(HttpMethod.DELETE, "/api/images").permitAll()
                                                 // 게시글·댓글 작성·수정·삭제는 비회원도 허용 (서비스 레이어에서 회원/비회원 분기)
                                                 // 투표·토론 게시글 작성은 회원 전용 — anyRequest().authenticated()에 위임
                                                 .requestMatchers(HttpMethod.POST, "/api/posts", "/api/posts/*/comments")
@@ -126,7 +121,7 @@ public class SecurityConfig {
 
                                 .addFilterBefore(
                                                 new SessionAuthenticationFilter(
-                                                                sessionService, authorizedClientRefreshService, userRepository),
+                                                                sessionService, authorizedClientRefreshService, userRepository, appRoleSyncService),
                                                 UsernamePasswordAuthenticationFilter.class);
 
                 return http.build();
@@ -148,22 +143,6 @@ public class SecurityConfig {
         @Bean
         PasswordEncoder passwordEncoder() {
                 return new BCryptPasswordEncoder();
-        }
-
-        /**
-         * 요청 스레드 밖(세션 조회로 재구성한 principalName만 있는 상황)에서 AS access token을 refresh
-         * 전용으로 갱신하기 위한 매니저 — request-aware한 DefaultOAuth2AuthorizedClientManager가 아님.
-         * AuthorizedClientRefreshService가 이 빈을 통해서만 refresh를 시도한다.
-         */
-        @Bean
-        OAuth2AuthorizedClientManager authorizedClientManager(
-                        final ClientRegistrationRepository clientRegistrationRepository,
-                        final RedisOAuth2AuthorizedClientService authorizedClientService) {
-                final AuthorizedClientServiceOAuth2AuthorizedClientManager manager =
-                                new AuthorizedClientServiceOAuth2AuthorizedClientManager(
-                                                clientRegistrationRepository, authorizedClientService);
-                manager.setAuthorizedClientProvider(OAuth2AuthorizedClientProviderBuilder.builder().refreshToken().build());
-                return manager;
         }
 
         /**

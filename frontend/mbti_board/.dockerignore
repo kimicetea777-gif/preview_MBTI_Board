@@ -5,4 +5,3 @@ CLAUDE.md
 AGENTS.md
 *.tsbuildinfo
 .env.development
-.env.development.local

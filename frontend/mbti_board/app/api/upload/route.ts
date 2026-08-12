@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import sharp from "sharp";
 import { ALLOWED_IMAGE_TYPES, ALLOWED_IMAGE_TYPES_LABEL, MAX_IMAGE_BYTES, MAX_IMAGE_BYTES_LABEL } from "@/constants/imageUpload";
-
-const MAX_WIDTH = 1280;
 
 function fail(message: string, status = 400) {
   return NextResponse.json({ success: false, message }, { status });
@@ -22,39 +19,22 @@ export async function POST(req: NextRequest) {
   if (file.size > MAX_IMAGE_BYTES) return fail(`이미지 크기는 ${MAX_IMAGE_BYTES_LABEL}를 초과할 수 없습니다.`);
 
   try {
-    const input = Buffer.from(await file.arrayBuffer());
-
-    const processed = await sharp(input, { limitInputPixels: 16000 * 16000 })
-      .rotate()
-      .resize({
-        width: MAX_WIDTH,
-        withoutEnlargement: true,
-      })
-      .webp({
-        quality: 85,
-        effort: 4,
-      })
-      .toBuffer();
-
     const upstream = new FormData();
-    upstream.append("file", new Blob([new Uint8Array(processed)], { type: "image/webp" }), "image.webp");
+    upstream.append("file", file, file.name);
 
-    const upstreamRes = await fetch(
-      `${process.env.BACKEND_INTERNAL_URL}/api/images/upload`,
-      {
-        method: "POST",
-        headers: { "X-Internal-Key": process.env.INTERNAL_API_KEY ?? "" },
-        body: upstream,
-      }
-    );
+    const upstreamRes = await fetch(`${process.env.IMAGE_SERVER_URL}/images`, {
+      method: "POST",
+      headers: { "X-Api-Key": process.env.IMAGE_SERVER_API_KEY ?? "" },
+      body: upstream,
+    });
 
     if (!upstreamRes.ok) return fail("이미지 업로드에 실패했습니다.", 500);
 
     const json = await upstreamRes.json();
-    const url = json?.data?.url;
-    if (!url) return fail("이미지 업로드에 실패했습니다.", 500);
+    const { id, url } = json ?? {};
+    if (!id || !url) return fail("이미지 업로드에 실패했습니다.", 500);
 
-    return NextResponse.json({ success: true, data: { url } });
+    return NextResponse.json({ success: true, data: { id, url } });
   } catch {
     return fail("이미지 처리 중 오류가 발생했습니다.", 500);
   }

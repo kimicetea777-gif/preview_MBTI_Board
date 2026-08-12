@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { FiX, FiTrash2, FiRotateCcw } from "react-icons/fi";
+import { FiX, FiTrash2, FiRotateCcw, FiCopy, FiCheck, FiExternalLink } from "react-icons/fi";
 import { useAdminUpdateUser } from "@/hooks/useAdmin";
+import { AUTH_SERVER_URL } from "@/constants/site";
 import { getMbtiColor } from "@/constants/mbtiData";
 import { USER_ROLE, MBTI_VERIFIED_META } from "@/types/user";
 import type { UserRole, UserState } from "@/types/user";
@@ -15,6 +16,7 @@ import type { AdminUserSummaryResponse } from "@/types/admin";
 
 const STATE_OPTIONS: UserState[] = [
   "NORMAL", "PENDING", "INACTIVE", "WITHDRAWN", "LOCKED", "SHADOW_BANNED", "PERMANENT_BAN",
+  "MEMBERSHIP_WITHDRAWAL_PENDING",
 ];
 const ROLE_OPTIONS: UserRole[] = ["ADMIN", "TESTER", "USER", "GUEST"];
 
@@ -34,8 +36,17 @@ function AdminUserDrawerContent({ user, onClose }: { user: AdminUserSummaryRespo
   const [draftRole, setDraftRole] = useState<UserRole>(user.role);
   const [draftState, setDraftState] = useState<UserState>(user.state);
   const [clearProfileImage, setClearProfileImage] = useState(false);
+  const [idCopied, setIdCopied] = useState(false);
 
   const updateUser = useAdminUpdateUser();
+
+  async function handleCopyId() {
+    try {
+      await navigator.clipboard.writeText(user.authServerId);
+      setIdCopied(true);
+      setTimeout(() => setIdCopied(false), 1500);
+    } catch { }
+  }
 
   const nicknameChanged = draftNickname.trim() !== user.nickname;
   const roleChanged = draftRole !== user.role;
@@ -112,6 +123,19 @@ function AdminUserDrawerContent({ user, onClose }: { user: AdminUserSummaryRespo
 
           {/* 읽기 전용 정보 */}
           <dl className="rounded-lg border border-outline-variant divide-y divide-outline-variant text-xs">
+            <div className="flex items-center justify-between gap-2 px-3 py-2">
+              <dt className="text-on-surface-variant shrink-0">AS 유저 ID</dt>
+              <dd className="flex min-w-0 items-center gap-1.5">
+                <span className="truncate font-mono text-[11px] text-on-surface" title={user.authServerId}>{user.authServerId}</span>
+                <button
+                  onClick={handleCopyId}
+                  title="복사"
+                  className="shrink-0 text-on-surface-variant hover:text-on-surface"
+                >
+                  {idCopied ? <FiCheck size={12} /> : <FiCopy size={12} />}
+                </button>
+              </dd>
+            </div>
             <div className="flex justify-between px-3 py-2">
               <dt className="text-on-surface-variant">로그인 방식</dt>
               <dd className="font-medium text-on-surface">{user.isSocialLogin ? "소셜 로그인" : "로컬 로그인"}</dd>
@@ -131,6 +155,16 @@ function AdminUserDrawerContent({ user, onClose }: { user: AdminUserSummaryRespo
               </dd>
             </div>
           </dl>
+
+          <a
+            href={`${AUTH_SERVER_URL}/admin/membership?userId=${user.authServerId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 rounded-md border border-outline-variant px-3 py-1.5 text-xs text-on-surface-variant hover:bg-surface-container-low"
+          >
+            <FiExternalLink size={13} />
+            AS 어드민에서 조회
+          </a>
 
           <hr className="border-outline-variant" />
 

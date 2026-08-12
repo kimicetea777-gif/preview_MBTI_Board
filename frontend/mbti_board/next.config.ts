@@ -25,14 +25,12 @@ const nextConfig: NextConfig = {
       { source: "/board/debate", destination: "/board?type=DEBATE", permanent: true },
     ];
   },
-  // Sharp는 네이티브 바이너리 — 번들에 포함하지 않고 런타임에 require
-  serverExternalPackages: ["sharp"],
-
   images: {
     remotePatterns: [
       {
+        // Image Server가 쓰는 R2 버킷의 공개 도메인(Image_Server/.env의 R2_PUBLIC_URL과 동일)
         protocol: 'https',
-        hostname: 'pub-c18e48534e75482194072aa82c9bca99.r2.dev',
+        hostname: 'pub-383c55ebe6ff4daeb2c6b3fa5ffa48b9.r2.dev',
       },
     ],
   },

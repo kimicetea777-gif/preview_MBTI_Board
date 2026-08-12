@@ -51,7 +51,7 @@ export default function SiteNav() {
           >
             {sidebarCollapsed ? <MdChevronRight size={18} /> : <MdChevronLeft size={18} />}
           </button>
-          {!sidebarCollapsed && <Logo size="md" />}
+          <Logo size={sidebarCollapsed ? "icon" : "md"} />
         </div>
         <div className="rounded-2xl border border-outline-variant bg-card px-3 py-4">
           <nav className="flex flex-col">
@@ -67,7 +67,7 @@ export default function SiteNav() {
           <div className="fixed inset-0 z-60 bg-black/40" onClick={closeDrawer} />
           <div className="fixed top-3 left-3 bottom-1 z-70 w-50 max-h-[calc(100vh-2rem)] bg-background shadow-xl flex flex-col rounded-3xl overflow-hidden">
             <div className="flex items-center justify-between px-4 h-16 border-outline-variant shrink-0">
-              <Logo size="md"/>
+              <Logo size="sm"/>
               <button
                 onClick={closeDrawer}
                 className="p-2 rounded-full text-on-surface-variant hover:bg-accent transition-colors"

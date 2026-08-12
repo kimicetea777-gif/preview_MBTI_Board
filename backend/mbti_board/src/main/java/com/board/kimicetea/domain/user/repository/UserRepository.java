@@ -27,6 +27,9 @@ public interface UserRepository extends JpaRepository<User, UUID>, UserRepositor
 
     long countByState(UserState state);
 
+    /** MembershipWithdrawalFinalizeService — 유예기간이 지난 MEMBERSHIP_WITHDRAWAL_PENDING 유저 조회 */
+    List<User> findByStateAndMembershipWithdrawnAtBefore(UserState state, Instant cutoff);
+
     @Modifying(clearAutomatically = true)
     @Query("DELETE FROM User u WHERE u.state = :state")
     void bulkDeleteByState(@Param("state") UserState state);

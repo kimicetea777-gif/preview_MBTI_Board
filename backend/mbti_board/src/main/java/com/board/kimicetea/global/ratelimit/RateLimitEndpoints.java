@@ -11,5 +11,4 @@ public final class RateLimitEndpoints {
     }
 
     public static final String NICKNAME_CHECK = "nickname-check";
-    public static final String UPLOAD = "upload";
 }

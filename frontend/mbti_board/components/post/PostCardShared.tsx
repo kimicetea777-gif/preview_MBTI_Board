@@ -19,11 +19,11 @@ export function DebateBar({ proLabel, conLabel, proCount, conCount, isClosed }: 
   return (
     <div className="mt-2 space-y-1">
       <DebateProgressBar proPct={proPct} conPct={conPct} height="h-2" />
-      <div className="flex justify-between text-xs text-on-surface-variant">
-        <span className="text-chart-1">{proLabel} <span className="font-bold">{proPct}%</span></span>
-        <span className="flex items-center gap-1 text-primary">
+      <div className="flex justify-between gap-2 text-xs text-on-surface-variant">
+        <span className="text-chart-1 truncate min-w-0">{proLabel} <span className="font-bold">{proPct}%</span></span>
+        <span className="flex items-center gap-1 text-primary shrink-0 min-w-0">
           {isClosed && <span className="text-muted-foreground">[마감]</span>}
-          {conLabel} <span className="font-bold">{conPct}%</span>
+          <span className="truncate">{conLabel}</span> <span className="font-bold shrink-0">{conPct}%</span>
         </span>
       </div>
     </div>

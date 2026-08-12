@@ -43,7 +43,6 @@ public abstract class IntegrationTestSupport {
     // User
     protected static final String ME_URL               = "/api/users/me";
     protected static final String MY_POSTS_URL         = "/api/users/me/posts";
-    protected static final String WITHDRAWAL_VERIFY_URL = "/api/users/me/withdrawal-verify";
     protected static final String PASSWORD_URL         = "/api/users/me/password";
     protected static final String USER_URL             = "/api/users/";
 

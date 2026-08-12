@@ -11,6 +11,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -29,9 +31,13 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
+    private static final String REGISTRATION_ID = "thebluebutter";
+
     private final UserRepository userRepository;
     private final SessionService sessionService;
     private final SessionCookieUtils sessionCookieUtils;
+    private final OAuth2AuthorizedClientService authorizedClientService;
+    private final AppRoleSyncService appRoleSyncService;
 
     @Value("${frontend.url}")
     private String frontendUrl;
@@ -48,6 +54,14 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         final UUID authServerId = UUID.fromString(oidcUser.getSubject());
         final User user = userRepository.findByAuthServerId(authServerId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 로그인 시점에 막 발급된 access token의 app_role을 반영해둔다 — 안 하면 다음 refresh(최대
+        // access token TTL 이후)까지는 세션이 예전 로컬 role로 부트스트랩된 채 남는다.
+        final OAuth2AuthorizedClient authorizedClient =
+                authorizedClientService.loadAuthorizedClient(REGISTRATION_ID, authServerId.toString());
+        if (authorizedClient != null) {
+            appRoleSyncService.syncFromAccessToken(user, authorizedClient.getAccessToken().getTokenValue());
+        }
 
         final String deviceId = UUID.randomUUID().toString();
         final String sessionId = sessionService.createSession(user, deviceId, oidcUser.getIdToken().getTokenValue());

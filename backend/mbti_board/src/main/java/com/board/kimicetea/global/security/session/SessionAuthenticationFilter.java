@@ -4,6 +4,7 @@ import com.board.kimicetea.domain.user.entity.User;
 import com.board.kimicetea.domain.user.repository.UserRepository;
 import com.board.kimicetea.domain.user.security.CustomUserDetails;
 import com.board.kimicetea.global.alert.AlertMarkers;
+import com.board.kimicetea.global.security.oauth2.AppRoleSyncService;
 import com.board.kimicetea.global.security.oauth2.AuthorizedClientRefreshService;
 import com.board.kimicetea.global.security.oauth2.AuthorizedClientRefreshUnavailableException;
 import jakarta.servlet.FilterChain;
@@ -15,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -37,6 +39,7 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
     private final SessionService sessionService;
     private final AuthorizedClientRefreshService authorizedClientRefreshService;
     private final UserRepository userRepository;
+    private final AppRoleSyncService appRoleSyncService;
 
     @Override
     protected void doFilterInternal(final HttpServletRequest request,
@@ -78,7 +81,7 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
         }
 
         final SessionService.SessionData effective = outcome.refreshed()
-                ? refreshRoleAndBlocked(sessionId, data)
+                ? refreshRoleAndBlocked(sessionId, data, outcome.authorizedClient())
                 : data;
 
         if (effective.blocked()) {
@@ -90,13 +93,18 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
         registerAuthentication(effective);
     }
 
-    /** AS 토큰이 실제로 refresh된 요청에서만 호출 — 로컬 User를 다시 읽어 role/차단여부 캐시를 갱신 */
-    private SessionService.SessionData refreshRoleAndBlocked(final String sessionId, final SessionService.SessionData current) {
+    /**
+     * AS 토큰이 실제로 refresh된 요청에서만 호출 — 로컬 User를 다시 읽고, 갱신된 access token의
+     * app_role claim이 있으면 로컬 role에 반영한 뒤(AppRoleSyncService) role/차단여부 캐시를 갱신한다.
+     */
+    private SessionService.SessionData refreshRoleAndBlocked(final String sessionId, final SessionService.SessionData current,
+                                                              final OAuth2AuthorizedClient authorizedClient) {
         final User user = userRepository.findById(current.userId()).orElse(null);
         if (user == null) {
             return current;
         }
-        final String role = user.getRole().name();
+        final String accessTokenValue = authorizedClient.getAccessToken().getTokenValue();
+        final String role = appRoleSyncService.syncFromAccessToken(user, accessTokenValue).name();
         final boolean blocked = user.getState().isBlocked();
         sessionService.updateRoleAndBlocked(sessionId, current, role, blocked);
         return new SessionService.SessionData(

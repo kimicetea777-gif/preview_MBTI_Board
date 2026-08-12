@@ -124,12 +124,12 @@ function CommentItem({ comment, postId, isReply = false, debateStance, proLabel,
   };
 
   const commentBody = (
-    <div className={isReply ? "p-6" : ""}>
-      <header className="flex justify-between items-start mb-4">
-        <div className="flex items-center gap-3">
-          <MbtiBadge mbti={comment.authorMbtiId} verified={comment.mbtiVerified} />
-            <p className="text-sm font-semibold text-primary">{comment.authorNickname}</p>
-            <time className="text-xs text-on-surface-variant" dateTime={comment.createdAt}>
+    <div className={isReply ? "p-3" : ""}>
+      <header className="flex justify-between items-start mb-4 gap-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <MbtiBadge mbti={comment.authorMbtiId} verified={comment.mbtiVerified} className="shrink-0" />
+            <p className="text-sm font-semibold text-primary truncate">{comment.authorNickname}</p>
+            <time className="text-xs text-on-surface-variant shrink-0" dateTime={comment.createdAt}>
               {formatRelativeTime(comment.createdAt)}
             </time>
         </div>

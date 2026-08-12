@@ -11,19 +11,15 @@ import com.board.kimicetea.domain.user.dto.NicknameCheckResponse;
 import com.board.kimicetea.domain.user.dto.UpdateProfileRequest;
 import com.board.kimicetea.domain.user.dto.UserActivityStatsResponse;
 import com.board.kimicetea.domain.user.dto.UserProfileResponse;
-import com.board.kimicetea.domain.user.dto.WithdrawalRequest;
 import com.board.kimicetea.domain.user.security.CustomUserDetails;
 import com.board.kimicetea.domain.user.service.UserService;
 import com.board.kimicetea.global.common.ValidationConstants;
 import com.board.kimicetea.global.common.response.ApiResponse;
 import com.board.kimicetea.global.ratelimit.RateLimit;
 import com.board.kimicetea.global.ratelimit.RateLimitEndpoints;
-import com.board.kimicetea.global.security.session.SessionCookieUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -34,11 +30,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -61,7 +55,6 @@ public class UserController {
     private final UserService userService;
     private final MbtiService mbtiService;
     private final PostService postService;
-    private final SessionCookieUtils sessionCookieUtils;
 
     /**
      * 내 프로필 조회
@@ -175,44 +168,6 @@ public class UserController {
             @AuthenticationPrincipal final CustomUserDetails userDetails) {
 
         return ResponseEntity.ok(ApiResponse.ok(userService.getMyActivityStats(userDetails.userId())));
-    }
-
-    /**
-     * 탈퇴 OTP 발송 — 가입된 이메일로 6자리 인증 코드 전송 (유효 시간 3분)
-     */
-    @Operation(summary = "탈퇴 인증 코드 발송", description = "가입 이메일로 6자리 OTP를 발송합니다. 3분 이내에 탈퇴 요청에 포함해야 합니다.")
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "인증 코드 발송 완료"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
-    })
-    @PostMapping("/me/withdrawal-verify")
-    public ResponseEntity<ApiResponse<Void>> sendWithdrawalOtp(
-            @AuthenticationPrincipal final CustomUserDetails userDetails) {
-
-        userService.sendWithdrawalOtp(userDetails.userId());
-        return ResponseEntity.ok(ApiResponse.ok("인증 코드가 발송되었습니다."));
-    }
-
-    /**
-     * 회원 탈퇴 — OTP 검증 후 계정 상태를 WITHDRAWN으로 변경
-     * 주의: 탈퇴 전 /me/withdrawal-verify 로 OTP를 먼저 발급받아야 함
-     */
-    @Operation(summary = "회원 탈퇴", description = "OTP 인증 후 계정 상태를 WITHDRAWN으로 변경합니다. 게시글·댓글은 보존됩니다.")
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "탈퇴 처리 완료"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "인증 코드 불일치 또는 만료"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
-    })
-    @DeleteMapping("/me")
-    public ResponseEntity<ApiResponse<Void>> withdraw(
-            @AuthenticationPrincipal final CustomUserDetails userDetails,
-            @Valid @RequestBody final WithdrawalRequest request,
-            final HttpServletRequest httpRequest,
-            final HttpServletResponse response) {
-
-        userService.withdraw(userDetails.userId(), request.code(), httpRequest);
-        sessionCookieUtils.clearSessionCookie(response);
-        return ResponseEntity.ok(ApiResponse.ok("탈퇴 처리가 완료되었습니다."));
     }
 
     /**

@@ -18,11 +18,6 @@ repositories {
 	mavenCentral()
 }
 
-ext {
-    set('httpclient5.version', '5.4.1')
-    set('httpcore5.version', '5.4.1')
-}
-
 dependencies {
 	
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -66,12 +61,7 @@ dependencies {
 	implementation 'org.mapstruct:mapstruct:1.5.5.Final'
 	annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
 
-	// 7. AWS SDK v2 (Cloudflare R2 — S3 호환)
-	implementation platform('software.amazon.awssdk:bom:2.46.0')
-	implementation 'software.amazon.awssdk:s3'
-	implementation 'software.amazon.awssdk:apache5-client'
-
-	// 8. Flyway
+	// 7. Flyway
 	implementation 'org.flywaydb:flyway-core'
 	implementation 'org.flywaydb:flyway-database-postgresql'
 

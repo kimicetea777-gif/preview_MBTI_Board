@@ -22,7 +22,8 @@ export type UserState =
   | "WITHDRAWN"
   | "LOCKED"
   | "SHADOW_BANNED"
-  | "PERMANENT_BAN";
+  | "PERMANENT_BAN"
+  | "MEMBERSHIP_WITHDRAWAL_PENDING";
 
 export interface User {
   id: string;

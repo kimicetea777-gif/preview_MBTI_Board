@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -19,9 +20,10 @@ public final class TiptapContentParser {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final int MAX_DEPTH = 20;
     public static final String PLACEHOLDER_PREFIX = "{public-url}/";
-    // 업로드 엔드포인트가 생성하는 key 패턴만 허용 — 위조된 임의 경로 차단
+    // Image Server가 생성하는 key 패턴만 허용 — 위조된 임의 경로 차단
+    // mbti_board = Image Server .env(PROJECTS)에 등록된 project slug 고정값, 그룹 1이 Image Server 이미지 id(uuid)
     private static final Pattern VALID_IMAGE_KEY = Pattern
-            .compile("^images/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.webp$");
+            .compile("^mbti_board/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\\.webp$");
 
     private TiptapContentParser() {
     }
@@ -86,34 +88,37 @@ public final class TiptapContentParser {
         return content.replace(PLACEHOLDER_PREFIX, r2PublicUrl + "/");
     }
 
-    /** Tiptap JSON에서 자체 R2 이미지 URL만 추출 — content diff 기반 삭제 대상 파악에 사용 */
-    public static Set<String> extractImageUrls(final String jsonContent, final String r2PublicUrl) {
+    /**
+     * Tiptap JSON에서 자체 이미지의 Image Server id(uuid)만 추출 — confirm/release 호출 대상 파악에 사용
+     * content가 저장 전(원본 R2 URL) 상태이든 저장 후(플레이스홀더) 상태이든 동일하게 동작
+     */
+    public static Set<String> extractImageIds(final String jsonContent, final String r2PublicUrl) {
         if (isBlankContent(jsonContent)) return Set.of();
         return parseJson(jsonContent)
                 .map(root -> {
-                    final Set<String> urls = new HashSet<>();
-                    collectImageUrls(root, urls, 0, r2PublicUrl);
-                    return urls;
+                    final Set<String> ids = new HashSet<>();
+                    collectImageIds(root, ids, 0, r2PublicUrl);
+                    return ids;
                 })
                 .orElse(Set.of());
     }
 
-    private static void collectImageUrls(final JsonNode node, final Set<String> urls,
+    private static void collectImageIds(final JsonNode node, final Set<String> ids,
             final int depth, final String r2PublicUrl) {
         if (depth > MAX_DEPTH) return;
         if (node.isObject()) {
             if (isNodeType(node, "image")) {
                 final String src = node.path("attrs").path("src").asText(null);
-                if (src != null && (src.startsWith(r2PublicUrl) || src.startsWith(PLACEHOLDER_PREFIX))) {
-                    urls.add(src);
-                }
+                resolveKeyFromSrc(src, r2PublicUrl)
+                        .flatMap(TiptapContentParser::matchImageId)
+                        .ifPresent(ids::add);
             }
             if (node.has("content")) {
-                collectImageUrls(node.path("content"), urls, depth + 1, r2PublicUrl);
+                collectImageIds(node.path("content"), ids, depth + 1, r2PublicUrl);
             }
         } else if (node.isArray()) {
             for (final JsonNode child : node) {
-                collectImageUrls(child, urls, depth + 1, r2PublicUrl);
+                collectImageIds(child, ids, depth + 1, r2PublicUrl);
             }
         }
     }
@@ -195,10 +200,26 @@ public final class TiptapContentParser {
 
     private static Optional<String> extractValidKey(final JsonNode imageNode) {
         final String src = imageNode.path("attrs").path("src").asText(null);
-        if (src == null || !src.startsWith(PLACEHOLDER_PREFIX))
-            return Optional.empty();
-        final String key = src.substring(PLACEHOLDER_PREFIX.length());
-        return VALID_IMAGE_KEY.matcher(key).matches() ? Optional.of(key) : Optional.empty();
+        return resolveKeyFromSrc(src, null)
+                .filter(key -> VALID_IMAGE_KEY.matcher(key).matches());
+    }
+
+    /** src에서 플레이스홀더(항상 시도) 또는 원본 R2 URL(r2PublicUrl 주어진 경우) 접두사를 벗겨 key만 남김 */
+    private static Optional<String> resolveKeyFromSrc(final String src, final String r2PublicUrl) {
+        if (src == null) return Optional.empty();
+        if (src.startsWith(PLACEHOLDER_PREFIX)) {
+            return Optional.of(src.substring(PLACEHOLDER_PREFIX.length()));
+        }
+        if (r2PublicUrl != null && src.startsWith(r2PublicUrl + "/")) {
+            return Optional.of(src.substring(r2PublicUrl.length() + 1));
+        }
+        return Optional.empty();
+    }
+
+    /** key가 VALID_IMAGE_KEY 패턴과 일치하면 캡처된 Image Server id(uuid)를 반환 */
+    private static Optional<String> matchImageId(final String key) {
+        final Matcher matcher = VALID_IMAGE_KEY.matcher(key);
+        return matcher.matches() ? Optional.of(matcher.group(1)) : Optional.empty();
     }
 
     private static boolean isNodeType(final JsonNode node, final String type) {
