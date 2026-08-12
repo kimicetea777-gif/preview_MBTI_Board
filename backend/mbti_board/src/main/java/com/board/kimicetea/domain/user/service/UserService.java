@@ -21,17 +21,12 @@ import com.board.kimicetea.global.audit.AuditEvent;
 import com.board.kimicetea.global.audit.AuditLogService;
 import com.board.kimicetea.global.common.exception.CustomException;
 import com.board.kimicetea.global.common.exception.ErrorCode;
-import com.board.kimicetea.global.common.util.RequestUtils;
-import com.board.kimicetea.global.mail.EmailService;
-import com.board.kimicetea.global.security.redis.TokenRedisService;
 import com.board.kimicetea.global.security.session.SessionService;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -52,9 +47,7 @@ public class UserService {
     private final CommentRepository commentRepository;
     private final MbtiTestHistoryRepository mbtiTestHistoryRepository;
     private final RetentionEncryptionService retentionEncryptionService;
-    private final TokenRedisService tokenRedisService;
     private final SessionService sessionService;
-    private final EmailService emailService;
     private final AuditLogService auditLogService;
 
     /** 닉네임 실시간 중복 체크 — 회원가입 폼에서 제출 전 확인용 */
@@ -112,55 +105,95 @@ public class UserService {
     }
 
     /**
-     * 탈퇴 OTP 발송 — 6자리 코드를 생성해 Redis(WD:{userId}, TTL 3분)에 저장 후 이메일 발송
+     * AS 계정 자체가 하드 삭제됐을 때(DeletedUserSyncService, connect_manual.md §8-3) 호출 — AS
+     * 마스터 계정이 이미 영구 삭제된 상태라 로컬이 이미 WITHDRAWN이면 아무것도 하지 않음 — 폴링
+     * 재시도/중복 이벤트에 대해 idempotent해야 함.
      */
-    public void sendWithdrawalOtp(final UUID userId) {
+    @Transactional
+    public void forceWithdrawFromAsDeletion(final UUID userId) {
         final User user = findUserOrThrow(userId);
-        final String otp = generateOtp();
-        tokenRedisService.saveWithdrawalOtp(userId.toString(), otp);
-        emailService.sendWithdrawalOtp(user.getEmail(), otp);
-    }
-
-    /** 6자리 숫자 OTP 생성 — SecureRandom 사용으로 예측 불가 */
-    private String generateOtp() {
-        return String.format("%06d", new SecureRandom().nextInt(1_000_000));
+        if (user.getState() == UserState.WITHDRAWN) {
+            return;
+        }
+        performWithdrawal(user, "AS_DELETION_SYNC");
     }
 
     /**
-     * 회원 탈퇴 — OTP 검증 후 수사 협조용 보존 로그 저장 → PII 즉시 익명화 → 전체 기기 세션 무효화
-     * 주의: 세션 삭제는 @Transactional 외부에서 실행 (Redis는 JPA 트랜잭션 미참여)
-     * 주의: 보존 로그는 반드시 anonymize() 호출 전에 저장 — 익명화 후에는 원본 email 소실
+     * AS 멤버십 이벤트 CLIENT_WITHDRAWN 수신 시 호출 (MembershipEventSyncService) — 로컬 유저가 없으면
+     * (아직 JIT 계정 생성 전) 조용히 skip. 이미 WITHDRAWN(확정 완료) 또는 이미
+     * MEMBERSHIP_WITHDRAWAL_PENDING이면 idempotent no-op — 최초 이벤트의 changedAt만 유지한다.
      */
     @Transactional
-    public void withdraw(final UUID userId, final String otpCode, final HttpServletRequest httpRequest) {
-        final String savedOtp = tokenRedisService.getWithdrawalOtp(userId.toString());
-        if (savedOtp == null) {
-            throw new CustomException(ErrorCode.WITHDRAWAL_OTP_EXPIRED);
-        }
-
-        if (!savedOtp.equals(otpCode)) {
-            // 오답 횟수 누적 — 3회 초과 시 OTP·카운터 모두 삭제
-            final int attempts = tokenRedisService.incrementWithdrawalOtpAttempts(userId.toString());
-            if (attempts >= TokenRedisService.WITHDRAWAL_OTP_MAX_ATTEMPTS) {
-                tokenRedisService.deleteWithdrawalOtp(userId.toString());
-                throw new CustomException(ErrorCode.WITHDRAWAL_OTP_MAX_ATTEMPTS);
+    public void handleMembershipWithdrawn(final UUID authServerId, final Instant changedAt) {
+        userRepository.findByAuthServerId(authServerId).ifPresent(user -> {
+            if (user.getState() == UserState.WITHDRAWN || user.getState() == UserState.MEMBERSHIP_WITHDRAWAL_PENDING) {
+                return;
             }
-            throw new CustomException(ErrorCode.WITHDRAWAL_OTP_INVALID);
-        }
+            user.markMembershipWithdrawalPending(changedAt);
+            sessionService.deleteAllSessions(user.getAuthServerId());
+            auditLogService.record(AuditEvent.WITHDRAWAL, user.getId(), user.getRole().name(), "AS_MEMBERSHIP_WITHDRAWN");
+        });
+    }
 
-        tokenRedisService.deleteWithdrawalOtp(userId.toString());
+    /**
+     * AS 멤버십 이벤트 CLIENT_BANNED 수신 시 호출 — 로컬 유저가 없으면 skip. 이미 PERMANENT_BAN이면
+     * idempotent no-op. 밴은 "떠남"이 아니므로 PII는 건드리지 않는다.
+     */
+    @Transactional
+    public void handleMembershipBanned(final UUID authServerId) {
+        userRepository.findByAuthServerId(authServerId).ifPresent(user -> {
+            if (user.getState() == UserState.PERMANENT_BAN) {
+                return;
+            }
+            user.changeState(UserState.PERMANENT_BAN);
+            sessionService.deleteAllSessions(user.getAuthServerId());
+            auditLogService.record(AuditEvent.MEMBERSHIP_BANNED, user.getId(), user.getRole().name(), "AS_MEMBERSHIP_BANNED");
+        });
+    }
 
+    /**
+     * AS 멤버십 이벤트 CLIENT_ACTIVATED 수신 시 호출 — 재연결이든 밴 해제든 동일 로직으로 NORMAL 복구.
+     * 로컬 유저가 아직 없으면(신규 가입 동의만 하고 로그인 전인 경우) 조용히 skip — 실제 로그인 시
+     * JIT으로 생성되며 별도 조치가 필요 없다. NORMAL 등 그 외 상태면 무시.
+     */
+    @Transactional
+    public void handleMembershipActivated(final UUID authServerId) {
+        userRepository.findByAuthServerId(authServerId).ifPresent(user -> {
+            if (user.getState() != UserState.MEMBERSHIP_WITHDRAWAL_PENDING && user.getState() != UserState.PERMANENT_BAN) {
+                return;
+            }
+            user.restoreToNormal();
+            auditLogService.record(AuditEvent.MEMBERSHIP_REACTIVATED, user.getId(), user.getRole().name(), "AS_MEMBERSHIP_ACTIVATED");
+        });
+    }
+
+    /**
+     * MembershipWithdrawalFinalizeService(30일 유예 경과 확정 배치)에서 호출 — 그 사이 재연결됐다면
+     * (레이스로 인해) 이미 NORMAL이므로 상태 가드로 걸러낸다.
+     */
+    @Transactional
+    public void finalizeMembershipWithdrawal(final UUID userId) {
         final User user = findUserOrThrow(userId);
+        if (user.getState() != UserState.MEMBERSHIP_WITHDRAWAL_PENDING) {
+            return;
+        }
+        performWithdrawal(user, "MEMBERSHIP_WITHDRAWAL_GRACE_EXPIRED");
+    }
 
-        saveRetentionLog(user, RequestUtils.extractClientIp(httpRequest));
+    /**
+     * 수사 협조용 보존 로그 저장 → PII 즉시 익명화 → 전체 기기 세션 무효화 → 감사 로그.
+     * 주의: 보존 로그는 반드시 anonymize() 호출 전에 저장 — 익명화 후에는 원본 email 소실
+     * 주의: 세션 삭제는 @Transactional 외부에서 실행 (Redis는 JPA 트랜잭션 미참여)
+     */
+    private void performWithdrawal(final User user, final String ipOrMarker) {
+        saveRetentionLog(user, ipOrMarker);
 
         user.changeState(UserState.WITHDRAWN);
         user.anonymize();
 
         sessionService.deleteAllSessions(user.getAuthServerId());
 
-        auditLogService.record(AuditEvent.WITHDRAWAL, userId,
-                user.getRole().name(), RequestUtils.extractClientIp(httpRequest));
+        auditLogService.record(AuditEvent.WITHDRAWAL, user.getId(), user.getRole().name(), ipOrMarker);
     }
 
     /** anonymize() 이전에 호출 — 원본 email이 필요하므로 순서 변경 금지 */

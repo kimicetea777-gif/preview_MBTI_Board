@@ -12,7 +12,6 @@ import com.board.kimicetea.global.security.handler.JwtAuthenticationEntryPoint;
 import com.board.kimicetea.global.security.oauth2.CustomOAuth2UserService;
 import com.board.kimicetea.global.security.oauth2.OAuth2AuthenticationFailureHandler;
 import com.board.kimicetea.global.security.oauth2.OAuth2AuthenticationSuccessHandler;
-import com.board.kimicetea.global.security.redis.TokenRedisService;
 import com.board.kimicetea.domain.user.repository.UserRepository;
 import com.board.kimicetea.global.security.oauth2.AuthorizedClientRefreshService;
 import com.board.kimicetea.global.security.oauth2.RedisOAuth2AuthorizedClientService;
@@ -68,7 +67,6 @@ class CommentControllerTest {
     @MockBean
     private CommentService commentService;
 
-    @MockBean private TokenRedisService tokenRedisService;
 
     // 세션 아키텍처 마이그레이션(memo2.md) — SecurityConfig 의존성
     @MockBean

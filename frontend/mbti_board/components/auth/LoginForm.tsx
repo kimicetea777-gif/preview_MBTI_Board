@@ -26,7 +26,7 @@ export default function LoginForm({ redirectTo }: Props) {
           style={{ boxShadow: "0 4px 20px rgba(49, 23, 10, 0.12)" }}
         >
           <div className="mb-4">
-            <Logo size="lg" />
+            <Logo size="md" />
           </div>
           <div className="space-y-2">
             <h2 className="text-xl font-bold text-primary leading-snug">

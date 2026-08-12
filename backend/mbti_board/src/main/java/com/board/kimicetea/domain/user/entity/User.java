@@ -69,6 +69,13 @@ public class User {
     @Column(name = "last_login_at")
     private Instant lastLoginAt;
 
+    /**
+     * AS CLIENT_WITHDRAWN 이벤트 발생 시각(로컬 처리 시각 아님) — MembershipEventResponse.changedAt을
+     * 그대로 저장. MEMBERSHIP_WITHDRAWAL_PENDING 상태일 때만 값이 있고, 이 값 기준으로 30일 유예 후 확정.
+     */
+    @Column(name = "membership_withdrawn_at")
+    private Instant membershipWithdrawnAt;
+
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
@@ -110,10 +117,22 @@ public class User {
         this.role = role;
     }
 
+    /** AS CLIENT_WITHDRAWN 이벤트 수신 시 호출 — PII는 그대로 두고 로그인만 막는다 */
+    public void markMembershipWithdrawalPending(final Instant membershipWithdrawnAt) {
+        this.state = UserState.MEMBERSHIP_WITHDRAWAL_PENDING;
+        this.membershipWithdrawnAt = membershipWithdrawnAt;
+    }
+
+    /** AS CLIENT_ACTIVATED(재연결/밴 해제) 수신 시 호출 — NORMAL로 복구 */
+    public void restoreToNormal() {
+        this.state = UserState.NORMAL;
+        this.membershipWithdrawnAt = null;
+    }
+
     /** 탈퇴 시 PII 즉시 제거 — email·nickname은 UNIQUE NOT NULL이므로 고유 플레이스홀더로 대체 */
     public void anonymize() {
         this.email = "withdrawn_" + this.id + "@deleted.invalid";
-        this.nickname = "withdrawn_" + this.id.toString().substring(0, 8);
+        this.nickname = "wd_" + this.id.toString().replace("-", "").substring(0, 9);
         this.profileImageUrl = null;
         this.lastLoginAt = null;
     }

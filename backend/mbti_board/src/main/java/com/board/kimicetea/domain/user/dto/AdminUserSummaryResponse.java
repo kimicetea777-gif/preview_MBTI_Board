@@ -11,6 +11,7 @@ import java.util.UUID;
  */
 public record AdminUserSummaryResponse(
         UUID id,
+        UUID authServerId,
         String email,
         String nickname,
         String profileImageUrl,
@@ -26,6 +27,7 @@ public record AdminUserSummaryResponse(
     public static AdminUserSummaryResponse from(final User user) {
         return new AdminUserSummaryResponse(
                 user.getId(),
+                user.getAuthServerId(),
                 user.getEmail(),
                 user.getNickname(),
                 user.getProfileImageUrl(),

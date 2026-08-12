@@ -62,9 +62,9 @@ export default function Header() {
           ) : (
             <Link
               href={ROUTES.login}
-              className="ml-1 px-4 py-1.5 rounded-full text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+              className="p-2 rounded-full text-on-surface-variant hover:bg-accent transition-colors"
             >
-              로그인
+              <MdAccountCircle size={30} />
             </Link>
           )}
         </div>

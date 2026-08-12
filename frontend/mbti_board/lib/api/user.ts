@@ -21,16 +21,6 @@ export async function updateMyProfile(data: UpdateUserRequest): Promise<MyProfil
   return res.data.data;
 }
 
-export async function sendWithdrawalOtp(): Promise<void> {
-  await apiClient.post<ApiResponse<void>>(API.users.meWithdrawalVerify);
-}
-
-export async function withdraw(code: string): Promise<void> {
-  await apiClient.delete<ApiResponse<void>>(API.users.meWithdrawal, {
-    data: { code },
-  });
-}
-
 export async function fetchMyActivityStats(): Promise<UserActivityStats> {
   const res = await apiClient.get<ApiResponse<UserActivityStats>>(API.users.meStats);
   return res.data.data;

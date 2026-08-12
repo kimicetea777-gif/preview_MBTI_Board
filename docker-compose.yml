@@ -67,36 +67,7 @@ services:
     depends_on:
       - backend
 
-  # RAM/CPU/디스크 실시간 모니터링 대시보드 — 127.0.0.1에만 바인딩, 외부 미노출
-  # 조회: ssh -L 19999:localhost:19999 mbti-server 로 터널링 후 브라우저에서 http://localhost:19999
-  # 주의: docker.sock(ro)·procfs·sysfs를 마운트해 호스트/컨테이너 지표를 읽음 — 이 컨테이너에 호스트 가시성을 부여하는 의도적 트레이드오프
-  netdata:
-    image: netdata/netdata:latest
-    container_name: mbti_netdata
-    hostname: mbti-server
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:19999:19999"
-    cap_add:
-      - SYS_PTRACE
-      - SYS_ADMIN
-    security_opt:
-      - apparmor:unconfined
-    volumes:
-      - netdata_config:/etc/netdata
-      - netdata_lib:/var/lib/netdata
-      - netdata_cache:/var/cache/netdata
-      - /etc/passwd:/host/etc/passwd:ro
-      - /etc/group:/host/etc/group:ro
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /etc/os-release:/host/etc/os-release:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-
 volumes:
   postgres_data:
   redis_data:
   backend_logs:
-  netdata_config:
-  netdata_lib:
-  netdata_cache:

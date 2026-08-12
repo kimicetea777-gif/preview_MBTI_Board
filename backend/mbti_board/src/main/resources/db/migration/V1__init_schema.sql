@@ -1,6 +1,6 @@
 ﻿-- ===================================================
 -- SCHEMA INITIALIZATION
--- Consolidated from V1 ~ V15
+-- Consolidated from V1 ~ V22 (운영 미배포 상태에서 스쿼시 — 다음 신규 마이그레이션은 V23부터)
 -- ===================================================
 
 -- ===================================================
@@ -9,12 +9,13 @@
 
 CREATE TABLE mbti_metadata (id VARCHAR(6) PRIMARY KEY);
 
+-- 로그인/가입/비밀번호 재설정은 외부 Authorization Server(AS, client_id=TypeButter)에 위임 —
+-- AS가 발급하는 sub(UUID)를 auth_server_id로만 보유하면 되므로 로컬 password/social_provider/
+-- provider_id/약관동의 컬럼은 없음. 이메일 찾기(recovery_email)도 AS 계정 관리 페이지로 이관되어 없음.
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
     email VARCHAR(255) UNIQUE NOT NULL,
-    password VARCHAR(255),
-    social_provider VARCHAR(20),
-    provider_id VARCHAR(255),
+    auth_server_id UUID NOT NULL,
     profile_image_url TEXT,
     nickname VARCHAR(12) UNIQUE NOT NULL,
     mbti_id VARCHAR(6) NOT NULL,
@@ -22,15 +23,12 @@ CREATE TABLE users (
     role VARCHAR(20) DEFAULT 'USER' NOT NULL,
     state VARCHAR(20) DEFAULT 'NORMAL' NOT NULL,
     last_login_at TIMESTAMPTZ,
-    recovery_email VARCHAR(255),
     withdrawn_at TIMESTAMPTZ,
-    terms_agreed_at TIMESTAMPTZ,
-    terms_version INT,
-    privacy_agreed_at TIMESTAMPTZ,
-    privacy_version INT,
+    membership_withdrawn_at TIMESTAMPTZ, -- AS CLIENT_WITHDRAWN 이벤트 발생 시각. MEMBERSHIP_WITHDRAWAL_PENDING 상태일 때만 값 존재, 30일 유예 후 확정 처리
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     CONSTRAINT fk_users_mbti_metadata FOREIGN KEY (mbti_id) REFERENCES mbti_metadata (id) ON DELETE RESTRICT,
+    CONSTRAINT uq_users_auth_server_id UNIQUE (auth_server_id),
     CONSTRAINT chk_mbti_verified CHECK (
         mbti_verified IN ('TESTED', 'SELF', 'DEFAULT')
     ),
@@ -50,17 +48,8 @@ CREATE TABLE users (
             'WITHDRAWN',
             'LOCKED',
             'SHADOW_BANNED',
-            'PERMANENT_BAN'
-        )
-    ),
-    CONSTRAINT chk_social_login CHECK (
-        (
-            social_provider IS NULL
-            AND provider_id IS NULL
-        )
-        OR (
-            social_provider IS NOT NULL
-            AND provider_id IS NOT NULL
+            'PERMANENT_BAN',
+            'MEMBERSHIP_WITHDRAWAL_PENDING'
         )
     )
 );
@@ -98,6 +87,7 @@ CREATE TABLE posts (
     view_count INT DEFAULT 0 NOT NULL,
     comment_count INT DEFAULT 0 NOT NULL,
     is_visible BOOLEAN DEFAULT TRUE NOT NULL,
+    is_pinned BOOLEAN DEFAULT FALSE NOT NULL,
     hidden_by VARCHAR(10), -- is_visible=false로 만든 주체 (USER: 본인 삭제, ADMIN: 관리자 숨김) — 복구(is_visible=true) 시 NULL로 초기화
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
@@ -253,26 +243,26 @@ CREATE TABLE fun_response_counts (
 );
 
 -- ===================================================
--- 6. Image Cleanup Domain
--- ===================================================
-
-CREATE TABLE deleted_images (
-    id BIGSERIAL PRIMARY KEY,
-    url TEXT NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
-    marked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT chk_deleted_images_status CHECK (
-        status IN ('PENDING', 'DELETE_REQUESTED')
-    )
-);
-
--- ===================================================
--- 7. Withdrawal Domain
+-- 6. Withdrawal Domain
 -- ===================================================
 
 CREATE TABLE withdrawal_log (
     id BIGSERIAL PRIMARY KEY,
     withdrawn_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ===================================================
+-- 7. Auth Server Sync Domain
+-- AS(Authorization Server) 내부 폴링 API(계정 하드 삭제 등)를 커서 기반으로 순회하기 위한 테이블.
+-- poller_name 하나당 row 하나 — 지금은 'deleted-users' 하나뿐이지만, 나중에 멤버십 이벤트 폴링
+-- 컨슈머가 추가되면 같은 테이블에 다른 poller_name row로 확장한다(같은 커서를 공유하지 않음).
+-- ===================================================
+
+CREATE TABLE polling_cursors (
+    poller_name VARCHAR(50) PRIMARY KEY,
+    since_timestamp TIMESTAMPTZ NOT NULL,
+    since_id BIGINT,
+    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
 -- ===================================================
@@ -486,7 +476,7 @@ CREATE INDEX idx_posts_comment_count ON posts (comment_count DESC);
 
 CREATE INDEX idx_posts_view_count ON posts (view_count DESC);
 
-CREATE INDEX idx_posts_visible ON posts (post_type, created_at DESC)
+CREATE INDEX idx_posts_visible ON posts (post_type, is_pinned DESC, created_at DESC)
 WHERE
     is_visible = TRUE;
 
@@ -508,14 +498,6 @@ CREATE INDEX idx_comments_hierarchy ON comments (
     created_at ASC
 );
 
-CREATE UNIQUE INDEX idx_users_provider ON users (social_provider, provider_id)
-WHERE
-    social_provider IS NOT NULL;
-
-CREATE UNIQUE INDEX idx_users_recovery_email ON users (recovery_email)
-WHERE
-    recovery_email IS NOT NULL;
-
 CREATE INDEX idx_mbti_test_history_user_id_created_at ON mbti_test_history (user_id, created_at DESC);
 
 CREATE INDEX idx_vote_history_post_user ON vote_posts_history (post_id, user_id);
@@ -527,10 +509,6 @@ WHERE
 CREATE UNIQUE INDEX idx_vote_options_text_unique ON vote_post_options (post_id, option_text)
 WHERE
     option_text IS NOT NULL;
-
-CREATE INDEX idx_deleted_images_marked_at ON deleted_images (marked_at);
-
-CREATE INDEX idx_deleted_images_status ON deleted_images (status);
 
 CREATE INDEX idx_debate_stance_post ON debate_stance_history (post_id);
 

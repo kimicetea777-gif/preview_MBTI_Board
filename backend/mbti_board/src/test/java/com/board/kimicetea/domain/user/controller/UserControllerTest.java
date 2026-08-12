@@ -9,7 +9,6 @@ import com.board.kimicetea.domain.user.dto.MyProfileResponse;
 import com.board.kimicetea.domain.user.dto.UpdateProfileRequest;
 import com.board.kimicetea.domain.user.dto.UserActivityStatsResponse;
 import com.board.kimicetea.domain.user.dto.UserProfileResponse;
-import com.board.kimicetea.domain.user.dto.WithdrawalRequest;
 import com.board.kimicetea.domain.user.security.CustomUserDetails;
 import com.board.kimicetea.domain.user.service.UserService;
 import com.board.kimicetea.global.common.exception.CustomException;
@@ -19,15 +18,12 @@ import com.board.kimicetea.global.security.handler.JwtAuthenticationEntryPoint;
 import com.board.kimicetea.global.security.oauth2.CustomOAuth2UserService;
 import com.board.kimicetea.global.security.oauth2.OAuth2AuthenticationFailureHandler;
 import com.board.kimicetea.global.security.oauth2.OAuth2AuthenticationSuccessHandler;
-import com.board.kimicetea.global.security.redis.TokenRedisService;
 import com.board.kimicetea.domain.user.repository.UserRepository;
 import com.board.kimicetea.global.security.oauth2.AuthorizedClientRefreshService;
 import com.board.kimicetea.global.security.oauth2.RedisOAuth2AuthorizedClientService;
 import com.board.kimicetea.global.security.session.SessionCookieUtils;
 import com.board.kimicetea.global.security.session.SessionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -51,12 +47,8 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.willDoNothing;
-import static org.mockito.BDDMockito.willThrow;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -81,8 +73,6 @@ class UserControllerTest {
     @MockBean private PostService postService;
     @MockBean private SessionCookieUtils sessionCookieUtils;
 
-    @MockBean private TokenRedisService tokenRedisService;
-
     // 세션 아키텍처 마이그레이션(memo2.md) — SecurityConfig 의존성
     @MockBean
     private SessionService sessionService;
@@ -105,7 +95,6 @@ class UserControllerTest {
     private static final String ME_POSTS_URL         = "/api/users/me/posts";
     private static final String ME_POSTS_PREVIEW_URL = "/api/users/me/posts/preview";
     private static final String ME_STATS_URL         = "/api/users/me/stats";
-    private static final String ME_WITHDRAWAL_URL    = "/api/users/me/withdrawal-verify";
     private static final String ME_MBTI_HISTORY_URL  = "/api/users/me/mbti/history";
 
     private UUID userId;
@@ -394,105 +383,6 @@ class UserControllerTest {
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data.postCount").value(0))
                     .andExpect(jsonPath("$.data.latestTestMbtiId").isEmpty());
-        }
-    }
-
-    // ────────────────── POST /api/users/me/withdrawal-verify ──────────────────
-
-    @Nested
-    @DisplayName("POST /api/users/me/withdrawal-verify — 탈퇴 OTP 발송")
-    class SendWithdrawalOtp {
-
-        @Test
-        @DisplayName("성공 — OTP 발송 완료 → 200 및 안내 메시지")
-        void success() throws Exception {
-            willDoNothing().given(userService).sendWithdrawalOtp(userId);
-
-            mockMvc.perform(post(ME_WITHDRAWAL_URL))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.success").value(true))
-                    .andExpect(jsonPath("$.message").value("인증 코드가 발송되었습니다."));
-        }
-
-        @Test
-        @DisplayName("실패 — 존재하지 않는 유저 → 404")
-        void userNotFound() throws Exception {
-            willThrow(new CustomException(ErrorCode.USER_NOT_FOUND))
-                    .given(userService).sendWithdrawalOtp(userId);
-
-            mockMvc.perform(post(ME_WITHDRAWAL_URL))
-                    .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.success").value(false));
-        }
-    }
-
-    // ────────────────── DELETE /api/users/me ──────────────────
-
-    @Nested
-    @DisplayName("DELETE /api/users/me — 회원 탈퇴")
-    class Withdraw {
-
-        @Test
-        @DisplayName("성공 — 유효한 OTP 코드로 탈퇴 처리 → 200")
-        void success() throws Exception {
-            willDoNothing().given(userService)
-                    .withdraw(eq(userId), eq("123456"), any(HttpServletRequest.class));
-            willDoNothing().given(sessionCookieUtils).clearSessionCookie(any(HttpServletResponse.class));
-
-            mockMvc.perform(delete(ME_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(new WithdrawalRequest("123456"))))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.success").value(true))
-                    .andExpect(jsonPath("$.message").value("탈퇴 처리가 완료되었습니다."));
-        }
-
-        @Test
-        @DisplayName("실패 — code 빈 문자열(@NotBlank 위반) → 400")
-        void blankCode() throws Exception {
-            mockMvc.perform(delete(ME_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(new WithdrawalRequest(""))))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.success").value(false));
-        }
-
-        @Test
-        @DisplayName("실패 — OTP 코드 5자리(@Size min=6 위반) → 400")
-        void codeTooShort() throws Exception {
-            mockMvc.perform(delete(ME_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(new WithdrawalRequest("12345"))))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.success").value(false));
-        }
-
-        @Test
-        @DisplayName("실패 — OTP 불일치 → 400")
-        void invalidOtp() throws Exception {
-            willThrow(new CustomException(ErrorCode.WITHDRAWAL_OTP_INVALID))
-                    .given(userService).withdraw(eq(userId), any(), any(HttpServletRequest.class));
-
-            mockMvc.perform(delete(ME_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(new WithdrawalRequest("000000"))))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.success").value(false))
-                    .andExpect(jsonPath("$.message").value(ErrorCode.WITHDRAWAL_OTP_INVALID.getMessage()));
-        }
-
-        @Test
-        @DisplayName("실패 — OTP 만료 → 400")
-        void expiredOtp() throws Exception {
-            willThrow(new CustomException(ErrorCode.WITHDRAWAL_OTP_EXPIRED))
-                    .given(userService).withdraw(eq(userId), any(), any(HttpServletRequest.class));
-
-            mockMvc.perform(delete(ME_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(new WithdrawalRequest("123456"))))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.success").value(false))
-                    .andExpect(jsonPath("$.message").value(ErrorCode.WITHDRAWAL_OTP_EXPIRED.getMessage()));
         }
     }
 

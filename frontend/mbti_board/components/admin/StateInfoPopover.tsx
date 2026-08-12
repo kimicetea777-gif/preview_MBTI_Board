@@ -11,6 +11,7 @@ import type { UserState } from "@/types/user";
 
 const STATE_OPTIONS: UserState[] = [
   "NORMAL", "PENDING", "INACTIVE", "WITHDRAWN", "LOCKED", "SHADOW_BANNED", "PERMANENT_BAN",
+  "MEMBERSHIP_WITHDRAWAL_PENDING",
 ];
 
 export default function StateInfoPopover() {

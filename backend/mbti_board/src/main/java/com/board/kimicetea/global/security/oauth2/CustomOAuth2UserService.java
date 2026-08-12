@@ -67,6 +67,8 @@ public class CustomOAuth2UserService extends OidcUserService {
             case PERMANENT_BAN -> throw new OAuth2AuthenticationException(new OAuth2Error("ACCOUNT_BANNED"));
             case INACTIVE      -> throw new OAuth2AuthenticationException(new OAuth2Error("ACCOUNT_INACTIVE"));
             case WITHDRAWN     -> throw new OAuth2AuthenticationException(new OAuth2Error("ACCOUNT_WITHDRAWN"));
+            case MEMBERSHIP_WITHDRAWAL_PENDING ->
+                    throw new OAuth2AuthenticationException(new OAuth2Error("ACCOUNT_WITHDRAWAL_PENDING"));
             default            -> { /* NORMAL, PENDING, SHADOW_BANNED 통과 */ }
         }
     }

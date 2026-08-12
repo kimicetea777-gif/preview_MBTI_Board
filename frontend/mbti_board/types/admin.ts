@@ -18,6 +18,7 @@ export type AlertStatusResponse = Record<AlertType, boolean>;
 // GET /api/admin/users 응답
 export interface AdminUserSummaryResponse {
   id: string;
+  authServerId: string;
   email: string;
   nickname: string;
   profileImageUrl: string | null;
@@ -218,6 +219,7 @@ export const USER_STATE_LABELS: Record<UserState, string> = {
   LOCKED: "잠금",
   SHADOW_BANNED: "쉐도우밴",
   PERMANENT_BAN: "영구정지",
+  MEMBERSHIP_WITHDRAWAL_PENDING: "연동해제(유예중)",
 };
 
 export const USER_STATE_COLORS: Record<UserState, string> = {
@@ -228,6 +230,7 @@ export const USER_STATE_COLORS: Record<UserState, string> = {
   LOCKED: "#A05030",
   SHADOW_BANNED: "#6A4A8A",
   PERMANENT_BAN: "#9B2A2A",
+  MEMBERSHIP_WITHDRAWAL_PENDING: "#8A6A2A",
 };
 
 export const USER_STATE_DESCRIPTIONS: Record<UserState, string> = {
@@ -238,6 +241,7 @@ export const USER_STATE_DESCRIPTIONS: Record<UserState, string> = {
   LOCKED: "일시 잠금 — 비정상적인 접근 감지 시 본인 확인을 위해 일시적으로 잠긴 상태",
   SHADOW_BANNED: "쉐도우 밴 — 유저는 플레이 가능하지만, 로그 감시",
   PERMANENT_BAN: "영구 정지 — 운영 정책 위반으로 영구적으로 접근이 차단된 상태",
+  MEMBERSHIP_WITHDRAWAL_PENDING: "AS 연동 해제 — 로그인은 차단되지만 30일 안에 재연결하면 복구되는 유예 상태",
 };
 
 export const USER_ROLE_LABELS: Record<UserRole, string> = {

@@ -9,8 +9,6 @@ export const API = {
     meStats: "/api/users/me/stats",
     mePosts: "/api/users/me/posts",
     mePostsPreview: "/api/users/me/posts/preview",
-    meWithdrawalVerify: "/api/users/me/withdrawal-verify",
-    meWithdrawal: "/api/users/me",
     byId: (id: string) => `/api/users/${id}`,
     mbtiHistory: "/api/users/me/mbti/history",
   },
@@ -40,8 +38,8 @@ export const API = {
     result: (postId: number) => `/api/posts/${postId}/vote/result`,
   },
   images: {
-    upload: "/api/upload", // Next.js Route Handler (Sharp 처리) — Java 백엔드 경유 안 함
-    cancel: "/api/images", // Next.js Route Handler 경유 — X-Internal-Key 서버에서 주입 후 백엔드 전달
+    upload: "/api/upload", // Next.js Route Handler 경유 — Image Server 직접 호출(X-Api-Key 서버에서 주입)
+    cancel: "/api/images", // Next.js Route Handler 경유 — Image Server /images/release 직접 호출
   },
   notices: {
     active: "/api/notices/active",

@@ -1,6 +1,6 @@
 spring:
   application:
-    name: kimicetea
+    name: mbti-board
 
   threads:
     virtual:
@@ -62,7 +62,6 @@ spring:
       client:
         registration:
           # AS(Authorization Server, client_id=TypeButter) — 로그인/가입/비밀번호 재설정을 전부 위임.
-          # google 소셜 로그인은 AS가 대신 처리하므로 여기엔 더 이상 필요 없음(connect_manual.md 참고).
           thebluebutter:
             client-id: TypeButter
             client-secret: ${AUTH_SERVER_CLIENT_SECRET}
@@ -70,10 +69,19 @@ spring:
             authorization-grant-type: authorization_code
             redirect-uri: "{baseUrl}/login/oauth2/code/thebluebutter"
             scope: openid, profile
+          # AS 계정 하드 삭제 폴링(GET /api/internal/deleted-users) + 멤버십 상태 변경 폴링
+          # (GET /api/internal/membership-events) 공용 서버-to-서버 client.
+          # 로그인용 thebluebutter와 완전히 분리된 별도 secret — 이 쪽이 유출돼도 로그인 흐름엔 영향 없음.
+          typebutter-deletion-sync:
+            client-id: TypeButter-deletion-sync
+            client-secret: ${AUTH_SERVER_DELETION_SYNC_CLIENT_SECRET}
+            authorization-grant-type: client_credentials
+            provider: thebluebutter
+            scope: deletion:read, membership-events:read
         provider:
           # thebluebutter는 Spring Boot의 사전 정의 provider 프리셋이 아니므로 issuer-uri를 직접 지정해야 함
           thebluebutter:
-            issuer-uri: ${AUTH_SERVER_ISSUER_URI:http://localhost:9000}
+            issuer-uri: ${AUTH_SERVER_ISSUER_URI}
 
 server:
   port: 8080
@@ -87,27 +95,22 @@ jwt:
 # 매 refresh마다 rotation) — 세션/AC Redis 엔트리 TTL 계산에 씀
 authserver:
   refresh-token-ttl-days: 30
+  # 계정 하드 삭제 폴링(GET /api/internal/deleted-users) 호출 시 RestClient baseUrl로 씀 — oauth2
+  # provider.thebluebutter.issuer-uri와 값은 같지만(같은 AS) Spring OAuth2 설정 트리 밖에서 별도로 필요
+  issuer-uri: ${AUTH_SERVER_ISSUER_URI}
 
 frontend:
-  url: ${FRONTEND_URL:http://localhost:4000}
-
-site:
-  url: ${SITE_URL:http://localhost:4000}
+  url: ${FRONTEND_URL:http}
 
 app:
-  name: ${APP_NAME:MBTI Board}
+  name: ${APP_NAME}
   cookie:
     secure: ${APP_COOKIE_SECURE:true} # 로컬 개발 시 환경변수 APP_COOKIE_SECURE=false 설정
 
-r2:
-  account-id: ${R2_ACCOUNT_ID}
-  access-key: ${R2_ACCESS_KEY}
-  secret-key: ${R2_SECRET_KEY}
-  bucket: ${R2_BUCKET}
-  public-url: ${R2_PUBLIC_URL}
-
-internal:
-  api-key: ${INTERNAL_API_KEY}
+image-server:
+  url: ${IMAGE_SERVER_URL}
+  api-key: ${IMAGE_SERVER_API_KEY}
+  public-url: ${IMAGE_SERVER_PUBLIC_URL}
 
 rate-limit:
   ip-salt: ${RATE_LIMIT_IP_SALT}
@@ -123,4 +126,4 @@ alert:
 
 admin:
   stats:
-    cache-refresh-delay-ms: ${ADMIN_STATS_CACHE_REFRESH_DELAY_MS:7200000} # 2시간
+    cache-refresh-delay-ms: 7200000 # 2시간

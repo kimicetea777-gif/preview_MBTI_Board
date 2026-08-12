@@ -7,7 +7,7 @@ import com.board.kimicetea.domain.post.PostConstants;
 import com.board.kimicetea.global.common.util.GuestPasswordHelper;
 import com.board.kimicetea.global.common.util.RequestUtils;
 import com.board.kimicetea.global.common.util.TiptapContentParser;
-import com.board.kimicetea.global.image.service.ImageCleanupService;
+import com.board.kimicetea.global.image.client.ImageServerClient;
 import com.board.kimicetea.domain.post.PostSortType;
 import com.board.kimicetea.domain.post.dto.DebatePostCreateRequest;
 import com.board.kimicetea.domain.post.dto.DebateStanceRequest;
@@ -79,12 +79,12 @@ public class PostService {
     private final VotePostHistoryRepository votePostHistoryRepository;
     private final DebatePostRepository debatePostRepository;
     private final DebateStanceHistoryRepository debateStanceHistoryRepository;
-    private final ImageCleanupService imageCleanupService;
+    private final ImageServerClient imageServerClient;
 
     @PersistenceContext
     private EntityManager entityManager;
 
-    @Value("${r2.public-url}")
+    @Value("${image-server.public-url}")
     private String r2PublicUrl;
 
     @Transactional(readOnly = true)
@@ -247,7 +247,7 @@ public class PostService {
         }
 
         final MbtiMetadata targetMbti = resolveTargetMbti(request.targetMbti());
-        final Set<String> realUrls = TiptapContentParser.extractImageUrls(request.content(), r2PublicUrl);
+        final Set<String> imageIds = TiptapContentParser.extractImageIds(request.content(), r2PublicUrl);
         final ProcessedContent pc = processContent(request.content());
 
         final Post post = Post.builder()
@@ -264,7 +264,7 @@ public class PostService {
                 .build();
 
         final Post saved = postRepository.save(post);
-        imageCleanupService.commitImages(realUrls);
+        imageServerClient.confirm(new ArrayList<>(imageIds));
         return PostDetailResponse.from(saved, (userDetails != null) ? userDetails.userId() : null)
                 .resolveImageUrls(r2PublicUrl);
     }
@@ -279,7 +279,7 @@ public class PostService {
         final User user = findUserOrThrow(userDetails.userId());
         final MbtiMetadata authorMbti = user.getMbti();
         final MbtiMetadata targetMbti = resolveTargetMbti(request.targetMbti());
-        final Set<String> realUrls = TiptapContentParser.extractImageUrls(request.content(), r2PublicUrl);
+        final Set<String> imageIds = TiptapContentParser.extractImageIds(request.content(), r2PublicUrl);
         final ProcessedContent pc = processContent(request.content());
 
         final Post post = Post.builder()
@@ -295,7 +295,7 @@ public class PostService {
                 .build();
 
         final Post saved = postRepository.save(post);
-        imageCleanupService.commitImages(realUrls);
+        imageServerClient.confirm(new ArrayList<>(imageIds));
         final DebatePost debatePost = createDebatePostMeta(saved, request);
         return PostDetailResponse.from(saved, userDetails.userId(), debatePost)
                 .resolveImageUrls(r2PublicUrl);
@@ -310,7 +310,7 @@ public class PostService {
             final CustomUserDetails userDetails, final HttpServletRequest httpRequest) {
         final User user = findUserOrThrow(userDetails.userId());
         final MbtiMetadata targetMbti = resolveTargetMbti(request.targetMbti());
-        final Set<String> realUrls = TiptapContentParser.extractImageUrls(request.content(), r2PublicUrl);
+        final Set<String> imageIds = TiptapContentParser.extractImageIds(request.content(), r2PublicUrl);
         final ProcessedContent pc = processContent(request.content());
 
         final Post post = Post.builder()
@@ -326,7 +326,7 @@ public class PostService {
                 .build();
 
         final Post saved = postRepository.save(post);
-        imageCleanupService.commitImages(realUrls);
+        imageServerClient.confirm(new ArrayList<>(imageIds));
         final VotePost votePost = createVotePostMeta(saved, request);
         return PostDetailResponse.from(saved, userDetails.userId(), votePost, null)
                 .resolveImageUrls(r2PublicUrl);
@@ -445,7 +445,9 @@ public class PostService {
         final Post post = findPostOrThrow(id);
         verifyOwnership(post, userDetails, request.guestPassword());
         final ProcessedContent pc = processContent(request.content());
-        imageCleanupService.markRemovedImages(post.getContent(), pc.normalized());
+        final Set<String> removedIds = TiptapContentParser.extractImageIds(post.getContent(), r2PublicUrl);
+        removedIds.removeAll(TiptapContentParser.extractImageIds(pc.normalized(), r2PublicUrl));
+        imageServerClient.release(new ArrayList<>(removedIds));
         post.update(request.title().strip(), pc.normalized(), pc.preview(), pc.imageKeys());
 
         final UUID currentUserId = userDetails != null ? userDetails.userId() : null;
@@ -475,7 +477,8 @@ public class PostService {
             final CustomUserDetails userDetails) {
         final Post post = findPostOrThrow(id);
         verifyOwnership(post, userDetails, request.guestPassword());
-        imageCleanupService.markRemovedImages(post.getContent(), "");
+        final Set<String> imageIds = TiptapContentParser.extractImageIds(post.getContent(), r2PublicUrl);
+        imageServerClient.release(new ArrayList<>(imageIds));
         post.hide();
     }
 
