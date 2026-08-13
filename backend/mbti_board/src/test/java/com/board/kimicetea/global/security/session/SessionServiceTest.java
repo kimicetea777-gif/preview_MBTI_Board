@@ -4,6 +4,7 @@ import com.board.kimicetea.domain.user.entity.User;
 import com.board.kimicetea.domain.user.enums.MbtiVerified;
 import com.board.kimicetea.domain.user.enums.UserRole;
 import com.board.kimicetea.domain.user.enums.UserState;
+import com.board.kimicetea.global.security.oauth2.AuthorizedClientRefreshService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -41,11 +42,14 @@ class SessionServiceTest {
     @Mock
     private ValueOperations<String, String> valueOperations;
 
+    @Mock
+    private AuthorizedClientRefreshService authorizedClientRefreshService;
+
     private SessionService sessionService;
 
     @BeforeEach
     void setUp() {
-        sessionService = new SessionService(redisTemplate, new ObjectMapper().findAndRegisterModules());
+        sessionService = new SessionService(redisTemplate, new ObjectMapper().findAndRegisterModules(), authorizedClientRefreshService);
         ReflectionTestUtils.setField(sessionService, "sessionTtlDays", 30L);
     }
 
@@ -218,6 +222,8 @@ class SessionServiceTest {
 
             verify(redisTemplate).delete(List.of("SESSDATA:session-a", "SESSDATA:session-b"));
             verify(redisTemplate).delete(sessKeys);
+            verify(authorizedClientRefreshService).revokeForLogout(AUTH_SERVER_ID, "device-1");
+            verify(authorizedClientRefreshService).revokeForLogout(AUTH_SERVER_ID, "device-2");
         }
 
         @Test
@@ -232,6 +238,7 @@ class SessionServiceTest {
 
             verify(redisTemplate, never()).delete(anyList());
             verify(redisTemplate, never()).delete(anyString());
+            verifyNoInteractions(authorizedClientRefreshService);
         }
     }
 }

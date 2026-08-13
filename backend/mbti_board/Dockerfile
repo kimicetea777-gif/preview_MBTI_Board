@@ -13,6 +13,6 @@ WORKDIR /app
 
 COPY --from=build /app/build/libs/*-SNAPSHOT.jar app.jar
 
-ENV JAVA_OPTS="-Xmx2g"
+ENV JAVA_OPTS="-Xmx512m"
 EXPOSE 8080
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar --spring.profiles.active=prod"]

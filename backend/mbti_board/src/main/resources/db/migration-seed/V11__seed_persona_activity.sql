@@ -1,5 +1,8 @@
 -- 2026-07-21 ~ 2026-07-23 기준 활동 시드: 신규 페르소나 6명 + 게시글 7건 + 댓글 13건
 -- auth_server_id는 실제 AS 계정과 매핑되지 않는 더미 UUID다(V13과 동일 원칙) — 콘텐츠 소유권 시드 용도
+-- 이 파일이 단독으로(prod) 돌 수 있도록, 댓글 작성자로만 쓰이는 기존 유저 3명(a13/a17/a18)도
+-- 여기서 함께 만든다. db/migration-dev/V6도 같은 3명을 만들기 때문에, 로컬 dev처럼 두 파일이
+-- 함께 도는 환경에서는 ON CONFLICT DO NOTHING으로 중복 삽입을 건너뛴다.
 
 INSERT INTO
     users (
@@ -85,7 +88,45 @@ VALUES (
         'NORMAL',
         TIMESTAMPTZ '2026-07-23 08:00:00+09',
         TIMESTAMPTZ '2026-07-23 08:00:00+09'
-    );
+    ),
+    -- 아래 3명은 새 페르소나가 아니라, 그 이전부터 있던 기존 유저 — 새 게시글에 댓글로 반응하는 역할
+    (
+        'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13',
+        'entp@mbti.dev',
+        'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a13',
+        '논쟁꾼ENTP',
+        'ENTP',
+        'SELF',
+        'USER',
+        'NORMAL',
+        TIMESTAMPTZ '2026-06-20 11:00:00+09',
+        TIMESTAMPTZ '2026-06-20 11:00:00+09'
+    ),
+    (
+        'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a17',
+        'intp@mbti.dev',
+        'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a17',
+        '분석가INTP',
+        'INTP',
+        'TESTED',
+        'USER',
+        'NORMAL',
+        TIMESTAMPTZ '2026-06-25 14:00:00+09',
+        TIMESTAMPTZ '2026-06-25 14:00:00+09'
+    ),
+    (
+        'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a18',
+        'enfp@mbti.dev',
+        'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a18',
+        '열정ENFP',
+        'ENFP',
+        'SELF',
+        'USER',
+        'NORMAL',
+        TIMESTAMPTZ '2026-07-01 09:00:00+09',
+        TIMESTAMPTZ '2026-07-01 09:00:00+09'
+    )
+ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO
     mbti_test_history (

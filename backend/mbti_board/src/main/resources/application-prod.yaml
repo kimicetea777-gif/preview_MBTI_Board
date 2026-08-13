@@ -1,7 +1,8 @@
 spring:
   flyway:
-    # 개발용 더미 시드(가짜 유저·게시글·통계) 제외 — db/migration만 적용
-    locations: classpath:db/migration
+    # 개발용 더미 시드(db/migration-dev — 가짜 유저 활동)는 제외, 실제 사이트에도 노출해도 되는
+    # 시드(db/migration-seed)는 포함
+    locations: classpath:db/migration,classpath:db/migration-seed
 
 # Cloudflare Tunnel이 TLS를 종료하고 내부로는 http로 전달 — 이 설정이 없으면
 # X-Forwarded-Proto 헤더를 무시해 OAuth2 redirect_uri가 http://로 생성되어

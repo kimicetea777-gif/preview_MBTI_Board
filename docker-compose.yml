@@ -3,6 +3,7 @@ services:
     image: postgres:16-alpine
     container_name: mbti_postgres
     restart: unless-stopped
+    mem_limit: 512m
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -21,6 +22,8 @@ services:
     image: redis:7-alpine
     container_name: mbti_redis
     restart: unless-stopped
+    mem_limit: 128m
+    command: redis-server --maxmemory 96mb --maxmemory-policy allkeys-lru
     ports:
       - "127.0.0.1:${REDIS_PORT}:6379"
     volumes:
@@ -37,6 +40,7 @@ services:
     image: mbti-backend:latest
     container_name: mbti_backend
     restart: unless-stopped
+    mem_limit: 768m
     env_file:
       - .env
     environment:
@@ -58,10 +62,14 @@ services:
     image: mbti-frontend:latest
     container_name: mbti_frontend
     restart: unless-stopped
+    mem_limit: 512m
     env_file:
       - ./.env_next
     environment:
       BACKEND_INTERNAL_URL: http://backend:8080
+      # JVM과 달리 Node는 컨테이너 mem_limit(cgroup)을 자동으로 인식해 힙을 줄이지 않음 —
+      # 명시 안 하면 호스트 전체 메모리 기준으로 힙을 키우려다 mem_limit에 막혀 OOM-kill될 수 있음
+      NODE_OPTIONS: --max-old-space-size=384
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:

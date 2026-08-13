@@ -34,11 +34,13 @@ spring:
     # clean-disabled: false
     enabled: true
     # clean-disabled: false
-    # 로컬 개발용 더미 시드(db/migration-dev)는 기본값에 포함 — prod 프로필에서는 application-prod.yaml이 제외
-    # 주의: db/migration-dev는 db/migration의 하위 폴더가 아닌 형제 폴더여야 함 —
+    # db/migration-dev(로컬 전용 더미 유저/글/댓글)는 기본값에 포함 — prod 프로필에서는 application-prod.yaml이 제외
+    # db/migration-seed(실제 사이트에도 노출해도 되는 시드 — 가짜 유저 활동이 아닌 집계 데이터 등)는
+    # dev/prod 둘 다에 포함
+    # 주의: db/migration-dev, db/migration-seed는 db/migration의 하위 폴더가 아닌 형제 폴더여야 함 —
     #       Flyway는 location을 재귀적으로 스캔하므로, 하위 폴더로 두면 prod에서 classpath:db/migration만
     #       지정해도 그 안에 포함된 것으로 같이 스캔되어 제외가 안 됨 (실제로 겪은 버그)
-    locations: classpath:db/migration,classpath:db/migration-dev
+    locations: classpath:db/migration,classpath:db/migration-dev,classpath:db/migration-seed
 
   mail:
     host: ${MAIL_HOST}
@@ -106,6 +108,10 @@ app:
   name: ${APP_NAME}
   cookie:
     secure: ${APP_COOKIE_SECURE:true} # 로컬 개발 시 환경변수 APP_COOKIE_SECURE=false 설정
+    # 프론트(typebutter.thebluebutter.com)와 백엔드(api-typebutter.thebluebutter.com)가 다른
+    # 서브도메인이라, 비워두면(로컬 localhost) host-only 쿠키가 되어 두 도메인 간 공유가 안 됨.
+    # prod에서만 APP_COOKIE_DOMAIN=.thebluebutter.com으로 두 서브도메인이 공유하게 함.
+    domain: ${APP_COOKIE_DOMAIN:}
 
 image-server:
   url: ${IMAGE_SERVER_URL}

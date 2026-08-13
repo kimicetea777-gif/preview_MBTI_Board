@@ -58,11 +58,12 @@ public class AdminPostService {
         post.changePinned(pinned);
     }
 
-    /** 게시글 영구 삭제 — CASCADE로 댓글 전체 함께 삭제 */
+    /** 게시글 영구 삭제 — CASCADE로 댓글 전체 함께 삭제, 본문 이미지는 Image Server에서 별도 정리 */
     @Transactional
     public void deletePost(final long postId) {
         final Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
+        postService.releaseImages(post);
         postRepository.delete(post);
     }
 }
