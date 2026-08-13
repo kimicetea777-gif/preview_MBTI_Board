@@ -477,9 +477,14 @@ public class PostService {
             final CustomUserDetails userDetails) {
         final Post post = findPostOrThrow(id);
         verifyOwnership(post, userDetails, request.guestPassword());
+        releaseImages(post);
+        post.hide();
+    }
+
+    /** 게시글 본문에 포함된 이미지를 Image Server에서 정리(R2 + DB 즉시 제거) — AdminPostService의 영구 삭제에서도 재사용 */
+    void releaseImages(final Post post) {
         final Set<String> imageIds = TiptapContentParser.extractImageIds(post.getContent(), r2PublicUrl);
         imageServerClient.release(new ArrayList<>(imageIds));
-        post.hide();
     }
 
     /**

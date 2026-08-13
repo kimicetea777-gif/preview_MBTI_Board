@@ -82,7 +82,7 @@ function ImageNodeView({ node, deleteNode, updateAttributes }: NodeViewProps) {
             type="button"
             onClick={deleteNode}
             aria-label="이미지 삭제"
-            className="absolute top-1.5 right-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full p-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+            className="absolute top-1.5 right-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full p-1 opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 transition-opacity"
           >
             <LuX className="size-3.5" />
           </button>
@@ -91,7 +91,7 @@ function ImageNodeView({ node, deleteNode, updateAttributes }: NodeViewProps) {
             role="slider"
             aria-label="이미지 크기 조절"
             aria-valuenow={width ?? undefined}
-            className="absolute bottom-0 right-0 p-2 touch-none cursor-nwse-resize opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+            className="absolute bottom-0 right-0 p-2 touch-none cursor-nwse-resize opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 transition-opacity"
           >
             <div className="flex items-center justify-center size-5 rounded-sm border border-dashed border-amber-400 bg-black/60">
               <LuMoveDiagonal2 className="size-3 text-amber-400" />
@@ -122,7 +122,7 @@ function YoutubeNodeView({ node, deleteNode }: NodeViewProps) {
           type="button"
           onClick={deleteNode}
           aria-label="영상 삭제"
-          className="absolute top-1.5 right-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute top-1.5 right-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full p-1 opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 transition-opacity"
         >
           <LuX className="size-3.5" />
         </button>

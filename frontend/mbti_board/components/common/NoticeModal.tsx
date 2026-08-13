@@ -29,7 +29,7 @@ export default function NoticeModal() {
       <div className="fixed inset-0 z-50 bg-black/40" onClick={close} />
 
       {/* 모달 */}
-      <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-outline-variant bg-surface-container-lowest shadow-2xl">
+      <div className="fixed inset-x-4 top-1/2 z-50 mx-auto max-w-lg -translate-y-1/2 rounded-2xl border border-outline-variant bg-surface-container-lowest shadow-2xl">
 
         {/* 헤더 */}
         <header className="flex items-center justify-between border-b border-outline-variant px-5 py-4">

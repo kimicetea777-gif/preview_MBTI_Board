@@ -1,6 +1,7 @@
 package com.board.kimicetea.global.security.session;
 
 import com.board.kimicetea.domain.user.entity.User;
+import com.board.kimicetea.global.security.oauth2.AuthorizedClientRefreshService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class SessionService {
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final AuthorizedClientRefreshService authorizedClientRefreshService;
 
     @Value("${authserver.refresh-token-ttl-days:30}")
     private long sessionTtlDays;
@@ -98,6 +100,13 @@ public class SessionService {
         }
         if (sessKeys.isEmpty()) {
             return;
+        }
+
+        // deviceId를 키에서 파싱해 디바이스별로 AS revoke + AC 엔트리 정리까지 같이 처리
+        final String keyPrefix = SESS_PREFIX + authServerId + ":";
+        for (final String sessKey : sessKeys) {
+            final String deviceId = sessKey.substring(keyPrefix.length());
+            authorizedClientRefreshService.revokeForLogout(authServerId, deviceId);
         }
 
         final List<String> sessionIds = redisTemplate.opsForValue().multiGet(sessKeys);

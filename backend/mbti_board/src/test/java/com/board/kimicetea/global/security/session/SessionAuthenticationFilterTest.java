@@ -6,6 +6,7 @@ import com.board.kimicetea.domain.user.enums.UserRole;
 import com.board.kimicetea.domain.user.enums.UserState;
 import com.board.kimicetea.domain.user.repository.UserRepository;
 import com.board.kimicetea.domain.user.security.CustomUserDetails;
+import com.board.kimicetea.global.security.oauth2.AppRoleSyncService;
 import com.board.kimicetea.global.security.oauth2.AuthorizedClientRefreshService;
 import com.board.kimicetea.global.security.oauth2.AuthorizedClientRefreshUnavailableException;
 import jakarta.servlet.http.Cookie;
@@ -22,8 +23,15 @@ import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
+import org.springframework.security.oauth2.core.OAuth2AccessToken;
 
+import java.time.Instant;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -47,6 +55,9 @@ class SessionAuthenticationFilterTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private AppRoleSyncService appRoleSyncService;
+
     private SessionAuthenticationFilter filter;
     private MockHttpServletRequest request;
     private MockHttpServletResponse response;
@@ -54,7 +65,7 @@ class SessionAuthenticationFilterTest {
 
     @BeforeEach
     void setUp() {
-        filter = new SessionAuthenticationFilter(sessionService, authorizedClientRefreshService, userRepository);
+        filter = new SessionAuthenticationFilter(sessionService, authorizedClientRefreshService, userRepository, appRoleSyncService);
         request = new MockHttpServletRequest();
         response = new MockHttpServletResponse();
         filterChain = new MockFilterChain();
@@ -68,6 +79,23 @@ class SessionAuthenticationFilterTest {
     private SessionService.SessionData sessionData(final String role, final boolean blocked) {
         return new SessionService.SessionData(
                 USER_ID, AUTH_SERVER_ID, "user@example.com", DEVICE_ID, "id-token", role, blocked);
+    }
+
+    private OAuth2AuthorizedClient authorizedClientWithAccessToken(final String tokenValue) {
+        final ClientRegistration clientRegistration = ClientRegistration.withRegistrationId("thebluebutter")
+                .clientId("TypeButter")
+                .clientSecret("secret")
+                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .redirectUri("{baseUrl}/login/oauth2/code/thebluebutter")
+                .authorizationUri("http://localhost:9000/oauth2/authorize")
+                .tokenUri("http://localhost:9000/oauth2/token")
+                .scope("openid", "profile")
+                .build();
+        final OAuth2AccessToken accessToken = new OAuth2AccessToken(
+                OAuth2AccessToken.TokenType.BEARER, tokenValue, Instant.now(), Instant.now().plusSeconds(300),
+                Set.of("openid", "profile"));
+        return new OAuth2AuthorizedClient(clientRegistration, AUTH_SERVER_ID + ":" + DEVICE_ID, accessToken);
     }
 
     private User user(final UserRole role, final UserState state) {
@@ -132,7 +160,7 @@ class SessionAuthenticationFilterTest {
         @DisplayName("refresh가 필요 없으면 캐시된 role/blocked 그대로 인증을 등록한다")
         void unchangedRegistersAuthenticationFromCache() throws Exception {
             when(sessionService.getSessionData(SESSION_ID)).thenReturn(Optional.of(sessionData("USER", false)));
-            when(authorizedClientRefreshService.getFreshAuthorizedClient(AUTH_SERVER_ID))
+            when(authorizedClientRefreshService.getFreshAuthorizedClient(AUTH_SERVER_ID, DEVICE_ID))
                     .thenReturn(new AuthorizedClientRefreshService.RefreshOutcome(null, false, false));
 
             filter.doFilter(request, response, filterChain);
@@ -148,10 +176,12 @@ class SessionAuthenticationFilterTest {
         @Test
         @DisplayName("refresh가 일어났으면 로컬 User를 재조회해 role/blocked 캐시를 갱신하고 그 값으로 인증한다")
         void refreshedUpdatesCacheFromLocalUser() throws Exception {
+            final User adminUser = user(UserRole.ADMIN, UserState.NORMAL);
             when(sessionService.getSessionData(SESSION_ID)).thenReturn(Optional.of(sessionData("USER", false)));
-            when(authorizedClientRefreshService.getFreshAuthorizedClient(AUTH_SERVER_ID))
-                    .thenReturn(new AuthorizedClientRefreshService.RefreshOutcome(null, true, false));
-            when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user(UserRole.ADMIN, UserState.NORMAL)));
+            when(authorizedClientRefreshService.getFreshAuthorizedClient(AUTH_SERVER_ID, DEVICE_ID))
+                    .thenReturn(new AuthorizedClientRefreshService.RefreshOutcome(authorizedClientWithAccessToken("at-value"), true, false));
+            when(userRepository.findById(USER_ID)).thenReturn(Optional.of(adminUser));
+            when(appRoleSyncService.syncFromAccessToken(adminUser, "at-value")).thenReturn(UserRole.ADMIN);
 
             filter.doFilter(request, response, filterChain);
 
@@ -165,7 +195,7 @@ class SessionAuthenticationFilterTest {
         @DisplayName("refresh 중 로컬 User를 찾지 못하면 기존 캐시값을 그대로 쓰고 캐시 갱신은 하지 않는다")
         void refreshedButUserMissingKeepsOldCache() throws Exception {
             when(sessionService.getSessionData(SESSION_ID)).thenReturn(Optional.of(sessionData("USER", false)));
-            when(authorizedClientRefreshService.getFreshAuthorizedClient(AUTH_SERVER_ID))
+            when(authorizedClientRefreshService.getFreshAuthorizedClient(AUTH_SERVER_ID, DEVICE_ID))
                     .thenReturn(new AuthorizedClientRefreshService.RefreshOutcome(null, true, false));
             when(userRepository.findById(USER_ID)).thenReturn(Optional.empty());
 
@@ -180,10 +210,12 @@ class SessionAuthenticationFilterTest {
         @Test
         @DisplayName("refresh 후 차단 상태로 확인되면 세션을 지우고 인증하지 않는다")
         void refreshedAndBlockedDeletesSession() throws Exception {
+            final User blockedUser = user(UserRole.USER, UserState.WITHDRAWN);
             when(sessionService.getSessionData(SESSION_ID)).thenReturn(Optional.of(sessionData("USER", false)));
-            when(authorizedClientRefreshService.getFreshAuthorizedClient(AUTH_SERVER_ID))
-                    .thenReturn(new AuthorizedClientRefreshService.RefreshOutcome(null, true, false));
-            when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user(UserRole.USER, UserState.WITHDRAWN)));
+            when(authorizedClientRefreshService.getFreshAuthorizedClient(AUTH_SERVER_ID, DEVICE_ID))
+                    .thenReturn(new AuthorizedClientRefreshService.RefreshOutcome(authorizedClientWithAccessToken("at-value"), true, false));
+            when(userRepository.findById(USER_ID)).thenReturn(Optional.of(blockedUser));
+            when(appRoleSyncService.syncFromAccessToken(blockedUser, "at-value")).thenReturn(UserRole.USER);
 
             filter.doFilter(request, response, filterChain);
 
@@ -196,7 +228,7 @@ class SessionAuthenticationFilterTest {
         @DisplayName("AS가 명시적으로 거부(rejected)하면 세션을 지우고 SESSION_INVALID로 처리한다")
         void rejectedDeletesSession() throws Exception {
             when(sessionService.getSessionData(SESSION_ID)).thenReturn(Optional.of(sessionData("USER", false)));
-            when(authorizedClientRefreshService.getFreshAuthorizedClient(AUTH_SERVER_ID))
+            when(authorizedClientRefreshService.getFreshAuthorizedClient(AUTH_SERVER_ID, DEVICE_ID))
                     .thenReturn(new AuthorizedClientRefreshService.RefreshOutcome(null, false, true));
 
             filter.doFilter(request, response, filterChain);
@@ -210,7 +242,7 @@ class SessionAuthenticationFilterTest {
         @DisplayName("Redis 장애 시 세션은 지우지 않고 이번 요청만 미인증 처리한다")
         void redisFailureDoesNotDeleteSession() throws Exception {
             when(sessionService.getSessionData(SESSION_ID)).thenReturn(Optional.of(sessionData("USER", false)));
-            when(authorizedClientRefreshService.getFreshAuthorizedClient(AUTH_SERVER_ID))
+            when(authorizedClientRefreshService.getFreshAuthorizedClient(AUTH_SERVER_ID, DEVICE_ID))
                     .thenThrow(new RedisConnectionFailureException("boom"));
 
             filter.doFilter(request, response, filterChain);
@@ -224,7 +256,7 @@ class SessionAuthenticationFilterTest {
         @DisplayName("AS 통신 장애 시에도 세션은 지우지 않고 이번 요청만 미인증 처리한다")
         void asUnavailableDoesNotDeleteSession() throws Exception {
             when(sessionService.getSessionData(SESSION_ID)).thenReturn(Optional.of(sessionData("USER", false)));
-            when(authorizedClientRefreshService.getFreshAuthorizedClient(AUTH_SERVER_ID))
+            when(authorizedClientRefreshService.getFreshAuthorizedClient(AUTH_SERVER_ID, DEVICE_ID))
                     .thenThrow(new AuthorizedClientRefreshUnavailableException("AS 서버 통신 실패", new RuntimeException()));
 
             filter.doFilter(request, response, filterChain);

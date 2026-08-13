@@ -31,6 +31,15 @@ public class SessionCookieUtils {
     @Value("${app.cookie.secure:false}")
     private boolean secure;
 
+    // 프론트(typebutter.thebluebutter.com)가 이 힌트 쿠키로 로그인 여부를 판단하는데(proxy.ts),
+    // 백엔드는 다른 서브도메인(api-typebutter.thebluebutter.com)에서 응답하므로 Domain을 안 넓히면
+    // host-only 쿠키가 되어 프론트 도메인 요청엔 실리지 않는다. 로컬(localhost)은 빈 값으로 두어
+    // host-only를 유지 — localhost에 "."로 시작하는 Domain을 주면 오히려 브라우저가 쿠키를 거부한다.
+    // sessionId(HttpOnly) 쿠키는 항상 api-typebutter.thebluebutter.com로만 요청되므로(apiClient의
+    // baseURL) host-only 그대로 둬도 무방 — 굳이 넓혀서 노출 범위를 키우지 않는다.
+    @Value("${app.cookie.domain:}")
+    private String hintCookieDomain;
+
     public void addSessionCookie(final HttpServletResponse response, final String sessionId, final long maxAgeMillis) {
         final ResponseCookie cookie = ResponseCookie.from(SESSION_COOKIE_NAME, sessionId)
                 .httpOnly(true)
@@ -44,6 +53,7 @@ public class SessionCookieUtils {
         final ResponseCookie hintCookie = ResponseCookie.from(SESSION_HINT_COOKIE_NAME, "1")
                 .httpOnly(false)
                 .secure(secure)
+                .domain(hintCookieDomain.isBlank() ? null : hintCookieDomain)
                 .path(COOKIE_PATH)
                 .sameSite(SAME_SITE)
                 .maxAge(Duration.ofMillis(maxAgeMillis))
@@ -64,6 +74,7 @@ public class SessionCookieUtils {
         final ResponseCookie hintCookie = ResponseCookie.from(SESSION_HINT_COOKIE_NAME, "")
                 .httpOnly(false)
                 .secure(secure)
+                .domain(hintCookieDomain.isBlank() ? null : hintCookieDomain)
                 .path(COOKIE_PATH)
                 .maxAge(0)
                 .sameSite(SAME_SITE)

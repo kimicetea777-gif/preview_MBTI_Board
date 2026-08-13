@@ -3,8 +3,10 @@
 .env_next
 .env_prod
 
-# USB 배포용 이미지 아카이브
+# SSH 배포용 이미지 아카이브
 *.tar
+*.tar.gz
+*.zip
 
 # Gradle
 .gradle/

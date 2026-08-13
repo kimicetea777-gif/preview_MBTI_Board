@@ -72,7 +72,7 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
     private void authenticate(final String sessionId, final SessionService.SessionData data,
                               final HttpServletRequest request) {
         final AuthorizedClientRefreshService.RefreshOutcome outcome =
-                authorizedClientRefreshService.getFreshAuthorizedClient(data.authServerId());
+                authorizedClientRefreshService.getFreshAuthorizedClient(data.authServerId(), data.deviceId());
 
         if (outcome.rejected()) {
             sessionService.deleteSession(sessionId);

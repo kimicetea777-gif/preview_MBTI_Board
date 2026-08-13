@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
@@ -64,6 +65,17 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         }
 
         final String deviceId = UUID.randomUUID().toString();
+
+        // Spring의 oauth2Login() 자동 저장은 authServerId 단독 키로만 저장한다(디바이스 인지 불가) —
+        // 여기서 deviceId가 막 생겼으니 같은 토큰을 합성 키로 복사 저장하고, 원본은 지운다(fail-loud:
+        // 마이그레이션 빠진 코드가 stale한 원본을 조용히 계속 읽는 걸 방지).
+        if (authorizedClient != null) {
+            final String devicePrincipal = AuthorizedClientRefreshService.devicePrincipalName(authServerId, deviceId);
+            authorizedClientService.saveAuthorizedClient(
+                    authorizedClient, new UsernamePasswordAuthenticationToken(devicePrincipal, null));
+            authorizedClientService.removeAuthorizedClient(REGISTRATION_ID, authServerId.toString());
+        }
+
         final String sessionId = sessionService.createSession(user, deviceId, oidcUser.getIdToken().getTokenValue());
 
         sessionCookieUtils.addSessionCookie(response, sessionId, Duration.ofDays(sessionCookieMaxAgeDays).toMillis());
