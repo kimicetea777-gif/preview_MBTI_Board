@@ -19,9 +19,6 @@ import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.Base64;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -34,17 +31,9 @@ class AuthServiceTest {
     private static final String SESSION_ID = "session-1";
     private static final UUID AUTH_SERVER_ID = UUID.randomUUID();
     private static final UUID USER_ID = UUID.randomUUID();
-    private static final String ID_TOKEN = fakeIdToken(Instant.now().plusSeconds(1800).getEpochSecond());
-    private static final String EXPIRED_ID_TOKEN = fakeIdToken(Instant.now().minusSeconds(60).getEpochSecond());
+    /** SessionData.idToken은 로그아웃 URL 조립에 더 이상 쓰이지 않는다 — 자리만 채우는 더미 */
+    private static final String ID_TOKEN = "unused-id-token";
     private static final String FRONTEND_URL = "http://localhost:4000";
-
-    /** AuthService.isExpired()가 파싱하는 exp 클레임만 채운, 서명 검증은 하지 않는 가짜 JWT — id_token_hint 만료 판단 테스트용 */
-    private static String fakeIdToken(final long expEpochSeconds) {
-        final Base64.Encoder encoder = Base64.getUrlEncoder().withoutPadding();
-        final String header = encoder.encodeToString("{\"alg\":\"none\"}".getBytes(StandardCharsets.UTF_8));
-        final String payload = encoder.encodeToString(("{\"exp\":" + expEpochSeconds + "}").getBytes(StandardCharsets.UTF_8));
-        return header + "." + payload + ".sig";
-    }
 
     @Mock
     private SessionService sessionService;
@@ -93,7 +82,7 @@ class AuthServiceTest {
     class Logout {
 
         @Test
-        @DisplayName("세션이 있으면 삭제하고, 쿠키를 지우고, AS RP-Initiated Logout URL을 정확히 조립해 반환한다")
+        @DisplayName("세션이 있으면 삭제하고, 쿠키를 지우고, client_id 기반 AS 로그아웃 URL을 조립해 반환한다")
         void deletesSessionAndBuildsAuthServerLogoutUrl() {
             when(sessionService.getSessionData(SESSION_ID)).thenReturn(Optional.of(sessionData(ID_TOKEN)));
             when(clientRegistrationRepository.findByRegistrationId("thebluebutter")).thenReturn(clientRegistration());
@@ -104,9 +93,11 @@ class AuthServiceTest {
             verify(sessionService).deleteSession(SESSION_ID);
             verify(sessionCookieUtils).clearSessionCookie(response);
             assertThat(result.authServerLogoutUrl())
-                    .startsWith("http://localhost:9000/connect/logout")
-                    .contains("id_token_hint=" + ID_TOKEN)
-                    .contains("post_logout_redirect_uri=" + FRONTEND_URL);
+                    .startsWith("http://localhost:9000/session/logout")
+                    .contains("client_id=TypeButter")
+                    .contains("post_logout_redirect_uri=" + FRONTEND_URL)
+                    .doesNotContain("id_token_hint")
+                    .doesNotContain("/connect/logout");
         }
 
         @Test
@@ -122,20 +113,6 @@ class AuthServiceTest {
             assertThat(result.authServerLogoutUrl()).isNull();
             verifyNoInteractions(clientRegistrationRepository);
         }
-
-        @Test
-        @DisplayName("세션에 저장된 id_token이 만료됐으면 id_token_hint 없이 AS 로그아웃 URL을 반환한다")
-        void omitsIdTokenHintWhenIdTokenExpired() {
-            when(sessionService.getSessionData(SESSION_ID)).thenReturn(Optional.of(sessionData(EXPIRED_ID_TOKEN)));
-            when(clientRegistrationRepository.findByRegistrationId("thebluebutter")).thenReturn(clientRegistration());
-
-            final LogoutResponse result = authService.logout(SESSION_ID, response);
-
-            assertThat(result.authServerLogoutUrl())
-                    .startsWith("http://localhost:9000/connect/logout")
-                    .doesNotContain("id_token_hint")
-                    .contains("post_logout_redirect_uri=" + FRONTEND_URL);
-        }
     }
 
     @Nested
@@ -143,7 +120,7 @@ class AuthServiceTest {
     class LogoutAll {
 
         @Test
-        @DisplayName("세션이 있으면 해당 authServerId의 모든 세션을 삭제하고 AS 로그아웃 URL을 반환한다")
+        @DisplayName("세션이 있으면 해당 authServerId의 모든 세션을 삭제하고 client_id 기반 AS 로그아웃 URL을 반환한다")
         void deletesAllSessionsForAuthServerId() {
             when(sessionService.getSessionData(SESSION_ID)).thenReturn(Optional.of(sessionData(ID_TOKEN)));
             when(clientRegistrationRepository.findByRegistrationId("thebluebutter")).thenReturn(clientRegistration());
@@ -153,7 +130,9 @@ class AuthServiceTest {
             verify(sessionService).deleteAllSessions(AUTH_SERVER_ID);
             verify(sessionService, never()).deleteSession(anyString());
             verify(sessionCookieUtils).clearSessionCookie(response);
-            assertThat(result.authServerLogoutUrl()).contains("id_token_hint=" + ID_TOKEN);
+            assertThat(result.authServerLogoutUrl())
+                    .startsWith("http://localhost:9000/session/logout")
+                    .contains("client_id=TypeButter");
         }
 
         @Test
