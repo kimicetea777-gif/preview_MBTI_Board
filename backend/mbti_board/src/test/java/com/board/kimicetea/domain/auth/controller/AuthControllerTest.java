@@ -103,12 +103,13 @@ class AuthControllerTest {
         @Test
         @DisplayName("성공 — 소셜 로그인 세션이면 authServerLogoutUrl을 응답에 함께 반환한다")
         void returnsAuthServerLogoutUrl() throws Exception {
+            final String logoutUrl = "http://localhost:9000/session/logout?client_id=TypeButter&post_logout_redirect_uri=http://localhost:3000";
             given(authService.logout(eq(SESSION_ID), any()))
-                    .willReturn(new LogoutResponse("http://localhost:9000/connect/logout?id_token_hint=abc"));
+                    .willReturn(new LogoutResponse(logoutUrl));
 
             mockMvc.perform(post(LOGOUT_URL).cookie(sessionCookie()))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.data.authServerLogoutUrl").value("http://localhost:9000/connect/logout?id_token_hint=abc"));
+                    .andExpect(jsonPath("$.data.authServerLogoutUrl").value(logoutUrl));
         }
 
         @Test

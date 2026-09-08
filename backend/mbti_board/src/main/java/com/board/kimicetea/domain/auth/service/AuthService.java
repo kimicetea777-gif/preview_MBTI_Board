@@ -4,19 +4,15 @@ import com.board.kimicetea.domain.auth.dto.LogoutResponse;
 import com.board.kimicetea.global.security.oauth2.AuthorizedClientRefreshService;
 import com.board.kimicetea.global.security.session.SessionCookieUtils;
 import com.board.kimicetea.global.security.session.SessionService;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.Base64;
 import java.util.Optional;
 
 /**
@@ -24,19 +20,16 @@ import java.util.Optional;
  * 재발급(reissue) 개념 자체가 없어짐 — 브라우저는 opaque 세션 쿠키만 들고 있고, AS access token 갱신은
  * SessionAuthenticationFilter가 매 요청마다 조용히 처리한다.
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
-
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final SessionService sessionService;
     private final SessionCookieUtils sessionCookieUtils;
     private final ClientRegistrationRepository clientRegistrationRepository;
     private final AuthorizedClientRefreshService authorizedClientRefreshService;
 
-    /** RP-Initiated Logout(/connect/logout) 완료 후 AS가 돌려보낼 프론트 주소 — AS의 post-logout-redirect-uris에도 등록돼 있어야 함 */
+    /** RP-Initiated Logout(/session/logout) 완료 후 AS가 돌려보낼 프론트 주소 — AS의 post-logout-redirect-uris에도 등록돼 있어야 함 */
     @Value("${frontend.url}")
     private String frontendUrl;
 
@@ -47,10 +40,7 @@ public class AuthService {
         sessionService.deleteSession(sessionId);
         sessionCookieUtils.clearSessionCookie(response);
 
-        return data.map(SessionService.SessionData::idToken)
-                .map(this::buildAuthServerLogoutUrl)
-                .map(LogoutResponse::new)
-                .orElseGet(() -> new LogoutResponse(null));
+        return buildLogoutResponse(data.isPresent());
     }
 
     /**
@@ -62,40 +52,32 @@ public class AuthService {
         data.ifPresent(d -> sessionService.deleteAllSessions(d.authServerId()));
         sessionCookieUtils.clearSessionCookie(response);
 
-        return data.map(SessionService.SessionData::idToken)
-                .map(this::buildAuthServerLogoutUrl)
-                .map(LogoutResponse::new)
-                .orElseGet(() -> new LogoutResponse(null));
+        return buildLogoutResponse(data.isPresent());
     }
 
-    private String buildAuthServerLogoutUrl(final String idToken) {
-        final String issuerUri = clientRegistrationRepository.findByRegistrationId("thebluebutter")
-                .getProviderDetails().getIssuerUri();
-        final UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(issuerUri + "/connect/logout")
-                .queryParam("post_logout_redirect_uri", frontendUrl);
-        if (!isExpired(idToken)) {
-            builder.queryParam("id_token_hint", idToken);
-        }
-        return builder.build().toUriString();
+    private LogoutResponse buildLogoutResponse(final boolean hadSession) {
+        return hadSession
+                ? new LogoutResponse(buildAuthServerLogoutUrl())
+                : new LogoutResponse(null);
     }
 
     /**
-     * id_token은 로그인 시점에 한 번만 발급받아 세션에 저장되고 이후 AS access token이 refresh돼도
-     * 갱신되지 않는데(AuthorizedClientRefreshService의 refresh_token grant는 새 id_token을 안 돌려받음),
-     * AS(Spring Authorization Server)의 ID Token 수명은 TokenSettings로 조정 불가능한 고정 30분이라
-     * 세션이 그보다 오래 지속되면 반드시 만료된다. 만료된 id_token_hint를 그대로 보내면 AS가
-     * /connect/logout에서 invalid_token으로 400(Whitelabel Error Page)을 던지므로, 만료됐으면
-     * id_token_hint 파라미터 자체를 생략한다 — AS가 자체 세션 쿠키 기반 로그아웃 확인 절차로 대체 처리.
+     * AS의 RP-Initiated Logout 주소. 표준 /connect/logout은 id_token_hint를 하드 요구하는데, 이 백엔드는
+     * AS access token을 조용히 refresh할 때마다 AS가 저장된 id_token을 새 값으로 교체(rotate)해버려서
+     * (OAuth2RefreshTokenAuthenticationProvider) 로그인 시점에 받아 세션에 넣어둔 id_token이 몇 분 만에
+     * orphan이 된다 — Spring Security의 OAuth2AuthorizedClient에는 id_token 자리가 없어 refresh 응답의
+     * 새 값을 붙들 수도 없다. 그래서 AS에 client_id + 세션 쿠키만으로 동작하는 전용 엔드포인트
+     * (/session/logout)를 두고 이쪽을 쓴다 — AS 세션이 이미 만료된 뒤여도(로그인 후 30분 idle) 400 없이
+     * post_logout_redirect_uri로 302한다.
      */
-    private boolean isExpired(final String idToken) {
-        try {
-            final String[] parts = idToken.split("\\.");
-            final String payload = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
-            final JsonNode exp = OBJECT_MAPPER.readTree(payload).get("exp");
-            return exp == null || Instant.ofEpochSecond(exp.asLong()).isBefore(Instant.now());
-        } catch (final Exception e) {
-            log.warn("id_token exp 파싱 실패 — 만료로 간주하고 id_token_hint 생략", e);
-            return true;
-        }
+    private String buildAuthServerLogoutUrl() {
+        final ClientRegistration registration = clientRegistrationRepository.findByRegistrationId("thebluebutter");
+        final String issuerUri = registration.getProviderDetails().getIssuerUri();
+        return UriComponentsBuilder.fromUriString(issuerUri + "/session/logout")
+                .queryParam("client_id", registration.getClientId())
+                .queryParam("post_logout_redirect_uri", frontendUrl)
+                .encode(StandardCharsets.UTF_8)
+                .build()
+                .toUriString();
     }
 }
