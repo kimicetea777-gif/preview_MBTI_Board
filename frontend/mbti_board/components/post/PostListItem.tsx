@@ -28,8 +28,8 @@ export default function PostListItem({ href, showType, ...post }: PostCardBasePr
               <div className="flex items-center gap-2 text-xs text-on-surface-variant min-w-0">
                 <MbtiBadge mbti={post.authorMbtiId} verified={post.mbtiVerified} />
                 <span className="truncate max-w-32">{post.authorNickname}</span>
-                <span className="shrink-0">·</span>
-                <span className="shrink-0">{formatRelativeTime(post.createdAt)}</span>
+                <span className="hidden shrink-0">·</span>
+                <span className="hidden shrink-0">{formatRelativeTime(post.createdAt)}</span>
               </div>
             </div>
 

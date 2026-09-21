@@ -44,7 +44,7 @@ export function useWriteForm(initialType: PostType) {
     useVoteOptionsForm(mbtiList);
 
   // VOTE + DEBATE
-  const { endsAt, isNoDeadline, setEndsAt, handleNoDeadlineToggle, validateDeadline } =
+  const { endsAt, isDefaultDeadline, setEndsAt, handleSetThreeMonths, validateDeadline } =
     useDeadlineForm();
 
   // DEBATE
@@ -112,7 +112,7 @@ export function useWriteForm(initialType: PostType) {
     }
 
     const resolvedTargetMbti = targetMbti === MBTI_ALL ? undefined : targetMbti;
-    const resolvedEndsAt = !isNoDeadline && endsAt ? new Date(endsAt).toISOString() : undefined;
+    const resolvedEndsAt = endsAt ? new Date(endsAt).toISOString() : undefined;
 
     if (postType === POST_TYPE.FREE) {
       if (isTiptapEmpty(content)) { toast.error("내용을 입력해 주세요."); return; }
@@ -177,7 +177,7 @@ export function useWriteForm(initialType: PostType) {
     isMbtiMode,
     options,
     endsAt,
-    isNoDeadline,
+    isDefaultDeadline,
     proLabel,
     conLabel,
     mbtiList,
@@ -193,7 +193,7 @@ export function useWriteForm(initialType: PostType) {
     setProLabel,
     setConLabel,
     handleTypeChange,
-    handleNoDeadlineToggle,
+    handleSetThreeMonths,
     toggleMbtiMode,
     addOption,
     removeOption,

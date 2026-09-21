@@ -41,6 +41,11 @@ public class VotePostHistory {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    // 투표(등록/변경) 시점의 유저 mbti_id 스냅샷 — DB 트리거가 관리, JPA 직접 수정 금지
+    // (vote_option_mbti_counts 카운트 동기화 트리거가 users 재조회 없이 이 값만 참조함)
+    @Column(name = "mbti_id", length = 6, insertable = false, updatable = false)
+    private String mbtiId;
+
     /*-----------------------------------연관관계-------------------------------------------*/
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

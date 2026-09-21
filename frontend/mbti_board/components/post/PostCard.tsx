@@ -31,7 +31,7 @@ export default function PostCard({ href, ...post }: PostCardBaseProps) {
             <MbtiBadge mbti={post.authorMbtiId} verified={post.mbtiVerified} className="px-3 py-1 text-sm font-semibold " />
             <div className="flex flex-col min-w-0">
               <p className="text-sm font-semibold text-foreground truncate">{post.authorNickname}</p>
-              <p className="text-xs text-on-surface-variant">{formatRelativeTime(post.createdAt)}</p>
+              <p className="hidden text-xs text-on-surface-variant">{formatRelativeTime(post.createdAt)}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">

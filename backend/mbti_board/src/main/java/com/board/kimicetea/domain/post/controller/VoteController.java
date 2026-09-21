@@ -1,5 +1,6 @@
 package com.board.kimicetea.domain.post.controller;
 
+import com.board.kimicetea.domain.post.dto.VoteMbtiStatsResponse;
 import com.board.kimicetea.domain.post.dto.VoteRequest;
 import com.board.kimicetea.domain.post.dto.VoteResultResponse;
 import com.board.kimicetea.domain.post.service.VoteService;
@@ -64,5 +65,17 @@ public class VoteController {
 
         final UUID currentUserId = (userDetails != null) ? userDetails.userId() : null;
         return ResponseEntity.ok(ApiResponse.ok(voteService.getVoteResult(postId, currentUserId)));
+    }
+
+    @Operation(summary = "투표 선택지별 MBTI 통계 조회", description = "선택지별로 어떤 MBTI가 몇 표를 던졌는지 조회합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "게시글 없음")
+    })
+    @GetMapping("/mbti-stats")
+    public ResponseEntity<ApiResponse<VoteMbtiStatsResponse>> getVoteMbtiStats(
+            @PathVariable final Long postId) {
+
+        return ResponseEntity.ok(ApiResponse.ok(voteService.getVoteMbtiStats(postId)));
     }
 }

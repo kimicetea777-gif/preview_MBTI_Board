@@ -103,6 +103,21 @@ export interface VoteOptionResponse {
   voteCount: number;
 }
 
+// 투표 선택지별 MBTI 통계 응답 (GET /api/posts/{id}/vote/mbti-stats)
+export interface VoteMbtiStats {
+  options: VoteOptionMbtiStats[];
+}
+
+export interface VoteOptionMbtiStats {
+  optionId: number;
+  mbtiCounts: VoteMbtiCount[];
+}
+
+export interface VoteMbtiCount {
+  mbtiId: string;
+  count: number;
+}
+
 // 투표 결과 응답 (GET /api/posts/{id}/vote/result, POST /api/posts/{id}/vote 공통)
 export interface VoteResult {
   options: VoteOptionResponse[];

@@ -5,18 +5,18 @@ import { getMinDatetimeLocal } from "@/lib/dateUtils";
 
 interface Props {
   endsAt: string;
-  isNoDeadline: boolean;
+  isDefaultDeadline: boolean;
   isPending: boolean;
   onEndsAtChange: (value: string) => void;
-  onNoDeadlineToggle: () => void;
+  onSetThreeMonths: () => void;
 }
 
 export default function DeadlineField({
   endsAt,
-  isNoDeadline,
+  isDefaultDeadline,
   isPending,
   onEndsAtChange,
-  onNoDeadlineToggle,
+  onSetThreeMonths,
 }: Props) {
   return (
     <div className="space-y-1.5">
@@ -31,23 +31,23 @@ export default function DeadlineField({
           value={endsAt}
           onChange={(e) => onEndsAtChange(e.target.value)}
           min={getMinDatetimeLocal()}
-          disabled={isPending || isNoDeadline}
+          disabled={isPending}
           className="bg-background border border-border rounded-lg px-4 py-2.5 text-sm text-foreground focus:border-ring focus:outline-none disabled:opacity-50 disabled:bg-muted transition-all"
         />
 
-        {/* 기한 없음 Toggle */}
+        {/* 3개월 기본값 버튼 */}
         <button
           type="button"
-          onClick={onNoDeadlineToggle}
+          onClick={onSetThreeMonths}
           disabled={isPending}
           className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-semibold border transition-all disabled:opacity-50 ${
-            isNoDeadline
+            isDefaultDeadline
               ? "bg-primary/80 text-primary-foreground border-2 border-primary"
               : "bg-background text-muted-foreground border border-border hover:border-ring"
           }`}
         >
-          {isNoDeadline && <LuCheck className="size-4" />}
-          기한 없음
+          {isDefaultDeadline && <LuCheck className="size-4" />}
+          3개월
         </button>
       </div>
     </div>
