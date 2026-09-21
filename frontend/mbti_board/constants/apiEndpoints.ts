@@ -36,6 +36,7 @@ export const API = {
   votes: {
     cast: (postId: number) => `/api/posts/${postId}/vote`,
     result: (postId: number) => `/api/posts/${postId}/vote/result`,
+    mbtiStats: (postId: number) => `/api/posts/${postId}/vote/mbti-stats`,
   },
   images: {
     upload: "/api/upload", // Next.js Route Handler 경유 — Image Server 직접 호출(X-Api-Key 서버에서 주입)

@@ -14,6 +14,8 @@ export const postKeys = {
   details: () => [...postKeys.all(), "detail"] as const,
   detail:  (id: number) =>
                [...postKeys.details(), id]    as const,
+  voteMbtiStats: (id: number) =>
+               [...postKeys.all(), "vote-mbti-stats", id] as const,
 };
 
 /**

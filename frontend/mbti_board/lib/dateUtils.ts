@@ -13,6 +13,18 @@ export function getMinDatetimeLocal(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+/** VOTE/DEBATE 마감일 기본값 — 현재 시각으로부터 3개월 뒤 (대상 월의 말일보다 크면 말일로 보정) */
+export function getDefaultDeadline(): string {
+  const day = new Date().getDate();
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + 3);
+  const lastDayOfTargetMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, lastDayOfTargetMonth));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("ko-KR");
 }

@@ -1,7 +1,7 @@
 import { apiClient } from "@/lib/apiClient";
 import { API } from "@/constants/apiEndpoints";
 import type { ApiResponse } from "@/types/api";
-import type { VoteResult } from "@/types/post";
+import type { VoteResult, VoteMbtiStats } from "@/types/post";
 
 export async function castVote(postId: number, optionId: number): Promise<VoteResult> {
   const res = await apiClient.post<ApiResponse<VoteResult>>(API.votes.cast(postId), { optionId });
@@ -10,5 +10,10 @@ export async function castVote(postId: number, optionId: number): Promise<VoteRe
 
 export async function fetchVoteResult(postId: number): Promise<VoteResult> {
   const res = await apiClient.get<ApiResponse<VoteResult>>(API.votes.result(postId));
+  return res.data.data;
+}
+
+export async function fetchVoteMbtiStats(postId: number): Promise<VoteMbtiStats> {
+  const res = await apiClient.get<ApiResponse<VoteMbtiStats>>(API.votes.mbtiStats(postId));
   return res.data.data;
 }

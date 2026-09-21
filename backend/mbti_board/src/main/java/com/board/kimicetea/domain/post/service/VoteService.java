@@ -1,5 +1,7 @@
 package com.board.kimicetea.domain.post.service;
 
+import com.board.kimicetea.domain.post.dto.VoteMbtiStatRow;
+import com.board.kimicetea.domain.post.dto.VoteMbtiStatsResponse;
 import com.board.kimicetea.domain.post.dto.VoteRequest;
 import com.board.kimicetea.domain.post.dto.VoteResultResponse;
 import com.board.kimicetea.domain.post.entity.VotePost;
@@ -20,6 +22,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -101,6 +107,37 @@ public class VoteService {
                 : null;
 
         return VoteResultResponse.from(votePost, history);
+    }
+
+    /**
+     * 선택지별 MBTI 분포 조회 — vote_option_mbti_counts 사전 집계 테이블을 1회 쿼리로 읽음
+     */
+    @Transactional(readOnly = true)
+    public VoteMbtiStatsResponse getVoteMbtiStats(final Long postId) {
+        if (!postRepository.existsByIdAndIsVisibleTrue(postId)) {
+            throw new CustomException(ErrorCode.POST_NOT_FOUND);
+        }
+
+        return assembleMbtiStats(votePostOptionRepository.findMbtiStatsByPostId(postId));
+    }
+
+    private VoteMbtiStatsResponse assembleMbtiStats(final List<VoteMbtiStatRow> rows) {
+        final Map<Long, List<VoteMbtiStatRow>> byOption = new LinkedHashMap<>();
+        for (final VoteMbtiStatRow row : rows) {
+            byOption.computeIfAbsent(row.getOptionId(), k -> new ArrayList<>()).add(row);
+        }
+
+        final List<VoteMbtiStatsResponse.OptionMbtiStats> options = byOption.entrySet().stream()
+                .map(entry -> {
+                    final List<VoteMbtiStatsResponse.MbtiCount> mbtiCounts = entry.getValue().stream()
+                            .filter(row -> row.getMbtiId() != null)
+                            .map(row -> new VoteMbtiStatsResponse.MbtiCount(row.getMbtiId(), row.getCount()))
+                            .toList();
+                    return new VoteMbtiStatsResponse.OptionMbtiStats(entry.getKey(), mbtiCounts);
+                })
+                .toList();
+
+        return new VoteMbtiStatsResponse(options);
     }
 
     private void validateNotEnded(final VotePost votePost) {

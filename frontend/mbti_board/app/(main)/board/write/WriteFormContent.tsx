@@ -25,11 +25,11 @@ export default function WriteFormContent({ initialType }: Props) {
 
   const {
     postType, title, targetMbti, guestPassword, isMbtiMode, options,
-    endsAt, isNoDeadline, proLabel, conLabel, mbtiList, isLoggedIn,
+    endsAt, isDefaultDeadline, proLabel, conLabel, mbtiList, isLoggedIn,
     hasImage, uploadingCount, isPending,
     setTitle, setTargetMbti, setContent, setGuestPassword, setEndsAt,
     setProLabel, setConLabel,
-    handleTypeChange, handleNoDeadlineToggle, toggleMbtiMode, addOption, removeOption,
+    handleTypeChange, handleSetThreeMonths, toggleMbtiMode, addOption, removeOption,
     updateOptionText, handleSubmit, handleUpload, setUploadingCount,
   } = useWriteForm(initialType);
 
@@ -152,10 +152,10 @@ export default function WriteFormContent({ initialType }: Props) {
         {(postType === POST_TYPE.VOTE || postType === POST_TYPE.DEBATE) && (
           <DeadlineField
             endsAt={endsAt}
-            isNoDeadline={isNoDeadline}
+            isDefaultDeadline={isDefaultDeadline}
             isPending={isPending}
             onEndsAtChange={setEndsAt}
-            onNoDeadlineToggle={handleNoDeadlineToggle}
+            onSetThreeMonths={handleSetThreeMonths}
           />
         )}
       </PostWriteForm>

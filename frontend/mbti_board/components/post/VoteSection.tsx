@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
-import { castVote } from "@/lib/api/vote";
+import { castVote, fetchVoteMbtiStats } from "@/lib/api/vote";
 import { postKeys } from "@/hooks/usePosts";
 import { getDeadlineLabel } from "@/lib/dateUtils";
 import { toast } from "@/components/common/Toast";
-import { MdCheckCircle, MdGroup, MdSchedule } from "react-icons/md";
-import type { VoteResult } from "@/types/post";
+import { getMbtiColor } from "@/constants/mbtiData";
+import { MdBarChart, MdCheckCircle, MdGroup, MdSchedule } from "react-icons/md";
+import type { VoteMbtiCount, VoteResult } from "@/types/post";
 
 const VOTE_OPTION_VARIANT = {
   disabledCls: "border-2 border-primary/40 text-primary/50 cursor-not-allowed",
@@ -26,6 +27,20 @@ export default function VoteSection({ postId, voteResult, isLoggedIn }: Props) {
   const queryClient = useQueryClient();
   const [selectedOptionId, setSelectedOptionId] = useState<number | null>(null);
   const [isChangingVote, setIsChangingVote] = useState(false);
+  const [showMbtiBreakdown, setShowMbtiBreakdown] = useState(false);
+
+  const { data: mbtiStats, isLoading: isMbtiStatsLoading, isError: isMbtiStatsError } = useQuery({
+    queryKey: postKeys.voteMbtiStats(postId),
+    queryFn: () => fetchVoteMbtiStats(postId),
+    enabled: showMbtiBreakdown,
+    staleTime: 1000 * 60,
+  });
+
+  const mbtiCountsByOption = useMemo(() => {
+    const map = new Map<number, VoteMbtiCount[]>();
+    mbtiStats?.options.forEach((o) => map.set(o.optionId, o.mbtiCounts));
+    return map;
+  }, [mbtiStats]);
 
   const voteMutation = useMutation({
     mutationFn: (optionId: number) => castVote(postId, optionId),
@@ -65,6 +80,21 @@ export default function VoteSection({ postId, voteResult, isLoggedIn }: Props) {
       style={{ boxShadow: "0 4px 20px rgba(49, 23, 10, 0.08)" }}
     >
       {/* ---- Vote Results ---- */}
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[11px] text-on-surface-variant">
+          {showMbtiBreakdown && isMbtiStatsLoading && "MBTI 통계 불러오는 중..."}
+          {showMbtiBreakdown && isMbtiStatsError && "MBTI 통계를 불러오지 못했습니다."}
+        </span>
+        <button
+          type="button"
+          onClick={() => setShowMbtiBreakdown((v) => !v)}
+          className="flex items-center gap-1 text-xs text-on-surface-variant hover:text-primary transition-colors"
+        >
+          <MdBarChart className="text-sm" />
+          {showMbtiBreakdown ? "MBTI별 통계 숨기기" : "MBTI별 통계 보기"}
+        </button>
+      </div>
+
       <ul className={`${resultGridCls} mb-6`}>
         {voteResult.options.map((option) => {
           const pct = totalVotes > 0
@@ -88,6 +118,9 @@ export default function VoteSection({ postId, voteResult, isLoggedIn }: Props) {
                   style={{ width: `${pct}%` }}
                 />
               </div>
+              {showMbtiBreakdown && !isMbtiStatsLoading && !isMbtiStatsError && (
+                <MbtiBreakdownBar mbtiCounts={mbtiCountsByOption.get(option.id) ?? []} />
+              )}
             </li>
           );
         })}
@@ -190,5 +223,56 @@ export default function VoteSection({ postId, voteResult, isLoggedIn }: Props) {
         </div>
       </div>
     </section>
+  );
+}
+
+function MbtiBreakdownBar({ mbtiCounts }: { mbtiCounts: VoteMbtiCount[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const total = mbtiCounts.reduce((sum, m) => sum + m.count, 0);
+
+  if (total === 0) {
+    return <p className="mt-2 text-[11px] text-on-surface-variant">아직 투표한 MBTI가 없습니다.</p>;
+  }
+
+  const sorted = [...mbtiCounts].sort((a, b) => b.count - a.count);
+  const segments = sorted.slice(0, 3);
+  const otherCount = total - segments.reduce((sum, m) => sum + m.count, 0);
+  const legendItems = expanded ? sorted : segments;
+  const hiddenCount = sorted.length - segments.length;
+
+  return (
+    <div className="mt-2">
+      <div className="h-1.5 rounded-full bg-surface-container overflow-hidden flex">
+        {segments.map((m) => (
+          <div
+            key={m.mbtiId}
+            className="h-full"
+            style={{ width: `${(m.count / total) * 100}%`, backgroundColor: getMbtiColor(m.mbtiId) }}
+            title={`${m.mbtiId}: ${m.count.toLocaleString()}표`}
+          />
+        ))}
+        {otherCount > 0 && (
+          <div className="h-full bg-outline-variant/50" style={{ width: `${(otherCount / total) * 100}%` }} />
+        )}
+      </div>
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+        {legendItems.map((m) => (
+          <span key={m.mbtiId} className="flex items-center gap-1 text-[11px] text-on-surface-variant">
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: getMbtiColor(m.mbtiId) }} />
+            <span className="font-medium text-on-surface">{m.mbtiId}</span>
+            <span className="tabular-nums">{m.count.toLocaleString()}</span>
+          </span>
+        ))}
+        {hiddenCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="text-[11px] text-on-surface-variant hover:text-primary underline underline-offset-2"
+          >
+            {expanded ? "접기" : `+${hiddenCount}개 더 보기`}
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
