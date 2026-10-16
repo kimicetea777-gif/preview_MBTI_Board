@@ -7,7 +7,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 어드민 댓글 통계 사전 계산 스케줄러 — 10분마다 DB 집계 결과를 Redis에 적재
+ * 어드민 댓글 통계 사전 계산 스케줄러 — 2시간마다 DB 집계 결과를 Redis에 적재
  * 주의: triggerAsync()는 어드민 수동 새로고침 시 호출 — @Async로 HTTP 응답과 분리된 스레드에서 실행
  * 주의: @Async 메서드에서 AdminCommentStatsService 호출 시 Spring 프록시 경유 → @Transactional 정상 적용
  */

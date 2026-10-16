@@ -1,5 +1,6 @@
 package com.board.kimicetea.domain.post.service;
 
+import com.board.kimicetea.global.common.AdminStatsCachePolicy;
 import com.board.kimicetea.domain.post.dto.AdminPostStatsResponse;
 import com.board.kimicetea.domain.post.dto.AdminPostStatsResponse.CountEntry;
 import com.board.kimicetea.domain.post.dto.AdminPostStatsResponse.DailyCountEntry;
@@ -21,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * 어드민 게시글 통계 서비스 — 계산 결과를 Redis에 캐싱하여 HTTP 응답을 즉시 반환
- * 주의: computeAndCache()는 AdminPostStatsScheduler가 10분마다 호출 — HTTP 요청 스레드에서 DB 집계 없음
+ * 주의: computeAndCache()는 AdminPostStatsScheduler가 2시간마다 호출 — HTTP 요청 스레드에서 DB 집계 없음
  * 주의: Redis 미스(최초 기동·캐시 만료) 시 getCachedStats()가 직접 호출 — 드문 경우
  */
 @Slf4j
@@ -31,7 +32,6 @@ public class AdminPostStatsService {
 
     private static final long TREND_DAYS = 30L;
     private static final String STATS_CACHE_KEY = "ADMIN:POST:STATS";
-    private static final long STATS_CACHE_TTL_HOURS = 1L;
 
     private final PostRepository postRepository;
     private final StringRedisTemplate redisTemplate;
@@ -54,9 +54,9 @@ public class AdminPostStatsService {
     }
 
     /**
-     * 게시글 통계 계산 후 Redis에 저장 — AdminPostStatsScheduler(10분) 및 캐시 미스 시 호출
+     * 게시글 통계 계산 후 Redis에 저장 — AdminPostStatsScheduler(2시간) 및 캐시 미스 시 호출
      * 주의: 스케줄러에서 호출 시 Spring 프록시 경유 → @Transactional 정상 적용 (단일 커넥션)
-     * 주의: TTL 1시간은 스케줄러 장애 시 안전망 — 정상 운영 중엔 10분마다 갱신됨
+     * 주의: TTL 4시간은 갱신 주기(2시간)의 2배 — 스케줄러 장애 시 안전망, 정상 운영 중엔 2시간마다 갱신됨
      */
     @Transactional(readOnly = true)
     public AdminPostStatsResponse computeAndCache() {
@@ -83,7 +83,7 @@ public class AdminPostStatsService {
             redisTemplate.opsForValue().set(
                     STATS_CACHE_KEY,
                     objectMapper.writeValueAsString(stats),
-                    STATS_CACHE_TTL_HOURS, TimeUnit.HOURS);
+                    AdminStatsCachePolicy.TTL_HOURS, TimeUnit.HOURS);
         } catch (JsonProcessingException e) {
             log.error("게시글 통계 캐시 직렬화 실패", e);
         }
