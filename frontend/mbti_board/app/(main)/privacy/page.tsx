@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { APP_NAME, CONTACT_EMAIL, CONTACT_MAILTO } from "@/constants/site";
 
 export const metadata: Metadata = {
-  title: `개인정보처리방침 | ${APP_NAME}`,
+  title: "개인정보처리방침", // 루트 layout의 title.template이 " | APP_NAME"을 붙임
 };
 
 export const dynamic = "force-static";

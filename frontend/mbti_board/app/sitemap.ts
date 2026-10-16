@@ -50,8 +50,7 @@ const PATH_BY_TYPE: Record<PostType, (id: number) => string> = {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes: MetadataRoute.Sitemap = [
-    { url: SITE_URL, changeFrequency: "daily", priority: 1 },
-    { url: `${SITE_URL}${ROUTES.board.all}`, changeFrequency: "hourly", priority: 0.9 },
+    { url: `${SITE_URL}${ROUTES.board.all}`, changeFrequency: "hourly", priority: 1 }, // "/"는 /board로 리다이렉트되므로 sitemap에서 제외
     { url: `${SITE_URL}${ROUTES.mbti.list}`, changeFrequency: "weekly", priority: 0.7 },
     { url: `${SITE_URL}${ROUTES.mbti.test}`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE_URL}${ROUTES.terms}`, changeFrequency: "yearly", priority: 0.2 },

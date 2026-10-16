@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { PostMetaResponse } from "@/types/post";
+import { APP_NAME } from "@/constants/site";
 
 const BACKEND_URL = process.env.BACKEND_INTERNAL_URL ?? "http://localhost:8080";
 const DEFAULT_OG_IMAGE = "/images/og.png"; // 게시글 자체 이미지가 없을 때 공유 미리보기용 폴백 배너
@@ -20,7 +21,8 @@ export async function buildPostMetadata(id: number, path: (id: number) => string
   const post = await fetchPostMeta(id);
   if (!post) return {};
 
-  const description = post.contentPreview || undefined;
+  // 이미지만 있는 글 등 미리보기가 비면 description 태그가 아예 빠지므로 제목 기반 문구로 대체
+  const description = post.contentPreview || `${post.title} — ${APP_NAME} MBTI 커뮤니티 게시글`;
   const image = post.imageUrls?.[0] ?? DEFAULT_OG_IMAGE;
 
   return {
