@@ -46,3 +46,6 @@ Thumbs.db
 infra.md
 memo.md
 when_build.md
+
+# Claude Code local settings (machine-specific paths, never commit)
+.claude/
