@@ -41,7 +41,7 @@ public class AdminPostController {
     private final AdminPostStatsService adminPostStatsService;
     private final AdminPostStatsScheduler adminPostStatsScheduler;
 
-    @Operation(summary = "게시글 통계 조회", description = "Redis 캐시에서 즉시 반환합니다. 캐시는 10분마다 자동 갱신되며 최초 기동 5초 후 선적재됩니다.")
+    @Operation(summary = "게시글 통계 조회", description = "Redis 캐시에서 즉시 반환합니다. 캐시는 2시간마다 자동 갱신되며 최초 기동 5초 후 선적재됩니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ADMIN 권한 없음")
