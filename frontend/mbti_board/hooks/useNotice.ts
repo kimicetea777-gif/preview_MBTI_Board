@@ -47,6 +47,8 @@ export function useNotice(): UseNoticeResult {
   const hiddenByUser = useIsHiddenByUser();
   const [closed, setClosed] = useState(false);
 
+  // useSuspenseQuery 규칙의 예외: 숨김 상태면 아예 요청하지 않아야 하고(enabled — Suspense 쿼리는 지원 안 함),
+  // 공지는 보조 정보라 실패해도 페이지를 에러 화면으로 바꾸지 않고 조용히 안 보여 준다.
   const { data: notices = [] } = useQuery({
     queryKey: ["notices", "active"],
     queryFn: fetchActiveNotices,

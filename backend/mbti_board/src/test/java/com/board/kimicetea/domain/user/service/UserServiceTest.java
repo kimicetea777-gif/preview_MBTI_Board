@@ -208,6 +208,21 @@ class UserServiceTest {
 
             verifyNoInteractions(sessionService, auditLogService);
         }
+
+        @Test
+        @DisplayName("WITHDRAWN(익명화 완료)이면 아무것도 하지 않는다 — 늦게 온 BANNED가 익명화된 행을 되살리지 않게")
+        void noOpWhenWithdrawn() {
+            final UUID authServerId = UUID.randomUUID();
+            final User user = User.builder()
+                    .id(UUID.randomUUID()).authServerId(authServerId).email("withdrawn_x@deleted.invalid")
+                    .nickname("wd_1234").role(UserRole.USER).state(UserState.WITHDRAWN).build();
+            when(userRepository.findByAuthServerId(authServerId)).thenReturn(Optional.of(user));
+
+            userService.handleMembershipBanned(authServerId);
+
+            assertThat(user.getState()).isEqualTo(UserState.WITHDRAWN);
+            verifyNoInteractions(sessionService, auditLogService);
+        }
     }
 
     @Nested

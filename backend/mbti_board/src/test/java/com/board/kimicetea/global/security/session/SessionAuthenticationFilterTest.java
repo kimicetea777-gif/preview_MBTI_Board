@@ -65,6 +65,8 @@ class SessionAuthenticationFilterTest {
 
     @BeforeEach
     void setUp() {
+        // 앞서 실행된 다른 테스트가 남긴 인증이 있어도 빈 컨텍스트에서 시작
+        SecurityContextHolder.clearContext();
         filter = new SessionAuthenticationFilter(sessionService, authorizedClientRefreshService, userRepository, appRoleSyncService);
         request = new MockHttpServletRequest();
         response = new MockHttpServletResponse();

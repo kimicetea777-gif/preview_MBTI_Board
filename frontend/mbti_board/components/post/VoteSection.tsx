@@ -29,6 +29,8 @@ export default function VoteSection({ postId, voteResult, isLoggedIn }: Props) {
   const [isChangingVote, setIsChangingVote] = useState(false);
   const [showMbtiBreakdown, setShowMbtiBreakdown] = useState(false);
 
+  // useSuspenseQuery 규칙의 예외: "MBTI별 통계 보기"를 눌렀을 때만 요청하고(enabled), 로딩·실패를 각 선택지 막대 옆에
+  // 한 줄로만 표시한다. Suspense로 바꾸면 토글할 때마다 투표 결과 전체가 fallback으로 가려진다.
   const { data: mbtiStats, isLoading: isMbtiStatsLoading, isError: isMbtiStatsError } = useQuery({
     queryKey: postKeys.voteMbtiStats(postId),
     queryFn: () => fetchVoteMbtiStats(postId),

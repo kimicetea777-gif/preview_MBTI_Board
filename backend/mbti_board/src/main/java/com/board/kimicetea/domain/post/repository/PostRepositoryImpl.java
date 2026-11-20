@@ -25,7 +25,7 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public Page<Post> findPosts(final String typeCode, final PostSortType sort,
+    public Page<Post> findPosts(final PostType postType, final PostSortType sort,
             final String authorMbti, final String targetMbti,
             final Pageable pageable) {
         final QPost post = QPost.post;
@@ -33,8 +33,8 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
 
         builder.and(post.isVisible.isTrue());
 
-        if (typeCode != null && !typeCode.isBlank()) {
-            builder.and(post.postType.eq(PostType.from(typeCode)));
+        if (postType != null) {
+            builder.and(post.postType.eq(postType));
         }
 
         if (authorMbti != null && !authorMbti.isBlank()) {
@@ -75,13 +75,13 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
     }
 
     @Override
-    public Page<Post> findAllPostsForAdmin(final String typeCode, final Boolean isVisible,
+    public Page<Post> findAllPostsForAdmin(final PostType postType, final Boolean isVisible,
             final String authorNickname, final String sortDir, final Pageable pageable) {
         final QPost post = QPost.post;
         final BooleanBuilder builder = new BooleanBuilder();
 
-        if (typeCode != null && !typeCode.isBlank()) {
-            builder.and(post.postType.eq(PostType.from(typeCode)));
+        if (postType != null) {
+            builder.and(post.postType.eq(postType));
         }
         if (isVisible != null) {
             builder.and(post.isVisible.eq(isVisible));
@@ -121,7 +121,7 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
     }
 
     @Override
-    public Page<Post> findMyPosts(final UUID userId, final String typeCode,
+    public Page<Post> findMyPosts(final UUID userId, final PostType postType,
             final PostSortType sort, final Pageable pageable) {
         final QPost post = QPost.post;
         final BooleanBuilder builder = new BooleanBuilder();
@@ -129,8 +129,8 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
         builder.and(post.user.id.eq(userId));
         builder.and(post.isVisible.isTrue());
 
-        if (typeCode != null && !typeCode.isBlank()) {
-            builder.and(post.postType.eq(PostType.from(typeCode)));
+        if (postType != null) {
+            builder.and(post.postType.eq(postType));
         }
 
         final OrderSpecifier<?> order = switch (sort) {

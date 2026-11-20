@@ -21,6 +21,7 @@ import com.board.kimicetea.global.security.oauth2.AuthorizedClientRefreshService
 import com.board.kimicetea.global.security.oauth2.RedisOAuth2AuthorizedClientService;
 import com.board.kimicetea.global.security.session.SessionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -104,6 +105,12 @@ class AdminUserControllerTest {
         adminDetails = new CustomUserDetails(adminId, "admin@example.com", null, "ADMIN", "device-admin");
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(adminDetails, null, adminDetails.getAuthorities()));
+    }
+
+    /** 같은 스레드의 다른 테스트로 인증이 새지 않게 정리 */
+    @AfterEach
+    void clearAuth() {
+        SecurityContextHolder.clearContext();
     }
 
     private AdminUserStatsResponse sampleStats() {

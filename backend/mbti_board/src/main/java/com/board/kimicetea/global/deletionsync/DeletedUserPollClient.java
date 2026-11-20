@@ -52,6 +52,23 @@ public class DeletedUserPollClient {
                 .body(DeletedUsersPollResponse.class);
     }
 
+    /**
+     * [역할] AS 내부 API 호출용 client_credentials 액세스 토큰 값을 돌려준다.
+     * 이미 발급된 토큰이 유효하면 재사용하고, 만료됐을 때만 새로 발급받는다
+     * ({@code deletionSyncAuthorizedClientManager}가 처리).
+     *
+     * <p>[주의사항]
+     * <ul>
+     *   <li>client_credentials에는 로그인한 사용자가 없으므로 principal 이름을 등록 ID로 고정한다.
+     *       (OAuth2AuthorizeRequest는 principal이 반드시 있어야 한다)</li>
+     *   <li>매니저는 request-unaware 타입이다. 스케줄러 스레드에서 호출되므로 HttpServletRequest에 의존하는
+     *       매니저로 바꾸면 요청 컨텍스트가 없어 동작하지 않는다.</li>
+     *   <li>매니저가 null을 돌려주면 토큰을 못 받은 것이므로 {@link IllegalStateException}을 던진다.
+     *       호출부는 이를 "이번 폴링 실행 실패"로 처리해야 한다.</li>
+     * </ul>
+     *
+     * @throws IllegalStateException client_credentials 토큰 발급에 실패한 경우
+     */
     private String fetchAccessToken() {
         final OAuth2AuthorizeRequest request = OAuth2AuthorizeRequest.withClientRegistrationId(REGISTRATION_ID)
                 .principal(REGISTRATION_ID)

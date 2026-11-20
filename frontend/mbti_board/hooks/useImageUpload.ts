@@ -1,39 +1,17 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import { API } from "@/constants/apiEndpoints";
+import { useState, useCallback } from "react";
 
+// 본문에 이미지를 한 번이라도 올렸는지 — 작성 화면의 안내 표시용.
+// 저장하지 않고 떠난 이미지는 따로 지우지 않는다: Image Server에 PENDING으로 남았다가 GC가 24시간 뒤 정리한다.
+// (예전에는 언마운트 시 취소 요청을 보냈지만, 저장 요청 중 탭을 닫으면 저장된 글의 이미지까지 지우는 경합이 있어 제거.
+//  설계: Document/image_async_confirm_plan.md §1.1)
 export function useImageUpload() {
-  const uploadedIdsRef = useRef<Set<string>>(new Set());
-  const savedRef = useRef(false);
   const [hasImage, setHasImage] = useState(false);
 
-  const handleUpload = useCallback((id: string) => {
-    uploadedIdsRef.current.add(id);
+  const handleUpload = useCallback(() => {
     setHasImage(true);
   }, []);
 
-  const markSaved = useCallback(() => {
-    savedRef.current = true;
-  }, []);
-
-  // 컴포넌트 언마운트(취소·뒤로가기·탭 이탈) 시 PENDING 이미지 취소 요청
-  useEffect(() => {
-    const idsRef = uploadedIdsRef;
-    const isSavedRef = savedRef;
-    return () => {
-      if (isSavedRef.current || idsRef.current.size === 0) return;
-      const ids = [...idsRef.current];
-      // keepalive: 페이지 언로드 중에도 요청이 완료될 수 있도록 보장
-      fetch(API.images.cancel, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids }),
-        keepalive: true,
-        // credentials: "include", // same-origin이라 불필요 + cross-origin 전환 시 쿠키 유출 방지 위해 비활성화
-      });
-    };
-  }, []);
-
-  return { hasImage, handleUpload, markSaved };
+  return { hasImage, handleUpload };
 }

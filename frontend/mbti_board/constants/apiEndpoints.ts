@@ -40,7 +40,6 @@ export const API = {
   },
   images: {
     upload: "/api/upload", // Next.js Route Handler 경유 — Image Server 직접 호출(X-Api-Key 서버에서 주입)
-    cancel: "/api/images", // Next.js Route Handler 경유 — Image Server /images/release 직접 호출
   },
   notices: {
     active: "/api/notices/active",

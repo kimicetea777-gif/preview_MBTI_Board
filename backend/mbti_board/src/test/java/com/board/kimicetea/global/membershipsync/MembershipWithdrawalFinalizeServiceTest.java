@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -33,15 +34,18 @@ class MembershipWithdrawalFinalizeServiceTest {
     @Mock
     private UserService userService;
 
+    @Mock
+    private MembershipEventFailureRepository failureRepository;
+
     private MembershipWithdrawalFinalizeService service;
 
     @BeforeEach
     void setUp() {
-        service = new MembershipWithdrawalFinalizeService(userRepository, userService);
+        service = new MembershipWithdrawalFinalizeService(userRepository, userService, failureRepository);
     }
 
     private User pendingUserOf(final UUID id) {
-        return User.builder().id(id).state(UserState.MEMBERSHIP_WITHDRAWAL_PENDING).build();
+        return User.builder().id(id).authServerId(UUID.randomUUID()).state(UserState.MEMBERSHIP_WITHDRAWAL_PENDING).build();
     }
 
     @Nested
@@ -94,6 +98,22 @@ class MembershipWithdrawalFinalizeServiceTest {
 
             verify(userService).finalizeMembershipWithdrawal(failing.getId());
             verify(userService).finalizeMembershipWithdrawal(succeeding.getId());
+        }
+
+        @Test
+        @DisplayName("재시도 큐에 반영되지 않은 멤버십 이벤트가 있는 유저는 건너뛰고, 없는 유저만 확정한다")
+        void skipsUsersWithUnresolvedEvents() {
+            final User blocked = pendingUserOf(UUID.randomUUID());
+            final User clean = pendingUserOf(UUID.randomUUID());
+            when(userRepository.findByStateAndMembershipWithdrawnAtBefore(eq(UserState.MEMBERSHIP_WITHDRAWAL_PENDING), any()))
+                    .thenReturn(List.of(blocked, clean));
+            when(failureRepository.existsByAuthServerId(blocked.getAuthServerId())).thenReturn(true);
+            when(failureRepository.existsByAuthServerId(clean.getAuthServerId())).thenReturn(false);
+
+            service.finalizeExpiredWithdrawals();
+
+            verify(userService, never()).finalizeMembershipWithdrawal(blocked.getId());
+            verify(userService).finalizeMembershipWithdrawal(clean.getId());
         }
     }
 }

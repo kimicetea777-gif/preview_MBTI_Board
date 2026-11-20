@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useSuspenseInfiniteQuery, useQuery, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { useSuspenseInfiniteQuery, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import type { InfiniteData, QueryClient } from "@tanstack/react-query";
 import { fetchPosts, fetchPostById } from "@/lib/api/post";
 import type { PostListParams, PostSummaryResponse, PostDetailResponse } from "@/types/post";
@@ -56,6 +56,7 @@ export function useSuspensePostDetail(id: number) {
     queryKey: postKeys.detail(id),
     queryFn: () => fetchPostById(id),
     initialData: () => findPostInListCaches(queryClient, id),
+    // 0으로 설정 시 initialData를 즉시 stale로 취급 → 백그라운드에서 전체 상세 데이터 fetch
     initialDataUpdatedAt: 0,
   });
 
@@ -66,17 +67,4 @@ export function useSuspensePostDetail(id: number) {
   }, [postId, typeCode, title]);
 
   return result;
-}
-
-export function usePostDetail(id: number) {
-  const queryClient = useQueryClient();
-
-  return useQuery({
-    queryKey: postKeys.detail(id),
-    queryFn: () => fetchPostById(id),
-    enabled: id > 0,
-    initialData: () => findPostInListCaches(queryClient, id),
-    // 0으로 설정 시 initialData를 즉시 stale로 취급 → 백그라운드에서 전체 상세 데이터 fetch
-    initialDataUpdatedAt: 0,
-  });
 }

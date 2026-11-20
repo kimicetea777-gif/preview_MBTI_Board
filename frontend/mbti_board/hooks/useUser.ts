@@ -1,4 +1,4 @@
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { fetchMyProfile, fetchMyActivityStats, fetchMyPostsPreview, fetchMyMbtiHistory } from "@/lib/api/user";
 
 export const userKeys = {
@@ -8,13 +8,6 @@ export const userKeys = {
   myPostsPreview:  () => [...userKeys.all(), "myPostsPreview"]  as const,
   myMbtiHistory:   () => [...userKeys.all(), "myMbtiHistory"]   as const,
 };
-
-export function useMyProfile() {
-  return useQuery({
-    queryKey: userKeys.myProfile(),
-    queryFn: fetchMyProfile,
-  });
-}
 
 export function useMyProfileSuspense() {
   return useSuspenseQuery({

@@ -24,6 +24,7 @@ import com.board.kimicetea.global.security.oauth2.AuthorizedClientRefreshService
 import com.board.kimicetea.global.security.oauth2.RedisOAuth2AuthorizedClientService;
 import com.board.kimicetea.global.security.session.SessionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -105,6 +106,12 @@ class PostControllerTest {
         userDetails = new CustomUserDetails(userId, "user@example.com", null, "USER", "device-user");
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities()));
+    }
+
+    /** 같은 스레드의 다른 테스트로 인증이 새지 않게 정리 */
+    @AfterEach
+    void clearAuth() {
+        SecurityContextHolder.clearContext();
     }
 
     private PostDetailResponse sampleDetail() {
@@ -420,6 +427,19 @@ class PostControllerTest {
 
             final VotePostCreateRequest request = new VotePostCreateRequest(
                     "제목", "내용", null, options, null);
+
+            mockMvc.perform(post(POSTS_URL + "/vote")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.success").value(false));
+        }
+
+        @Test
+        @DisplayName("실패 — 선택지 누락(null, @NotNull 위반) → 400")
+        void nullOptions() throws Exception {
+            final VotePostCreateRequest request = new VotePostCreateRequest(
+                    "제목", "내용", null, null, null);
 
             mockMvc.perform(post(POSTS_URL + "/vote")
                             .contentType(MediaType.APPLICATION_JSON)

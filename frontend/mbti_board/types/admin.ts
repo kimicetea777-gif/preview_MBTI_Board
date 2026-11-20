@@ -5,7 +5,6 @@ import type { PostType, PostHiddenBy } from "./post";
 export const ALERT_TYPE = {
   JWT_TAMPER:           "JWT_TAMPER",
   UNHANDLED_ERROR:      "UNHANDLED_ERROR",
-  DB_QUERY_SLOW:        "DB_QUERY_SLOW",
   BRUTE_FORCE_LOGIN:    "BRUTE_FORCE_LOGIN",
   PASSWORD_RESET_ABUSE: "PASSWORD_RESET_ABUSE",
   ACCOUNT_LOCKED:       "ACCOUNT_LOCKED",

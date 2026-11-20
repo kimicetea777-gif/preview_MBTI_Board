@@ -26,7 +26,7 @@ export function useWriteForm(initialType: PostType) {
   const queryClient = useQueryClient();
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn());
 
-  const { hasImage, handleUpload, markSaved } = useImageUpload();
+  const { hasImage, handleUpload } = useImageUpload();
   const [uploadingCount, setUploadingCount] = useState(0);
 
   const [postType, setPostType] = useState<PostType>(initialType);
@@ -58,7 +58,6 @@ export function useWriteForm(initialType: PostType) {
   const freeMutation = useMutation({
     mutationFn: createPost,
     onSuccess: (data) => {
-      markSaved();
       queryClient.invalidateQueries({ queryKey: postKeys.lists() });
       router.push(ROUTES.board.freePost(data.id));
     },
@@ -68,7 +67,6 @@ export function useWriteForm(initialType: PostType) {
   const voteMutation = useMutation({
     mutationFn: createVotePost,
     onSuccess: (data) => {
-      markSaved();
       queryClient.invalidateQueries({ queryKey: postKeys.lists() });
       router.push(ROUTES.board.votePost(data.id));
     },
@@ -78,7 +76,6 @@ export function useWriteForm(initialType: PostType) {
   const debateMutation = useMutation({
     mutationFn: createDebatePost,
     onSuccess: (data) => {
-      markSaved();
       queryClient.invalidateQueries({ queryKey: postKeys.lists() });
       router.push(ROUTES.board.debatePost(data.id));
     },

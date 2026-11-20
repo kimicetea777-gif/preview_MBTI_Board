@@ -92,7 +92,8 @@ public class SessionService {
 
     /** 전체 기기 강제 로그아웃 — 관리자 강제탈퇴, 자진탈퇴, RT 재사용 감지 등에서 호출 */
     public void deleteAllSessions(final UUID authServerId) {
-        final String pattern = SESS_PREFIX + authServerId + ":*";
+        final String keyPrefix = sessKeyPrefix(authServerId);
+        final String pattern = keyPrefix + "*";
         final List<String> sessKeys = new ArrayList<>();
         try (Cursor<String> cursor = redisTemplate.scan(
                 ScanOptions.scanOptions().match(pattern).count(100).build())) {
@@ -103,7 +104,6 @@ public class SessionService {
         }
 
         // deviceId를 키에서 파싱해 디바이스별로 AS revoke + AC 엔트리 정리까지 같이 처리
-        final String keyPrefix = SESS_PREFIX + authServerId + ":";
         for (final String sessKey : sessKeys) {
             final String deviceId = sessKey.substring(keyPrefix.length());
             authorizedClientRefreshService.revokeForLogout(authServerId, deviceId);
@@ -134,8 +134,13 @@ public class SessionService {
         return Duration.ofDays(sessionTtlDays);
     }
 
+    /** [역할] SESS 키의 공통 접두어. [주의사항] SCAN 패턴 생성과 키에서 deviceId를 잘라낼 때 같은 값을 써야 해서 한 곳에서만 만든다. */
+    private String sessKeyPrefix(final UUID authServerId) {
+        return SESS_PREFIX + authServerId + ":";
+    }
+
     private String sessKey(final UUID authServerId, final String deviceId) {
-        return SESS_PREFIX + authServerId + ":" + deviceId;
+        return sessKeyPrefix(authServerId) + deviceId;
     }
 
     private String sessDataKey(final String sessionId) {

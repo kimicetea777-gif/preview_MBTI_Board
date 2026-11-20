@@ -7,7 +7,6 @@ import com.board.kimicetea.domain.post.PostConstants;
 import com.board.kimicetea.global.common.util.GuestPasswordHelper;
 import com.board.kimicetea.global.common.util.RequestUtils;
 import com.board.kimicetea.global.common.util.TiptapContentParser;
-import com.board.kimicetea.global.image.client.ImageServerClient;
 import com.board.kimicetea.domain.post.PostSortType;
 import com.board.kimicetea.domain.post.dto.DebatePostCreateRequest;
 import com.board.kimicetea.domain.post.dto.DebateStanceRequest;
@@ -24,13 +23,16 @@ import com.board.kimicetea.domain.post.dto.VotePostCreateRequest;
 import com.board.kimicetea.domain.post.entity.DebatePost;
 import com.board.kimicetea.domain.post.entity.DebateStanceHistory;
 import com.board.kimicetea.domain.post.entity.Post;
+import com.board.kimicetea.domain.post.entity.PostImage;
 import com.board.kimicetea.domain.post.entity.PostType;
+import com.board.kimicetea.domain.post.enums.PostImageStatus;
 import com.board.kimicetea.domain.post.entity.VotePost;
 
 import com.board.kimicetea.domain.post.entity.VotePostHistory;
 import com.board.kimicetea.domain.post.entity.VotePostOption;
 import com.board.kimicetea.domain.post.repository.DebatePostRepository;
 import com.board.kimicetea.domain.post.repository.DebateStanceHistoryRepository;
+import com.board.kimicetea.domain.post.repository.PostImageRepository;
 import com.board.kimicetea.domain.post.repository.PostRepository;
 import com.board.kimicetea.domain.post.repository.VotePostHistoryRepository;
 import com.board.kimicetea.domain.post.repository.VotePostOptionRepository;
@@ -50,9 +52,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -79,7 +83,7 @@ public class PostService {
     private final VotePostHistoryRepository votePostHistoryRepository;
     private final DebatePostRepository debatePostRepository;
     private final DebateStanceHistoryRepository debateStanceHistoryRepository;
-    private final ImageServerClient imageServerClient;
+    private final PostImageRepository postImageRepository;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -91,8 +95,8 @@ public class PostService {
     public Page<PostSummaryResponse> getPosts(final String type, final PostSortType sort,
             final String authorMbti, final String targetMbti,
             final Pageable pageable) {
-        final String normalizedType = resolveTypeCode(type);
-        return postRepository.findPosts(normalizedType, sort, authorMbti, targetMbti, pageable)
+        final PostType postType = PostType.fromNullable(type).orElse(null);
+        return postRepository.findPosts(postType, sort, authorMbti, targetMbti, pageable)
                 .map(post -> PostSummaryResponse.from(post, r2PublicUrl));
     }
 
@@ -100,8 +104,8 @@ public class PostService {
     @Transactional(readOnly = true)
     public Page<PostSummaryResponse> getMyPosts(final UUID userId, final String typeCode,
             final PostSortType sort, final Pageable pageable) {
-        final String normalizedType = resolveTypeCode(typeCode);
-        return postRepository.findMyPosts(userId, normalizedType, sort, pageable)
+        final PostType postType = PostType.fromNullable(typeCode).orElse(null);
+        return postRepository.findMyPosts(userId, postType, sort, pageable)
                 .map(post -> PostSummaryResponse.from(post, r2PublicUrl));
     }
 
@@ -111,17 +115,6 @@ public class PostService {
         return postRepository.findMyPostsPreview(userId).stream()
                 .map(MyPostPreviewResponse::from)
                 .toList();
-    }
-
-    /**
-     * type 파라미터를 대문자로 정규화하고 유효성 검증
-     * null·공백이면 null 반환(전체 조회), 유효하지 않은 값이면 400
-     */
-    private String resolveTypeCode(final String typeCode) {
-        if (typeCode == null || typeCode.isBlank()) {
-            return null;
-        }
-        return PostType.from(typeCode).name();
     }
 
     /**
@@ -163,19 +156,25 @@ public class PostService {
     public PostDetailResponse buildDetailResponse(final Post post, final UUID currentUserId) {
         final Long id = post.getId();
 
+        // 투표글: 선택지와 현재 사용자의 투표 이력을 함께 조회해 응답에 포함
         if (post.getPostType() == PostType.VOTE) {
+            // 선택지는 fetch join으로 한 번에 로딩 (옵션별 추가 쿼리 방지)
             final VotePost votePost = votePostRepository.findWithOptionsById(id)
                     .orElseThrow(() -> new CustomException(ErrorCode.VOTE_POST_NOT_FOUND));
+            // 비회원이면 이력 조회 없이 null — 응답에서 "투표 안 함"으로 처리됨
             final VotePostHistory history = (currentUserId != null)
                     ? votePostHistoryRepository.findByVotePost_IdAndUser_Id(id, currentUserId).orElse(null)
                     : null;
+            // 본문의 이미지 키를 공개 URL로 변환해서 응답 (아래 분기도 동일)
             return PostDetailResponse.from(post, currentUserId, votePost, history)
                     .resolveImageUrls(r2PublicUrl);
         }
 
+        // 토론글: 토론 정보와 현재 사용자가 선택한 진영(1/-1)을 함께 조회
         if (post.getPostType() == PostType.DEBATE) {
             final DebatePost debatePost = debatePostRepository.findById(id)
                     .orElseThrow(() -> new CustomException(ErrorCode.DEBATE_POST_NOT_FOUND));
+            // 비회원이거나 아직 진영을 고르지 않았으면 null
             final Short myStance = (currentUserId != null)
                     ? debateStanceHistoryRepository.findStanceByUserIdAndPostId(currentUserId, id).orElse(null)
                     : null;
@@ -183,6 +182,7 @@ public class PostService {
                     .resolveImageUrls(r2PublicUrl);
         }
 
+        // 자유글: 투표·토론 부가 정보 없이 기본 응답만 생성
         return PostDetailResponse.from(post, currentUserId).resolveImageUrls(r2PublicUrl);
     }
 
@@ -264,7 +264,7 @@ public class PostService {
                 .build();
 
         final Post saved = postRepository.save(post);
-        imageServerClient.confirm(new ArrayList<>(imageIds));
+        attachImages(saved.getId(), imageIds);
         return PostDetailResponse.from(saved, (userDetails != null) ? userDetails.userId() : null)
                 .resolveImageUrls(r2PublicUrl);
     }
@@ -295,8 +295,8 @@ public class PostService {
                 .build();
 
         final Post saved = postRepository.save(post);
-        imageServerClient.confirm(new ArrayList<>(imageIds));
         final DebatePost debatePost = createDebatePostMeta(saved, request);
+        attachImages(saved.getId(), imageIds);
         return PostDetailResponse.from(saved, userDetails.userId(), debatePost)
                 .resolveImageUrls(r2PublicUrl);
     }
@@ -326,8 +326,8 @@ public class PostService {
                 .build();
 
         final Post saved = postRepository.save(post);
-        imageServerClient.confirm(new ArrayList<>(imageIds));
         final VotePost votePost = createVotePostMeta(saved, request);
+        attachImages(saved.getId(), imageIds);
         return PostDetailResponse.from(saved, userDetails.userId(), votePost, null)
                 .resolveImageUrls(r2PublicUrl);
     }
@@ -335,17 +335,12 @@ public class PostService {
     /**
      * VotePost + VotePostOption 생성 (트랜잭션 내 호출)
      * 주의:
-     * - voteOptions 최소 2개 필수
+     * - voteOptions 개수는 요청 DTO(@NotNull/@Size)에서 검증 — 컨트롤러 외 경로로 호출하면 직접 검증 필요
      * - MBTI 투표 시 같은 mbtiTarget 중복 불가 (DB 인덱스 + 서비스 사전 검증)
      */
     private VotePost createVotePostMeta(final Post post, final VotePostCreateRequest request) {
+        // 선택지 개수(2~VOTE_OPTION_MAX)는 VotePostCreateRequest의 Bean Validation에서 이미 검증됨
         final List<VoteOptionRequest> optionRequests = request.voteOptions();
-        if (optionRequests == null || optionRequests.size() < 2) {
-            throw new CustomException(ErrorCode.VOTE_OPTIONS_REQUIRED);
-        }
-        if (optionRequests.size() > PostConstants.VOTE_OPTION_MAX) {
-            throw new CustomException(ErrorCode.VOTE_OPTIONS_EXCEEDED);
-        }
 
         // endsAt이 과거 시각이면 즉시 마감 투표가 생성되므로 차단
         if (request.endsAt() != null && request.endsAt().isBefore(Instant.now())) {
@@ -361,17 +356,20 @@ public class PostService {
             throw new CustomException(ErrorCode.VOTE_MBTI_MODE_MIXED);
         }
 
+        // 투표 유형별 선택지 검증 — Set.add()가 false면 이미 본 값이라 중복
         final Set<String> seenMbti = new HashSet<>();
         if (hasMbti) {
+            // MBTI 투표: 같은 MBTI를 두 번 고를 수 없음 (mbtiTarget이 곧 선택지의 정체성)
             for (final VoteOptionRequest opt : optionRequests) {
                 if (!seenMbti.add(opt.mbtiTarget())) {
                     throw new CustomException(ErrorCode.VOTE_MBTI_DUPLICATE);
                 }
             }
         } else {
+            // 자유 투표: 모든 선택지에 텍스트가 있어야 하고, 같은 텍스트는 중복 불가
             final Set<String> seenText = new HashSet<>();
             for (final VoteOptionRequest opt : optionRequests) {
-                if (opt.optionText() == null || opt.optionText().isBlank()) {
+                if (!StringUtils.hasText(opt.optionText())) {
                     throw new CustomException(ErrorCode.VOTE_OPTION_TEXT_REQUIRED);
                 }
                 if (!seenText.add(opt.optionText())) {
@@ -380,6 +378,7 @@ public class PostService {
             }
         }
 
+        // 위 검증을 모두 통과한 뒤에야 저장 — VotePost는 posts.id를 PK로 공유(@MapsId)하는 1:1 메타
         final VotePost votePost = VotePost.builder()
                 .post(post)
                 .endsAt(request.endsAt())
@@ -387,15 +386,19 @@ public class PostService {
         votePostRepository.save(votePost);
 
         // MBTI 투표인 경우 옵션 수만큼 개별 SELECT 방지 — 한 번에 일괄 조회
+        // (id → 엔티티 Map으로 만들어 아래 옵션 생성 때 O(1)로 찾음)
         final Map<String, MbtiMetadata> mbtiMap = hasMbti
                 ? mbtiMetadataRepository.findAllById(seenMbti).stream()
                         .collect(Collectors.toMap(MbtiMetadata::getId, Function.identity()))
                 : Map.of();
 
+        // 요청한 MBTI 중 DB에 없는 값이 있으면 조회된 개수가 요청 개수보다 적음
         if (hasMbti && mbtiMap.size() != seenMbti.size()) {
             throw new CustomException(ErrorCode.MBTI_NOT_FOUND);
         }
 
+        // 요청 순서대로 displayOrder(0부터)를 부여 — 조회 시 @OrderBy("displayOrder ASC")로 이 순서가 복원됨
+        // 자유 투표는 mbtiTarget이 null (MBTI 투표만 위에서 조회한 엔티티를 연결)
         final List<VotePostOption> options = new ArrayList<>();
         for (int i = 0; i < optionRequests.size(); i++) {
             final VoteOptionRequest optReq = optionRequests.get(i);
@@ -406,14 +409,15 @@ public class PostService {
                     .mbtiTarget(hasMbti ? mbtiMap.get(optReq.mbtiTarget()) : null)
                     .build());
         }
+        // PK가 IDENTITY라 saveAll 시점에 INSERT가 즉시 나가고, options의 id가 채워짐
         votePostOptionRepository.saveAll(options);
 
-        // votePost가 1차 캐시에 options=[]로 올라가 있어 JOIN FETCH가 캐시를 우선함
-        // detach 후 재조회해야 DB에서 options를 올바르게 가져옴
-        entityManager.flush();
-        entityManager.detach(votePost);
-        return votePostRepository.findWithOptionsById(post.getId())
-                .orElseThrow(() -> new CustomException(ErrorCode.VOTE_POST_NOT_FOUND));
+        // votePost는 위에서 options=[]인 채로 1차 캐시에 올라가 있음 — 방금 저장한 선택지를 직접 채워서 반환
+        // (flush·detach 후 JOIN FETCH로 다시 읽는 방식 대신 SELECT 1회 절약)
+        // 주의: 선택지의 vote_count는 DB 트리거 관리 컬럼이지만 신규 생성 시 항상 0이고 엔티티 기본값(0)과 같아서
+        //       다시 읽지 않아도 일치함. 선택지에 DB가 채우는 컬럼이 추가되면 이 방식은 그 값을 못 봄
+        votePost.getOptions().addAll(options);
+        return votePost;
     }
 
     /**
@@ -427,10 +431,10 @@ public class PostService {
 
         final DebatePost debatePost = DebatePost.builder()
                 .post(post)
-                .proLabel(request.proLabel() != null && !request.proLabel().isBlank()
+                .proLabel(StringUtils.hasText(request.proLabel())
                         ? request.proLabel().strip()
                         : "찬성")
-                .conLabel(request.conLabel() != null && !request.conLabel().isBlank()
+                .conLabel(StringUtils.hasText(request.conLabel())
                         ? request.conLabel().strip()
                         : "반대")
                 .endsAt(request.endsAt())
@@ -439,37 +443,44 @@ public class PostService {
         return debatePostRepository.save(debatePost);
     }
 
+    /**
+     * PATCH /api/posts/{id} — 게시글 수정 (회원·비회원 모두 가능)
+     * [역할] 제목·본문을 바꾸고, 본문에서 이미지가 추가·삭제된 만큼 post_images 소유 상태를 맞춘 뒤 수정 결과를 반환
+     * 주의:
+     * - 수정되는 건 제목·본문(과 거기서 뽑은 요약·이미지 key)뿐 — 유형, 대상 MBTI, 투표 선택지, 토론 설정은 바뀌지 않음
+     * - 이미지는 post_images 상태만 바꾸고 Image Server confirm/release는 커밋 뒤 워커가 함 (트랜잭션 안에서 외부 호출 없음)
+     * - post.update는 save 없이 변경 감지로 커밋 시 UPDATE됨 — 이 트랜잭션이 롤백되면 이미지 상태 변경도 함께 취소
+     */
     @Transactional
     public PostDetailResponse updatePost(final Long id, final PostUpdateRequest request,
             final CustomUserDetails userDetails) {
         final Post post = findPostOrThrow(id);
+        // 회원은 작성자 일치, 비회원은 글 비밀번호 일치여야 함 (탈퇴 회원의 글은 수정 불가)
         verifyOwnership(post, userDetails, request.guestPassword());
+        // 새 본문을 저장 형태로 가공 — 이미지 개수를 넘으면 여기서 예외, 이후 모든 비교는 가공된 본문 기준
         final ProcessedContent pc = processContent(request.content());
-        final Set<String> removedIds = TiptapContentParser.extractImageIds(post.getContent(), r2PublicUrl);
-        removedIds.removeAll(TiptapContentParser.extractImageIds(pc.normalized(), r2PublicUrl));
-        imageServerClient.release(new ArrayList<>(removedIds));
+        // 본문이 아니라 소유 기록 기준으로 비교 — 본문에 남의 이미지가 들어 있어도 그건 정리 대상이 아니다.
+        // 여기서는 post_images 상태만 바꾸고, Image Server confirm/release는 커밋 뒤 워커가 한다.
+        final Set<String> newIds = TiptapContentParser.extractImageIds(pc.normalized(), r2PublicUrl);
+        final Map<String, PostImageStatus> owned = findOwnedImages(id);
+        // 1) 새 본문에 처음 나온 이미지(아직 이 글의 소유 기록이 없음) → 소유 등록
+        attachImages(id, difference(newIds, owned.keySet()));
+        // 2) 지웠다가(정리 대기 중) 다시 넣은 이미지 → 정리 대상에서 빼고 확정 대상으로 되돌림
+        reactivateImages(id, newIds.stream()
+                .filter(imageId -> owned.get(imageId) == PostImageStatus.PENDING_RELEASE)
+                .collect(Collectors.toSet()));
+        // 3) 이 글이 소유 중이던 이미지 중 새 본문에서 빠진 것 → 정리 대상으로 표시
+        detachImages(id, owned.entrySet().stream()
+                .filter(entry -> entry.getValue().isAttached() && !newIds.contains(entry.getKey()))
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toSet()));
         post.update(request.title().strip(), pc.normalized(), pc.preview(), pc.imageKeys());
 
+        // 비회원이면 null — 응답의 isOwner 등 "내 것" 판단과 투표 이력·내 진영 조회에 쓰임
         final UUID currentUserId = userDetails != null ? userDetails.userId() : null;
 
-        if (post.getPostType() == PostType.VOTE) {
-            final VotePost votePost = votePostRepository.findWithOptionsById(id)
-                    .orElseThrow(() -> new CustomException(ErrorCode.VOTE_POST_NOT_FOUND));
-            final VotePostHistory history = (currentUserId != null)
-                    ? votePostHistoryRepository.findByVotePost_IdAndUser_Id(id, currentUserId).orElse(null)
-                    : null;
-            return PostDetailResponse.from(post, currentUserId, votePost, history)
-                    .resolveImageUrls(r2PublicUrl);
-        }
-
-        if (post.getPostType() == PostType.DEBATE) {
-            final DebatePost debatePost = debatePostRepository.findById(id)
-                    .orElseThrow(() -> new CustomException(ErrorCode.DEBATE_POST_NOT_FOUND));
-            return PostDetailResponse.from(post, currentUserId, debatePost)
-                    .resolveImageUrls(r2PublicUrl);
-        }
-
-        return PostDetailResponse.from(post, currentUserId).resolveImageUrls(r2PublicUrl);
+        // 상세 조회와 같은 변환을 재사용 — 유형별 부가 정보(투표 선택지·내 투표 이력, 토론 정보·내 진영)까지 동일하게 반환
+        return buildDetailResponse(post, currentUserId);
     }
 
     @Transactional
@@ -481,10 +492,54 @@ public class PostService {
         post.hide();
     }
 
-    /** 게시글 본문에 포함된 이미지를 Image Server에서 정리(R2 + DB 즉시 제거) — AdminPostService의 영구 삭제에서도 재사용 */
+    /**
+     * 게시글이 소유한 이미지를 정리 대상(PENDING_RELEASE)으로 표시 — 실제 삭제는 커밋 뒤 워커가 한다.
+     * AdminPostService의 영구 삭제에서도 재사용(표시 후 글을 지우면 FK가 post_id를 NULL로 두고 행은 남는다).
+     * 주의: 본문에 있는 이미지가 아니라 소유 기록(post_images) 기준 — 남의 글 이미지 URL을 본문에 넣은 글을 지워도
+     * 원래 글의 이미지는 지워지지 않는다
+     */
     void releaseImages(final Post post) {
-        final Set<String> imageIds = TiptapContentParser.extractImageIds(post.getContent(), r2PublicUrl);
-        imageServerClient.release(new ArrayList<>(imageIds));
+        detachImages(post.getId(), findOwnedImages(post.getId()).keySet());
+    }
+
+    /**
+     * 본문 이미지 중 아직 어느 글도 소유하지 않은 것만 이 글 소유로 등록한다(PENDING_CONFIRM).
+     * 이미 다른 글이 소유한 이미지는 무시 — 보여주기만 하고 확정·정리 대상이 아니다. 확정은 커밋 뒤 워커가 한다.
+     */
+    private void attachImages(final Long postId, final Set<String> imageIds) {
+        for (final String imageId : imageIds) {
+            postImageRepository.claim(UUID.fromString(imageId), postId);
+        }
+    }
+
+    /** 뺐다가 다시 넣은 이미지(아직 정리 전)를 확정 대상으로 되돌린다 */
+    private void reactivateImages(final Long postId, final Set<String> imageIds) {
+        if (!imageIds.isEmpty()) {
+            postImageRepository.reactivate(postId, toUuids(imageIds));
+        }
+    }
+
+    /** 이 글이 소유한 이미지 중 imageIds를 정리 대상으로 표시한다 */
+    private void detachImages(final Long postId, final Set<String> imageIds) {
+        if (!imageIds.isEmpty()) {
+            postImageRepository.markPendingRelease(postId, toUuids(imageIds));
+        }
+    }
+
+    /** 이 글이 소유한 이미지 id → 상태 */
+    private Map<String, PostImageStatus> findOwnedImages(final Long postId) {
+        return postImageRepository.findByPostId(postId).stream()
+                .collect(Collectors.toMap(image -> image.getImageId().toString(), PostImage::getStatus));
+    }
+
+    private static List<UUID> toUuids(final Set<String> imageIds) {
+        return imageIds.stream().map(UUID::fromString).toList();
+    }
+
+    private static Set<String> difference(final Collection<String> source, final Collection<String> exclude) {
+        final Set<String> result = new HashSet<>(source);
+        result.removeAll(exclude);
+        return result;
     }
 
     /**
@@ -511,16 +566,37 @@ public class PostService {
         }
     }
 
+    /**
+     * 본문 가공 결과 — posts 테이블에 함께 저장할 값 묶음
+     * normalized → content, preview → content_preview, imageKeys → image_urls
+     * 주의: imageKeys는 본문에 이미지가 없으면 null
+     */
     private record ProcessedContent(String normalized, String preview, String[] imageKeys) {}
 
+    /**
+     * 요청 본문(Tiptap JSON)을 저장 가능한 형태로 가공 — 작성·수정 시 공통으로 호출
+     * [역할]
+     * - 본문 안의 실제 R2 이미지 URL을 {public-url}/ 플레이스홀더로 치환 (저장소를 옮겨도 설정값 하나로 대응)
+     * - 목록·SEO 메타용으로 본문 요약(preview)과 이미지 key를 본문과 별도 컬럼에 미리 뽑아 둠
+     *   (조회 때마다 큰 본문 JSON을 파싱하지 않도록)
+     * 주의:
+     * - 이미지 개수 검증은 치환된 본문 기준이며, 초과하면 저장 전에 IMAGE_COUNT_EXCEEDED로 막음
+     * - preview 길이(300자)와 imageKeys 최대 개수(MAX_IMAGE_COUNT)는 여기서만 정함
+     * - 이미지 소유 등록(claim)은 하지 않음 — 글 저장 후 attachImages가 따로 처리
+     */
     private ProcessedContent processContent(final String rawContent) {
+        // 저장용 본문: 이후 모든 추출은 이 치환된 본문을 기준으로 함
         final String normalized = TiptapContentParser.normalizeForStorage(rawContent, r2PublicUrl);
+
+        // DB에 쓰기 전에 개수부터 검증 — 초과한 글이 저장되지 않게 함
         if (TiptapContentParser.countImages(normalized) > PostConstants.MAX_IMAGE_COUNT) {
             throw new CustomException(ErrorCode.IMAGE_COUNT_EXCEEDED);
         }
         return new ProcessedContent(
                 normalized,
+                // 본문의 text 노드만 모아 300자까지 — 목록 카드·OG 설명에 사용
                 TiptapContentParser.extractTextPreview(normalized, 300),
+                // 문서 순서대로 최대 MAX_IMAGE_COUNT개 — 대표 이미지(OG 등) 용도
                 TiptapContentParser.extractImageKeys(normalized, PostConstants.MAX_IMAGE_COUNT)
         );
     }
@@ -537,7 +613,7 @@ public class PostService {
 
     /** null / "ALL" 이면 타겟 없음(null 반환), 특정 MBTI ID면 조회 후 반환 */
     private MbtiMetadata resolveTargetMbti(final String targetMbtiId) {
-        if (targetMbtiId == null || targetMbtiId.isBlank() || PostConstants.TARGET_ALL.equals(targetMbtiId)) {
+        if (!StringUtils.hasText(targetMbtiId) || PostConstants.TARGET_ALL.equals(targetMbtiId)) {
             return null;
         }
         return mbtiMetadataRepository.findById(targetMbtiId)

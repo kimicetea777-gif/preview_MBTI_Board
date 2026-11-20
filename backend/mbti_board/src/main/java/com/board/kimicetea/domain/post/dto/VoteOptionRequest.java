@@ -1,6 +1,7 @@
 package com.board.kimicetea.domain.post.dto;
 
 import jakarta.validation.constraints.Size;
+import org.springframework.util.StringUtils;
 
 /**
  * 투표 선택지 작성 요청 DTO
@@ -17,6 +18,6 @@ public record VoteOptionRequest(
         String mbtiTarget
 ) {
     public boolean hasMbtiTarget() {
-        return mbtiTarget != null && !mbtiTarget.isBlank();
+        return StringUtils.hasText(mbtiTarget);
     }
 }

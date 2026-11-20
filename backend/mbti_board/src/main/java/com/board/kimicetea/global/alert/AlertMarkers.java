@@ -8,12 +8,14 @@ public class AlertMarkers {
 
     public static final Marker JWT_TAMPER           = MarkerFactory.getMarker(AlertType.JWT_TAMPER.name());
     public static final Marker UNHANDLED_ERROR      = MarkerFactory.getMarker(AlertType.UNHANDLED_ERROR.name());
-    public static final Marker DB_QUERY_SLOW        = MarkerFactory.getMarker(AlertType.DB_QUERY_SLOW.name());
     public static final Marker BRUTE_FORCE_LOGIN    = MarkerFactory.getMarker(AlertType.BRUTE_FORCE_LOGIN.name());
     public static final Marker PASSWORD_RESET_ABUSE = MarkerFactory.getMarker(AlertType.PASSWORD_RESET_ABUSE.name());
     public static final Marker ACCOUNT_LOCKED       = MarkerFactory.getMarker(AlertType.ACCOUNT_LOCKED.name());
     public static final Marker RATE_LIMIT_EXCEEDED  = MarkerFactory.getMarker(AlertType.RATE_LIMIT_EXCEEDED.name());
     public static final Marker REDIS_CONNECTION_FAIL = MarkerFactory.getMarker(AlertType.REDIS_CONNECTION_FAIL.name());
+    public static final Marker IMAGE_SYNC_FAIL      = MarkerFactory.getMarker(AlertType.IMAGE_SYNC_FAIL.name());
+    public static final Marker MEMBERSHIP_SYNC_FAIL = MarkerFactory.getMarker(AlertType.MEMBERSHIP_SYNC_FAIL.name());
+    public static final Marker MEMBERSHIP_SYNC_STALE = MarkerFactory.getMarker(AlertType.MEMBERSHIP_SYNC_STALE.name());
 
     private AlertMarkers() {}
 }

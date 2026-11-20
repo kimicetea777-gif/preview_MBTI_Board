@@ -1,13 +1,19 @@
 import type { Metadata } from "next";
 import type { PostMetaResponse } from "@/types/post";
 import { APP_NAME } from "@/constants/site";
+import { POST_META_TIMEOUT_MS } from "@/constants/timeouts";
 
 const BACKEND_URL = process.env.BACKEND_INTERNAL_URL ?? "http://localhost:8080";
 const DEFAULT_OG_IMAGE = "/images/og.png"; // 게시글 자체 이미지가 없을 때 공유 미리보기용 폴백 배너
 
 async function fetchPostMeta(id: number): Promise<PostMetaResponse | null> {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/posts/${id}/meta`, { next: { revalidate: 60 } });
+    // 시간 초과도 아래 catch → null → 기본 metadata. signal은 같은 렌더 안의 요청 합치기(memoization)만 끄고
+    // revalidate 데이터 캐시는 그대로 쓴다 (이 요청은 렌더당 generateMetadata에서 한 번만 불린다)
+    const res = await fetch(`${BACKEND_URL}/api/posts/${id}/meta`, {
+      next: { revalidate: 60 },
+      signal: AbortSignal.timeout(POST_META_TIMEOUT_MS),
+    });
     if (!res.ok) return null;
     const { data }: { data: PostMetaResponse } = await res.json();
     return data;

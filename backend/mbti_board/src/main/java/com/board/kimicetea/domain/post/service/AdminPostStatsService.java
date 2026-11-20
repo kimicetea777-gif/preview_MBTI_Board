@@ -22,8 +22,9 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * 어드민 게시글 통계 서비스 — 계산 결과를 Redis에 캐싱하여 HTTP 응답을 즉시 반환
- * 주의: computeAndCache()는 AdminPostStatsScheduler가 2시간마다 호출 — HTTP 요청 스레드에서 DB 집계 없음
- * 주의: Redis 미스(최초 기동·캐시 만료) 시 getCachedStats()가 직접 호출 — 드문 경우
+ * 주의: computeAndCache()는 어드민 수동 새로고침(AdminPostStatsScheduler.triggerAsync)이 호출한다.
+ *       주기적 스케줄 갱신은 admin.stats.scheduler-enabled=true일 때만 동작하고 기본은 꺼져 있다
+ * 주의: 스케줄이 꺼져 있으면 Redis 미스(최초 조회·캐시 만료 4시간 후)마다 getCachedStats()가 요청 스레드에서 직접 DB 집계한다
  */
 @Slf4j
 @Service

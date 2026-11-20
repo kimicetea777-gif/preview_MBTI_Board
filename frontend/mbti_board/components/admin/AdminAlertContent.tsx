@@ -7,7 +7,6 @@ import { useAlertStatus, useMuteAlert, useUnmuteAlert } from "@/hooks/useAdmin";
 const ALERT_META: Record<AlertType, { label: string; description: string }> = {
   [ALERT_TYPE.JWT_TAMPER]:           { label: "JWT 위조 감지",        description: "토큰 서명 위조·형식 오류 감지 시 알림" },
   [ALERT_TYPE.UNHANDLED_ERROR]:      { label: "미처리 예외",           description: "처리되지 않은 예외 (500) 발생 시 알림" },
-  [ALERT_TYPE.DB_QUERY_SLOW]:        { label: "슬로우 쿼리",           description: "DB 쿼리 실행 시간 임계치 초과 시 알림" },
   [ALERT_TYPE.BRUTE_FORCE_LOGIN]:    { label: "로그인 브루트 포스",    description: "로그인 요청 제한 초과 시 알림" },
   [ALERT_TYPE.PASSWORD_RESET_ABUSE]: { label: "비밀번호 재설정 남용",  description: "비밀번호 재설정 요청 제한 초과 시 알림" },
   [ALERT_TYPE.ACCOUNT_LOCKED]:       { label: "잠긴 계정 접근",        description: "잠긴 계정으로 로그인 시도 감지 시 알림" },

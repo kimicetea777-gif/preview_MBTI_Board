@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { fetchComments } from "@/lib/api/comment";
 
 export const commentKeys = {
@@ -7,7 +7,7 @@ export const commentKeys = {
 };
 
 export function useComments(postId: number) {
-  return useQuery({
+  return useSuspenseQuery({
     queryKey: commentKeys.byPost(postId),
     queryFn: () => fetchComments(postId),
   });

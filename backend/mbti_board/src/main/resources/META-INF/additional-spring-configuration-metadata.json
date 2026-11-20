@@ -1,6 +1,12 @@
 {
   "properties": [
     {
+      "name": "admin.stats.scheduler-enabled",
+      "type": "java.lang.Boolean",
+      "description": "어드민 통계 캐시의 주기적 사전 계산 스케줄러 사용 여부. false면 어드민 수동 새로고침으로만 갱신한다.",
+      "defaultValue": false
+    },
+    {
       "name": "admin.stats.cache-refresh-delay-ms",
       "type": "java.lang.Long",
       "description": "어드민 통계 캐시 스케줄러 갱신 주기 (밀리초). 기본값 7,200,000 = 2시간.",

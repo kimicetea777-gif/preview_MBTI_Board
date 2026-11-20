@@ -66,7 +66,7 @@ class DeletedUserSyncServiceTest {
         @DisplayName("EPOCH/sinceId 없이 폴링을 호출한다")
         void pollsFromEpoch() {
             when(cursorRepository.findById(DeletedUserSyncService.POLLER_NAME)).thenReturn(Optional.empty());
-            when(pollClient.poll(Instant.EPOCH, null, 500)).thenReturn(new DeletedUsersPollResponse(List.of()));
+            when(pollClient.poll(Instant.EPOCH, null, 500)).thenReturn(new DeletedUsersPollResponse(List.of(), false));
 
             service.sync();
 
@@ -89,7 +89,7 @@ class DeletedUserSyncServiceTest {
 
             when(cursorRepository.findById(DeletedUserSyncService.POLLER_NAME))
                     .thenReturn(Optional.of(existingCursor(Instant.EPOCH, null)));
-            when(pollClient.poll(any(), any(), eq(500))).thenReturn(new DeletedUsersPollResponse(List.of(event)));
+            when(pollClient.poll(any(), any(), eq(500))).thenReturn(new DeletedUsersPollResponse(List.of(event), false));
             when(userRepository.findByAuthServerId(authServerId)).thenReturn(Optional.of(localUser));
 
             service.sync();
@@ -111,7 +111,7 @@ class DeletedUserSyncServiceTest {
 
             when(cursorRepository.findById(DeletedUserSyncService.POLLER_NAME))
                     .thenReturn(Optional.of(existingCursor(Instant.EPOCH, null)));
-            when(pollClient.poll(any(), any(), eq(500))).thenReturn(new DeletedUsersPollResponse(List.of(event)));
+            when(pollClient.poll(any(), any(), eq(500))).thenReturn(new DeletedUsersPollResponse(List.of(event), false));
             when(userRepository.findByAuthServerId(authServerId)).thenReturn(Optional.empty());
 
             service.sync();
@@ -160,7 +160,7 @@ class DeletedUserSyncServiceTest {
             when(cursorRepository.findById(DeletedUserSyncService.POLLER_NAME))
                     .thenReturn(Optional.of(existingCursor(Instant.EPOCH, null)));
             when(pollClient.poll(any(), any(), eq(500)))
-                    .thenReturn(new DeletedUsersPollResponse(List.of(event1, event2)));
+                    .thenReturn(new DeletedUsersPollResponse(List.of(event1, event2), false));
             when(userRepository.findByAuthServerId(authServerId1)).thenReturn(Optional.of(localUser1));
             when(userRepository.findByAuthServerId(authServerId2)).thenThrow(new RuntimeException("DB 순간 장애"));
 
@@ -174,27 +174,92 @@ class DeletedUserSyncServiceTest {
     }
 
     @Nested
-    @DisplayName("응답 개수가 limit과 같을 때")
-    class FullPage {
+    @DisplayName("AS가 hasNext를 줄 때")
+    class WithHasNext {
 
         @Test
-        @DisplayName("더 있을 수 있으므로 갱신된 커서로 즉시 재폴링한다")
-        void pollsAgainImmediately() {
-            final List<DeletedUserEventResponse> fullPage = new ArrayList<>();
-            for (int i = 0; i < 500; i++) {
-                fullPage.add(eventOf(i, UUID.randomUUID(), Instant.EPOCH.plusSeconds(i)));
-            }
-            when(userRepository.findByAuthServerId(any())).thenReturn(Optional.empty());
+        @DisplayName("hasNext=true면 개수가 limit보다 적어도 바로 다음 페이지를 요청한다")
+        void followsHasNextTrue() {
             when(cursorRepository.findById(DeletedUserSyncService.POLLER_NAME))
                     .thenReturn(Optional.of(existingCursor(Instant.EPOCH, null)));
             when(pollClient.poll(any(), any(), eq(500)))
-                    .thenReturn(new DeletedUsersPollResponse(fullPage))
-                    .thenReturn(new DeletedUsersPollResponse(List.of()));
+                    .thenReturn(new DeletedUsersPollResponse(List.of(eventOf(1L, UUID.randomUUID(), Instant.EPOCH)), true))
+                    .thenReturn(new DeletedUsersPollResponse(List.of(), false));
 
             service.sync();
 
             verify(pollClient, times(2)).poll(any(), any(), eq(500));
         }
+
+        @Test
+        @DisplayName("hasNext=false면 개수가 limit과 같아도 다시 요청하지 않는다(빈 페이지를 한 번 더 받지 않음)")
+        void stopsOnHasNextFalseEvenWhenPageIsFull() {
+            when(cursorRepository.findById(DeletedUserSyncService.POLLER_NAME))
+                    .thenReturn(Optional.of(existingCursor(Instant.EPOCH, null)));
+            when(pollClient.poll(any(), any(), eq(500)))
+                    .thenReturn(new DeletedUsersPollResponse(fullPage(), false))
+                    .thenReturn(new DeletedUsersPollResponse(List.of(), false));
+
+            service.sync();
+
+            verify(pollClient, times(1)).poll(any(), any(), eq(500));
+        }
+
+        @Test
+        @DisplayName("hasNext=true여도 항목이 비어 있으면 멈춘다(커서가 그대로라 같은 요청이 끝없이 반복되는 것 방지)")
+        void stopsOnEmptyItemsEvenIfHasNextTrue() {
+            when(cursorRepository.findById(DeletedUserSyncService.POLLER_NAME))
+                    .thenReturn(Optional.of(existingCursor(Instant.EPOCH, null)));
+            when(pollClient.poll(any(), any(), eq(500)))
+                    .thenReturn(new DeletedUsersPollResponse(List.of(), true))
+                    .thenReturn(new DeletedUsersPollResponse(List.of(), false));
+
+            service.sync();
+
+            verify(pollClient, times(1)).poll(any(), any(), eq(500));
+        }
+    }
+
+    @Nested
+    @DisplayName("AS가 hasNext를 주지 않을 때(hasNext 추가 전 AS)")
+    class WithoutHasNext {
+
+        @Test
+        @DisplayName("개수가 limit과 같으면 더 있을 수 있으므로 갱신된 커서로 즉시 재폴링한다")
+        void pollsAgainImmediately() {
+            when(cursorRepository.findById(DeletedUserSyncService.POLLER_NAME))
+                    .thenReturn(Optional.of(existingCursor(Instant.EPOCH, null)));
+            when(pollClient.poll(any(), any(), eq(500)))
+                    .thenReturn(new DeletedUsersPollResponse(fullPage(), null))
+                    .thenReturn(new DeletedUsersPollResponse(List.of(), null));
+
+            service.sync();
+
+            verify(pollClient, times(2)).poll(any(), any(), eq(500));
+        }
+
+        @Test
+        @DisplayName("개수가 limit보다 적으면 거기서 끝낸다")
+        void stopsWhenPageIsNotFull() {
+            when(cursorRepository.findById(DeletedUserSyncService.POLLER_NAME))
+                    .thenReturn(Optional.of(existingCursor(Instant.EPOCH, null)));
+            when(pollClient.poll(any(), any(), eq(500)))
+                    .thenReturn(new DeletedUsersPollResponse(List.of(eventOf(1L, UUID.randomUUID(), Instant.EPOCH)), null))
+                    .thenReturn(new DeletedUsersPollResponse(List.of(), null));
+
+            service.sync();
+
+            verify(pollClient, times(1)).poll(any(), any(), eq(500));
+        }
+    }
+
+    /** 로컬에 없는 유저 500명(PAGE_LIMIT)짜리 꽉 찬 페이지 — findByAuthServerId는 mock 기본값 Optional.empty() */
+    private List<DeletedUserEventResponse> fullPage() {
+        final List<DeletedUserEventResponse> page = new ArrayList<>();
+        for (int i = 0; i < 500; i++) {
+            page.add(eventOf(i, UUID.randomUUID(), Instant.EPOCH.plusSeconds(i)));
+        }
+        return page;
     }
 
     private PollingCursor existingCursor(final Instant since, final Long sinceId) {

@@ -2,6 +2,7 @@
 
 import { Component, type ReactNode } from "react";
 import { isAxiosError } from "axios";
+import { getErrorDisplayMessage } from "@/lib/apiError";
 
 interface Props {
   children: ReactNode;
@@ -23,8 +24,7 @@ export default class ApiErrorBoundary extends Component<Props, State> {
       if (error.response?.status === 404) return { hasError: true, is404: true, message: "" };
       if (error.response?.status === 403) return { hasError: true, is404: false, message: "관리자 권한이 없습니다." };
     }
-    const message = error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.";
-    return { hasError: true, is404: false, message };
+    return { hasError: true, is404: false, message: getErrorDisplayMessage(error) };
   }
 
   handleRetry = () => {

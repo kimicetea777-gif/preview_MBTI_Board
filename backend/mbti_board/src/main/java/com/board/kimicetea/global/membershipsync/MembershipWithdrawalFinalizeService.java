@@ -28,14 +28,23 @@ public class MembershipWithdrawalFinalizeService {
 
     private final UserRepository userRepository;
     private final UserService userService;
+    private final MembershipEventFailureRepository failureRepository;
 
-    /** 유저 단위로 실패를 격리 — 한 유저 처리 실패가 나머지 확정 처리를 막지 않도록 함 */
+    /**
+     * 유저 단위로 실패를 격리 — 한 유저 처리 실패가 나머지 확정 처리를 막지 않도록 함.
+     * 주의: 재시도 큐에 반영되지 않은 멤버십 이벤트가 남아 있는 유저는 건너뛴다 — 그 안에 재연결(CLIENT_ACTIVATED)이
+     *       있을 수 있고 익명화는 되돌릴 수 없다. 큐가 풀린 뒤 다음 04:15에 다시 판단한다.
+     */
     public void finalizeExpiredWithdrawals() {
         final Instant cutoff = Instant.now().minus(GRACE_PERIOD);
         final List<User> targets =
                 userRepository.findByStateAndMembershipWithdrawnAtBefore(UserState.MEMBERSHIP_WITHDRAWAL_PENDING, cutoff);
 
         for (final User user : targets) {
+            if (failureRepository.existsByAuthServerId(user.getAuthServerId())) {
+                log.info("[membership-sync] 반영되지 않은 멤버십 이벤트가 있어 탈퇴 확정을 미룸 (userId={})", user.getId());
+                continue;
+            }
             try {
                 userService.finalizeMembershipWithdrawal(user.getId());
             } catch (final RuntimeException e) {

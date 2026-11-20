@@ -142,7 +142,9 @@ public class UserService {
     @Transactional
     public void handleMembershipBanned(final UUID authServerId) {
         userRepository.findByAuthServerId(authServerId).ifPresent(user -> {
-            if (user.getState() == UserState.PERMANENT_BAN) {
+            // WITHDRAWN(익명화 완료)은 되돌릴 수 없는 최종 상태 — 늦게 적용된 BANNED가 PERMANENT_BAN으로 바꾸면
+            // 뒤따르는 CLIENT_ACTIVATED가 익명화된 행을 NORMAL로 되살린다(재시도 큐로 이벤트가 늦게 올 수 있음)
+            if (user.getState() == UserState.PERMANENT_BAN || user.getState() == UserState.WITHDRAWN) {
                 return;
             }
             user.changeState(UserState.PERMANENT_BAN);

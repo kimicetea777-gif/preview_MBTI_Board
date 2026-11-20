@@ -37,7 +37,7 @@ public class DeletedUserSyncService {
      * 번에 커서를 갱신하지 않는다. 처리 중 실패하면 그 지점에서 멈추고, 그 이전까지 이미 커밋된
      * 항목들의 커서 전진은 그대로 유지한다(memo.md 5번: 로컬 처리 성공 후에만 커서 전진).
      *
-     * @return 더 있을 수 있으면(응답 개수가 PAGE_LIMIT과 같으면) true — 즉시 다음 페이지를 마저 처리
+     * @return 다음 페이지가 있으면 true — 즉시 다음 페이지를 마저 처리({@link #hasNextPage} 참고)
      */
     private boolean syncOnePage() {
         final PollingCursor cursor = loadCursor();
@@ -62,6 +62,24 @@ public class DeletedUserSyncService {
             cursorRepository.save(cursor);
         }
 
+        return hasNextPage(response);
+    }
+
+    /**
+     * [역할] 다음 페이지를 바로 이어서 요청할지 정한다.
+     * [주의사항] AS가 {@code hasNext}를 주면 그 값을 따른다(AS가 limit+1건을 읽어 정확히 판단하므로, 남은 기록이
+     * 딱 PAGE_LIMIT건일 때 빈 페이지를 한 번 더 받지 않는다). 필드가 없으면({@code null}, hasNext 추가 전 AS)
+     * 예전 규칙 — 개수가 PAGE_LIMIT과 같으면 더 있을 수 있다 — 으로 판단한다. AS 운영 배포 뒤에도 남겨 두면
+     * 배포 순서와 상관없이 안전하다. 항목이 비어 있으면 커서가 전진하지 않아 같은 요청이 반복되므로
+     * {@code hasNext}가 true여도 멈춘다(무한 루프 방지).
+     */
+    private boolean hasNextPage(final DeletedUsersPollResponse response) {
+        if (response.items().isEmpty()) {
+            return false;
+        }
+        if (response.hasNext() != null) {
+            return response.hasNext();
+        }
         return response.items().size() == PAGE_LIMIT;
     }
 

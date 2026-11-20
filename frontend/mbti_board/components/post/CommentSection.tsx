@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import { useComments, commentKeys } from "@/hooks/useComments";
@@ -9,6 +9,7 @@ import MbtiBadge from "@/components/common/MbtiBadge";
 import { formatRelativeTime } from "@/lib/dateUtils";
 import CommentForm from "@/components/post/CommentForm";
 import ErrorMessage from "@/components/common/ErrorMessage";
+import QueryResetErrorBoundary from "@/components/common/QueryResetErrorBoundary";
 import CommentReactionButtons from "@/components/post/CommentReactionButtons";
 import GuestPasswordModal, { MODAL_ACTION, type ModalAction } from "@/components/post/GuestPasswordModal";
 import { updateComment, deleteComment } from "@/lib/api/comment";
@@ -319,20 +320,23 @@ interface Props {
   conLabel?: string;
 }
 
-export default function CommentSection({ postId, debateStance, proLabel, conLabel }: Props) {
-  const { data: comments, isLoading, isError } = useComments(postId);
-
-  if (isLoading) return <CommentSkeleton />;
-
-  if (isError) return (
-    <p className="mt-8 pt-6 text-sm text-destructive">
-      댓글을 불러오는 중 오류가 발생했습니다.
-    </p>
+// 댓글 영역만 따로 감싼다 — 댓글 로딩·실패가 게시글 본문까지 가리지 않게 하기 위해서다.
+// 호출부(게시글 상세 3곳)는 <CommentSection postId=... />만 쓰면 된다.
+export default function CommentSection(props: Props) {
+  return (
+    <QueryResetErrorBoundary>
+      <Suspense fallback={<CommentSkeleton />}>
+        <CommentList {...props} />
+      </Suspense>
+    </QueryResetErrorBoundary>
   );
+}
+
+function CommentList({ postId, debateStance, proLabel, conLabel }: Props) {
+  const { data: comments } = useComments(postId);
 
   const totalCount =
-    (comments?.length ?? 0) +
-    (comments?.reduce((sum, c) => sum + c.replies.length, 0) ?? 0);
+    comments.length + comments.reduce((sum, c) => sum + c.replies.length, 0);
 
   return (
     <section className="mt-12 space-y-3">
@@ -348,7 +352,7 @@ export default function CommentSection({ postId, debateStance, proLabel, conLabe
 
       <CommentForm postId={postId} debateStance={debateStance} />
 
-      {comments && comments.length > 0 ? (
+      {comments.length > 0 ? (
         <ul className="space-y-6">
           {comments.map((comment) => (
             <CommentItem key={comment.id} comment={comment} postId={postId} debateStance={debateStance} proLabel={proLabel} conLabel={conLabel} />

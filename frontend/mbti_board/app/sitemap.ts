@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 import { ROUTES } from "@/constants/routes";
 import { POST_TYPE, type PostSitemapEntry, type PostType } from "@/types/post";
+import { SITEMAP_FETCH_TIMEOUT_MS } from "@/constants/timeouts";
+import { SITEMAP_INCLUDE_POSTS } from "@/constants/site";
 
 export const revalidate = 3600; // 1시간마다 재생성 — 매 크롤링 요청마다 백엔드 페이지네이션 전체 조회하지 않도록
 
@@ -20,9 +22,10 @@ async function fetchAllPosts(type: PostType): Promise<PostSitemapEntry[]> {
 
   try {
     while (page < totalPages) {
+      // 시간 초과도 아래 catch로 가서, 그때까지 모은 글만으로 sitemap을 만든다
       const res = await fetch(
         `${BACKEND_URL}/api/posts/sitemap-entries?type=${type}&size=${PAGE_SIZE}&page=${page}`,
-        { next: { revalidate } },
+        { next: { revalidate }, signal: AbortSignal.timeout(SITEMAP_FETCH_TIMEOUT_MS) },
       );
       if (!res.ok) {
         console.error(`sitemap: failed to fetch ${type} page ${page} (${res.status})`);
@@ -58,7 +61,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   const postTypes: PostType[] = [POST_TYPE.FREE, POST_TYPE.VOTE, POST_TYPE.DEBATE];
-  const postsByType = await Promise.all(postTypes.map(fetchAllPosts));
+  // 꺼져 있으면 백엔드를 부르지 않는다 (constants/site.ts의 SITEMAP_INCLUDE_POSTS)
+  const postsByType: PostSitemapEntry[][] = SITEMAP_INCLUDE_POSTS
+    ? await Promise.all(postTypes.map(fetchAllPosts))
+    : postTypes.map(() => []);
 
   const postRoutes: MetadataRoute.Sitemap = postTypes.flatMap((type, i) =>
     postsByType[i].map((post) => ({

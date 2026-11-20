@@ -6,12 +6,12 @@ public enum UserState {
     NORMAL, // 정상 상태
     PENDING, // 가입 대기: 이메일 인증이 필요하거나 가입 절차가 마무리되지 않은 상태
     INACTIVE, // 휴면 상태: 장기간 접속하지 않아 데이터가 아카이브된 상태
-    WITHDRAWN, // 탈퇴 상태: 사용자가 탈퇴를 요청하여 데이터 삭제 대기 중인 상태
+    WITHDRAWN, // 탈퇴 확정: PII 익명화·세션 폐기가 끝난 상태. 유예 중이 아니며, 다음 04:00 배치(UserCleanupService)가 행을 삭제
     LOCKED, // 일시 잠금: 비정상적인 접근 감지 시 본인 확인을 위해 일시적으로 잠긴 상태
     SHADOW_BANNED, // 쉐도우 밴: 유저는 플레이 가능하지만, 로그 감시
     PERMANENT_BAN, // 영구 정지: 운영 정책 위반으로 영구적으로 접근이 차단된 상태
-    // AS(Authorization Server) 연동 해제(가역) 상태: 로그인은 막히지만 PII는 보존, 30일 내 재연결 시 NORMAL로 복구.
-    // 30일 경과 시 MembershipWithdrawalFinalizeService가 WITHDRAWN으로 확정(익명화)한다.
+    // AS(Authorization Server) 연동 해제(가역) 상태: 로그인은 막히지만 PII는 보존, 유예기간 안에 재연결하면 NORMAL로 복구.
+    // 유예기간(AS 정책 30일 + 안전 마진 2일 = 32일)이 지나면 MembershipWithdrawalFinalizeService가 WITHDRAWN으로 확정(익명화)한다.
     MEMBERSHIP_WITHDRAWAL_PENDING;
 
     /**

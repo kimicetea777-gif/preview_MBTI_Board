@@ -3,6 +3,11 @@ services:
     image: postgres:16-alpine
     container_name: mbti_postgres
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     mem_limit: 512m
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -22,6 +27,11 @@ services:
     image: redis:7-alpine
     container_name: mbti_redis
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     mem_limit: 128m
     command: redis-server --maxmemory 96mb --maxmemory-policy allkeys-lru
     ports:
@@ -40,6 +50,11 @@ services:
     image: mbti-backend:latest
     container_name: mbti_backend
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     mem_limit: 768m
     env_file:
       - .env
@@ -62,6 +77,11 @@ services:
     image: mbti-frontend:latest
     container_name: mbti_frontend
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     mem_limit: 512m
     env_file:
       - ./.env_next

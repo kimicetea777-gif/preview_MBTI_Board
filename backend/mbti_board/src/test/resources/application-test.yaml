@@ -16,11 +16,24 @@ spring:
   security:
     oauth2:
       client:
+        # main application.yaml의 thebluebutter provider는 issuer-uri가 있어서 컨텍스트 기동 시
+        # AS에 OIDC discovery 요청을 보냄(빈 값으로 덮어도 discovery 시도 후 실패).
+        # 두 registration을 엔드포인트를 직접 지정한 테스트 전용 provider로 돌려
+        # AS 실행·환경변수 없이 테스트 컨텍스트가 뜨게 함
         registration:
-          google:
-            client-id: test-google-client-id
-            client-secret: test-google-client-secret
-            scope: email, profile
+          thebluebutter:
+            client-secret: test-auth-server-client-secret
+            provider: test-auth-server
+          typebutter-deletion-sync:
+            client-secret: test-auth-server-deletion-sync-client-secret
+            provider: test-auth-server
+        provider:
+          test-auth-server:
+            authorization-uri: http://test-auth-server.local/oauth2/authorize
+            token-uri: http://test-auth-server.local/oauth2/token
+            jwk-set-uri: http://test-auth-server.local/oauth2/jwks
+            user-info-uri: http://test-auth-server.local/userinfo
+            user-name-attribute: sub
 
   mail:
     host: localhost
@@ -40,7 +53,31 @@ image-server:
   url: http://test-image-server.local
   api-key: test-image-server-api-key
   public-url: http://test-r2.local
+  # 이미지 확정·정리 워커(PostImageSyncScheduler) 끔 — 테스트가 post_images 상태를 직접 검증하는 사이 끼어들지 않게
+  sync:
+    enabled: false
+
+# 멤버십 이벤트 재시도 워커(MembershipEventRetryScheduler) 끔 — 통합 테스트 중에 워커가 끼어들지 않게
+membership-event:
+  retry:
+    enabled: false
 
 app:
+  name: test-app
   cookie:
     secure: false
+
+authserver:
+  issuer-uri: http://test-auth-server.local
+
+rate-limit:
+  ip-salt: test-rate-limit-ip-salt
+
+retention:
+  encryption:
+    password: test-retention-encryption-password
+    salt: 0123456789abcdef
+
+alert:
+  mail:
+    to: alert@test.com

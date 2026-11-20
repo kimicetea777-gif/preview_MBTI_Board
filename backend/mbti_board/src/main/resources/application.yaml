@@ -132,4 +132,6 @@ alert:
 
 admin:
   stats:
-    cache-refresh-delay-ms: 7200000 # 2시간
+    # 주기적 사전 계산은 꺼 둔다 — 사용자가 늘면 true. 꺼져 있으면 어드민 수동 새로고침(POST /stats/refresh)만 갱신한다
+    scheduler-enabled: false
+    cache-refresh-delay-ms: 7200000 # 2시간 (scheduler-enabled=true일 때의 갱신 주기)

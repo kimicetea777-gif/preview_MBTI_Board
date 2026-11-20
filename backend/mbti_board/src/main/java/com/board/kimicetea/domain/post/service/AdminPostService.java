@@ -3,6 +3,7 @@ package com.board.kimicetea.domain.post.service;
 import com.board.kimicetea.domain.post.dto.AdminPostSummaryResponse;
 import com.board.kimicetea.domain.post.dto.PostDetailResponse;
 import com.board.kimicetea.domain.post.entity.Post;
+import com.board.kimicetea.domain.post.entity.PostType;
 import com.board.kimicetea.domain.post.repository.PostRepository;
 import com.board.kimicetea.global.common.exception.CustomException;
 import com.board.kimicetea.global.common.exception.ErrorCode;
@@ -27,7 +28,8 @@ public class AdminPostService {
     @Transactional(readOnly = true)
     public Page<AdminPostSummaryResponse> getPosts(final String typeCode, final Boolean isVisible,
             final String authorNickname, final String sortDir, final Pageable pageable) {
-        return postRepository.findAllPostsForAdmin(typeCode, isVisible, authorNickname, sortDir, pageable)
+        final PostType postType = PostType.fromNullable(typeCode).orElse(null);
+        return postRepository.findAllPostsForAdmin(postType, isVisible, authorNickname, sortDir, pageable)
                 .map(AdminPostSummaryResponse::from);
     }
 
